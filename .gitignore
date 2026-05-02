@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Eclipse workspace metadata (config locale, non versionare)
+/.metadata/
+eclipse/
+
+# Configurazione server Tomcat (specifica della macchina)
+Servers/
+
+# Cartella workspace vecchia con progetti di test
+progetto TIW/
+
+# File compilati Java
+*.class
