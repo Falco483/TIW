@@ -1,6 +1,0 @@
-it\polimi\tiw\dao\ProdottoDAO.class
-it\polimi\tiw\test\TestServlet.class
-it\polimi\tiw\model\Prodotto.class
-it\polimi\tiw\servlet\web\WebProdottoController.class
-it\polimi\tiw\filter\CsrfFilter.class
-it\polimi\tiw\servlet\api\ApiProdottoController.class

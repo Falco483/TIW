@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+    ===========================================================================
+    tiw-core — Il Cuore Condiviso (JAR)
+    ===========================================================================
+    Questo modulo contiene TUTTO ciò che è condiviso tra le due applicazioni:
+    - model/   → POJO (Prodotto, Utente, SKU, Configurazione)
+    - dao/     → Accesso dati (ProdottoDAO, UtenteDAO, SKUDAO, ConfigurazioneDAO)
+    - filter/  → Filtri di sicurezza (CsrfFilter, AuthenticationFilter)
+    - dto/     → Data Transfer Objects (UtenteSessionDTO)
+    - utils/   → Utility (ConnectionFactory, PasswordUtils)
+
+    PACKAGING = jar:
+    Viene compilato in un JAR che i due moduli WAR (tiw-ssr e tiw-spa)
+    includeranno nel loro WEB-INF/lib/ automaticamente via dipendenza Maven.
+
+    PERCHÉ NON COPIAMO I FILE:
+    Il contratto architetturale suggeriva "copiare i file condivisi".
+    Copiare è un suicidio: modifichi ProdottoDAO in tiw-ssr, dimentichi
+    di copiarlo in tiw-spa, e ottieni due versioni diverse della stessa
+    query SQL. Con un modulo JAR condiviso, la modifica avviene in UN
+    posto e Maven propaga automaticamente ai WAR dipendenti.
+    ===========================================================================
+    -->
+
+    <parent>
+        <groupId>it.polimi.tiw</groupId>
+        <artifactId>tiw-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>tiw-core</artifactId>
+    <packaging>jar</packaging>
+    <name>TIW Configuratore — Core</name>
+
+    <dependencies>
+        <!--
+        Jakarta Servlet API — scope PROVIDED:
+        Serve a compilare CsrfFilter e AuthenticationFilter, ma a runtime
+        la fornisce Tomcat. NON va nel JAR, altrimenti conflitto classloader.
+        Nota: le dipendenze 'provided' NON sono transitive in Maven.
+        Quindi tiw-ssr e tiw-spa devono dichiararla anche loro.
+        -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <!-- version ereditata dal parent via dependencyManagement -->
+        </dependency>
+    </dependencies>
+
+</project>

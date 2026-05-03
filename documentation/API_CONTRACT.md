@@ -1,22 +1,52 @@
-# API Contract — TIW Configuratore di Prodotto
+# API Contract — TIW Configuratore di Prodotto (Versione SPA)
 
-> **Versione**: 1.0  
-> **Data**: 2026-05-02  
-> **Protocollo**: HTTP/1.1 over HTTPS  
+> **Versione**: 2.0 (post-rollback architetturale)  
+> **Data**: 2026-05-03  
 > **Content-Type**: `application/json; charset=UTF-8`  
-> **Autenticazione**: Bearer Token (JWT) nell'header `Authorization`
+> **Autenticazione**: HttpSession (cookie `JSESSIONID`, gestito da Tomcat)  
+> **Protezione CSRF**: Header `X-CSRF-Token` obbligatorio su POST/PUT/DELETE
 
 ---
 
 ## Convenzioni Generali
 
-### Autenticazione
+### Autenticazione — HttpSession
 
-Tutti gli endpoint (tranne `/api/auth/login`) richiedono il JWT nell'header:
+L'autenticazione è **stateful**: al login il server crea una `HttpSession` e Tomcat
+invia un cookie `JSESSIONID` al browser. Da quel momento, il browser lo include
+automaticamente in ogni richiesta verso lo stesso dominio.
+
+**Non serve nessun header `Authorization`.** Il cookie basta.
+
+Se la sessione è scaduta o l'utente non è loggato, il server risponde `401`.
+
+### Protezione CSRF — Synchronizer Token
+
+Ogni richiesta **mutante** (POST, PUT, DELETE) deve includere il token CSRF
+nell'header HTTP custom:
 
 ```
-Authorization: Bearer <token>
+X-CSRF-Token: <token>
 ```
+
+**Come ottenere il token nella SPA:**  
+Al primo caricamento della pagina, il server inietta il token nel DOM (attributo
+`data-csrf` o meta tag). Il JavaScript lo legge e lo include in ogni `fetch()`:
+
+```javascript
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+fetch('/api/prodotti', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+    },
+    body: JSON.stringify(payload)
+});
+```
+
+Senza il token, o con un token errato → `403 Forbidden`.
 
 ### Formato Risposta Standard
 
@@ -24,24 +54,28 @@ Authorization: Bearer <token>
 ```json
 { "data": { ... } }
 ```
+oppure
+```json
+{ "data": [ ... ] }
+```
 
 **Errore:**
 ```json
 {
-  "errore": "Messaggio leggibile",
+  "errore": "Messaggio leggibile dall'utente",
   "codice": "CODICE_ERRORE"
 }
 ```
 
-### Codici di Errore HTTP
+### Codici HTTP
 
 | Codice | Significato | Quando |
 |--------|-------------|--------|
-| `200`  | OK | Operazione riuscita (GET, PUT) |
+| `200`  | OK | Operazione riuscita (GET, PUT, DELETE) |
 | `201`  | Created | Risorsa creata (POST) |
 | `400`  | Bad Request | Validazione fallita, input malformato |
-| `401`  | Unauthorized | Token mancante, scaduto o invalido |
-| `403`  | Forbidden | Ruolo non autorizzato per questa operazione |
+| `401`  | Unauthorized | Sessione assente o scaduta |
+| `403`  | Forbidden | Ruolo sbagliato, o token CSRF mancante/invalido |
 | `404`  | Not Found | Risorsa inesistente |
 | `409`  | Conflict | Codice duplicato, vincolo violato |
 | `500`  | Internal Server Error | Errore server imprevisto |
@@ -52,17 +86,19 @@ Authorization: Bearer <token>
 |-------|-------------|
 | `FORNITORE` | Gestisce catalogo (CRUD prodotti e SKU) |
 | `CLIENTE` | Naviga catalogo, crea/gestisce configurazioni |
-| `PUBBLICO` | Solo login (nessun token richiesto) |
+| `PUBBLICO` | Solo login, nessuna sessione richiesta |
 
 ---
 
 ## 1. Autenticazione
 
-### `POST /api/auth/login`
+### `POST /api/login`
 
-> **Ruolo**: PUBBLICO
+> **Ruolo**: PUBBLICO  
+> **CSRF**: Non richiesto (l'utente non ha ancora una sessione)
 
-Autentica l'utente e restituisce un JWT.
+Verifica le credenziali, crea la `HttpSession`, salva l'oggetto Utente in sessione.
+Tomcat invia automaticamente il cookie `JSESSIONID` nella risposta.
 
 **Request Body:**
 ```json
@@ -76,13 +112,17 @@ Autentica l'utente e restituisce un JWT.
 ```json
 {
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
-    "ruolo": "CLIENTE",
+    "username": "mario.rossi",
     "nome": "Mario",
-    "cognome": "Rossi"
+    "cognome": "Rossi",
+    "ruolo": "CLIENTE",
+    "csrfToken": "a1B2c3D4e5F6..."
   }
 }
 ```
+
+> Il `csrfToken` viene restituito nella risposta di login affinché la SPA
+> possa salvarlo in memoria e includerlo nelle richieste successive.
 
 **Response `401 Unauthorized`:**
 ```json
@@ -94,21 +134,37 @@ Autentica l'utente e restituisce un JWT.
 
 ---
 
+### `POST /api/logout`
+
+> **Ruolo**: FORNITORE, CLIENTE  
+> **CSRF**: Richiesto
+
+Invalida la sessione corrente (`session.invalidate()`).
+
+**Response `200 OK`:**
+```json
+{
+  "data": { "messaggio": "Logout effettuato" }
+}
+```
+
+---
+
 ## 2. Prodotti
 
 ### `GET /api/prodotti`
 
 > **Ruolo**: FORNITORE, CLIENTE
 
-Restituisce la lista di tutti i prodotti radice (primo livello, `id_padre IS NULL`).
-Per il CLIENTE: solo prodotti COMPOSTI, paginati.
+Lista prodotti radice (`id_padre IS NULL`).
+Per il CLIENTE: solo COMPOSTI, paginati, ordinati per nome DESC.
 
 **Query Parameters (CLIENTE):**
 
 | Parametro | Tipo | Default | Descrizione |
 |-----------|------|---------|-------------|
 | `pagina`  | int  | 1       | Numero pagina (1-indexed) |
-| `perPagina` | int | 10    | Elementi per pagina |
+| `perPagina` | int | 10    | Elementi per pagina (max 10 da specifica) |
 
 **Response `200 OK` (CLIENTE — paginata):**
 ```json
@@ -165,7 +221,7 @@ Per il CLIENTE: solo prodotti COMPOSTI, paginati.
 
 > **Ruolo**: FORNITORE, CLIENTE
 
-Restituisce il dettaglio di un prodotto con il suo albero gerarchico completo (figli ricorsivi + SKU per i prodotti semplici).
+Dettaglio di un prodotto con albero gerarchico completo (figli ricorsivi + SKU per i semplici).
 
 **Response `200 OK`:**
 ```json
@@ -227,7 +283,8 @@ Restituisce il dettaglio di un prodotto con il suo albero gerarchico completo (f
 
 ### `POST /api/prodotti`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
 Crea un nuovo prodotto (semplice o composto).
 
@@ -261,8 +318,7 @@ Crea un nuovo prodotto (semplice o composto).
     "id": 1,
     "codice": "PC001",
     "nome": "PC Desktop Gaming",
-    "tipo": "COMPOSTO",
-    "messaggio": "Prodotto creato con successo"
+    "tipo": "COMPOSTO"
   }
 }
 ```
@@ -285,9 +341,62 @@ Crea un nuovo prodotto (semplice o composto).
 
 ---
 
+### `PATCH /api/prodotti/{codice}`
+
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
+
+Modifica inline uno o più attributi di un prodotto (click su attributo → campo editabile → salva su blur).
+Solo i campi inviati nel body vengono aggiornati (partial update).
+
+**Request Body (parziale — solo i campi da modificare):**
+```json
+{
+  "nome": "PC Desktop Gaming Pro",
+  "descrizione": "PC configurabile ad altissime prestazioni",
+  "prezzoMin": 600.00,
+  "prezzoMax": 3500.00
+}
+```
+
+**Response `200 OK`:**
+```json
+{
+  "data": {
+    "id": 1,
+    "codice": "PC001",
+    "nome": "PC Desktop Gaming Pro",
+    "tipo": "COMPOSTO",
+    "descrizione": "PC configurabile ad altissime prestazioni",
+    "prezzoMin": 600.00,
+    "prezzoMax": 3500.00,
+    "messaggio": "Prodotto aggiornato"
+  }
+}
+```
+
+**Response `400 Bad Request`:**
+```json
+{
+  "errore": "prezzoMax deve essere >= prezzoMin",
+  "codice": "VALIDATION_ERROR"
+}
+```
+
+**Response `404 Not Found`:**
+```json
+{
+  "errore": "Prodotto con codice 'XYZ' non trovato",
+  "codice": "PRODOTTO_NOT_FOUND"
+}
+```
+
+---
+
 ### `POST /api/prodotti/{codice}/figli`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
 Aggiunge un sottoprodotto alla gerarchia.
 
@@ -305,7 +414,7 @@ Aggiunge un sottoprodotto alla gerarchia.
 }
 ```
 
-**Response `400 Bad Request` (profondità):**
+**Response `400 Bad Request`:**
 ```json
 {
   "errore": "Profondità massima (4 livelli) superata",
@@ -313,7 +422,7 @@ Aggiunge un sottoprodotto alla gerarchia.
 }
 ```
 
-**Response `409 Conflict` (ciclo):**
+**Response `409 Conflict`:**
 ```json
 {
   "errore": "Aggiunta bloccata: creerebbe un ciclo nella gerarchia",
@@ -325,9 +434,10 @@ Aggiunge un sottoprodotto alla gerarchia.
 
 ### `DELETE /api/prodotti/{codice}/figli/{figlioCodice}`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
-Rimuove la relazione padre-figlio (il figlio resta nel DB come radice).
+Rimuove la relazione padre-figlio. Il figlio resta nel DB come prodotto radice.
 
 **Response `200 OK`:**
 ```json
@@ -338,9 +448,34 @@ Rimuove la relazione padre-figlio (il figlio resta nel DB come radice).
 
 ---
 
+### `DELETE /api/prodotti/{codice}`
+
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
+
+Elimina un prodotto e tutta la sottogerarchia (CASCADE nel DB).
+
+**Response `200 OK`:**
+```json
+{
+  "data": { "messaggio": "Prodotto e sotto-gerarchia eliminati" }
+}
+```
+
+**Response `409 Conflict`:**
+```json
+{
+  "errore": "SKU referenziate in configurazioni esistenti",
+  "codice": "SKU_IN_USE"
+}
+```
+
+---
+
 ### `POST /api/prodotti/{codice}/sku`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
 Associa una SKU esistente a un prodotto semplice.
 
@@ -362,7 +497,8 @@ Associa una SKU esistente a un prodotto semplice.
 
 ### `DELETE /api/prodotti/{codice}/sku/{skuId}`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
 Rimuove l'associazione SKU-prodotto.
 
@@ -379,7 +515,8 @@ Rimuove l'associazione SKU-prodotto.
 
 ### `POST /api/sku`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
 Crea una nuova SKU.
 
@@ -401,8 +538,7 @@ Crea una nuova SKU.
     "id": 5,
     "codice": 2001,
     "nome": "AMD Ryzen 7 7700X",
-    "prezzo": 329.00,
-    "messaggio": "SKU creata con successo"
+    "prezzo": 329.00
   }
 }
 ```
@@ -413,7 +549,7 @@ Crea una nuova SKU.
 
 > **Ruolo**: FORNITORE
 
-Lista tutte le SKU (ordinamento per codice decrescente, per le checkbox di associazione).
+Lista tutte le SKU, ordinamento per codice decrescente.
 
 **Response `200 OK`:**
 ```json
@@ -435,9 +571,10 @@ Lista tutte le SKU (ordinamento per codice decrescente, per le checkbox di assoc
 
 ### `PATCH /api/sku/{id}`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
-Aggiorna uno o più attributi di una SKU (edit inline nella SPA).
+Aggiorna uno o più attributi di una SKU (edit inline nella SPA, salvataggio su blur).
 
 **Request Body (parziale):**
 ```json
@@ -458,7 +595,8 @@ Aggiorna uno o più attributi di una SKU (edit inline nella SPA).
 
 ### `DELETE /api/sku/{id}`
 
-> **Ruolo**: FORNITORE
+> **Ruolo**: FORNITORE  
+> **CSRF**: Richiesto
 
 Elimina una SKU dal database.
 
@@ -525,7 +663,8 @@ Ricerca case-insensitive su nome/descrizione di prodotti e nome/descrizione tecn
 
 > **Ruolo**: CLIENTE
 
-Lista tutte le configurazioni del cliente autenticato, ordinate per data creazione decrescente.
+Lista tutte le configurazioni del cliente autenticato, ordinate per data decrescente.
+Il backend filtra automaticamente per `cliente_username = session.utente.username`.
 
 **Response `200 OK`:**
 ```json
@@ -535,15 +674,12 @@ Lista tutte le configurazioni del cliente autenticato, ordinate per data creazio
       "id": 1,
       "nome": "Il mio PC Gaming",
       "dataCreazione": "2026-05-02T14:30:00",
-      "stato": "CONFERMATA",
-      "prezzoTotale": 1547.80
-    },
-    {
-      "id": 3,
-      "nome": "PC Ufficio (bozza)",
-      "dataCreazione": "2026-05-01T09:15:00",
-      "stato": "BOZZA",
-      "prezzoTotale": 0.00
+      "dataModifica": "2026-05-02T15:00:00",
+      "prezzoTotale": 1547.80,
+      "prodottoRadice": {
+        "codice": "PC001",
+        "nome": "PC Desktop Gaming"
+      }
     }
   ]
 }
@@ -553,9 +689,14 @@ Lista tutte le configurazioni del cliente autenticato, ordinate per data creazio
 
 ### `POST /api/configurazioni`
 
-> **Ruolo**: CLIENTE
+> **Ruolo**: CLIENTE  
+> **CSRF**: Richiesto
 
-Salva una nuova configurazione. Il backend calcola il `prezzoTotale` sommando i prezzi correnti delle SKU selezionate e li congela in `configurazione_dettaglio`.
+Salva una nuova configurazione. Il backend:
+1. Verifica che ogni prodotto semplice nell'albero abbia una SKU selezionata
+2. Verifica che ogni SKU selezionata sia effettivamente associata al prodotto
+3. Congela i prezzi correnti delle SKU in `configurazione_dettaglio`
+4. Calcola e salva il `prezzo_totale`
 
 **Request Body:**
 ```json
@@ -579,7 +720,6 @@ Salva una nuova configurazione. Il backend calcola il `prezzoTotale` sommando i 
     "id": 4,
     "nome": "Il mio PC Gaming",
     "dataCreazione": "2026-05-02T16:45:00",
-    "stato": "CONFERMATA",
     "prezzoTotale": 1547.80,
     "dettagli": [
       {
@@ -607,7 +747,7 @@ Salva una nuova configurazione. Il backend calcola il `prezzoTotale` sommando i 
 }
 ```
 
-**Response `400 Bad Request` (SKU non valida):**
+**Response `400 Bad Request` (SKU non associata):**
 ```json
 {
   "errore": "La SKU 99 non è associata al prodotto 'CPU01'",
@@ -621,7 +761,8 @@ Salva una nuova configurazione. Il backend calcola il `prezzoTotale` sommando i 
 
 > **Ruolo**: CLIENTE
 
-Dettaglio di una configurazione con tutte le SKU selezionate e i prezzi congelati.
+Dettaglio configurazione con SKU selezionate e prezzi congelati.
+Il backend verifica che `configurazione.cliente_username == utente in sessione`.
 
 **Response `200 OK`:**
 ```json
@@ -630,22 +771,22 @@ Dettaglio di una configurazione con tutte le SKU selezionate e i prezzi congelat
     "id": 1,
     "nome": "Il mio PC Gaming",
     "dataCreazione": "2026-05-02T14:30:00",
-    "stato": "CONFERMATA",
+    "dataModifica": "2026-05-02T15:00:00",
     "prezzoTotale": 1547.80,
+    "prodottoRadice": {
+      "codice": "PC001",
+      "nome": "PC Desktop Gaming"
+    },
     "dettagli": [
       {
+        "prodottoId": 2,
+        "prodottoCodice": "CASE01",
+        "prodottoNome": "Case",
         "skuId": 1,
         "skuCodice": 1001,
         "skuNome": "Fractal Design North",
         "skuFotografia": "/img/sku/fractal-north.jpg",
         "prezzoCongelato": 129.90
-      },
-      {
-        "skuId": 5,
-        "skuCodice": 2001,
-        "skuNome": "AMD Ryzen 7 7700X",
-        "skuFotografia": "/img/sku/ryzen7-7700x.jpg",
-        "prezzoCongelato": 329.00
       }
     ]
   }
@@ -664,9 +805,11 @@ Dettaglio di una configurazione con tutte le SKU selezionate e i prezzi congelat
 
 ### `PUT /api/configurazioni/{id}`
 
-> **Ruolo**: CLIENTE
+> **Ruolo**: CLIENTE  
+> **CSRF**: Richiesto
 
-Modifica le selezioni SKU di una configurazione esistente (solo se in stato BOZZA).
+Modifica le selezioni SKU di una configurazione esistente.
+Aggiorna `data_modifica` e ricalcola `prezzo_totale` con snapshotting.
 
 **Request Body:**
 ```json
@@ -696,9 +839,10 @@ Modifica le selezioni SKU di una configurazione esistente (solo se in stato BOZZ
 
 ### `DELETE /api/configurazioni/{id}`
 
-> **Ruolo**: CLIENTE
+> **Ruolo**: CLIENTE  
+> **CSRF**: Richiesto
 
-Cancella una configurazione (e tutti i suoi dettagli via CASCADE).
+Cancella una configurazione e tutti i suoi dettagli (CASCADE).
 
 **Response `200 OK`:**
 ```json
@@ -719,13 +863,11 @@ Cancella una configurazione (e tutti i suoi dettagli via CASCADE).
 
 ### `POST /api/configurazioni/{id}/clona`
 
-> **Ruolo**: CLIENTE
+> **Ruolo**: CLIENTE  
+> **CSRF**: Richiesto
 
-Clona una configurazione esistente. Crea una nuova riga in `configurazione` con:
-- Nuovo ID auto-generated
-- Nome: `"Copia di {nome_originale}"`
-- Data: CURRENT_TIMESTAMP
-- Stesse selezioni SKU con gli stessi prezzi congelati dell'originale
+Clona una configurazione: nuova riga con nome `"Copia di {originale}"`,
+data attuale, stessi dettagli con gli stessi prezzi congelati.
 
 **Response `201 Created`:**
 ```json
@@ -733,42 +875,9 @@ Clona una configurazione esistente. Crea una nuova riga in `configurazione` con:
   "data": {
     "id": 8,
     "nome": "Copia di Il mio PC Gaming",
-    "dataCreazione": "2026-05-02T17:00:00",
-    "stato": "BOZZA",
-    "prezzoTotale": 1547.80,
-    "messaggio": "Configurazione clonata con successo"
+    "dataCreazione": "2026-05-03T17:00:00",
+    "prezzoTotale": 1547.80
   }
-}
-```
-
----
-
-## 6. Eliminazione Ricorsiva Prodotto
-
-### `DELETE /api/prodotti/{codice}`
-
-> **Ruolo**: FORNITORE
-
-Elimina un prodotto e tutta la sua sottogerarchia (CASCADE nel DB).
-Le SKU vengono eliminate solo se non associate ad altri prodotti.
-
-**Response `200 OK`:**
-```json
-{
-  "data": {
-    "messaggio": "Prodotto e sotto-gerarchia eliminati",
-    "prodottiRimossi": 5,
-    "skuRimosse": 3,
-    "skuPreservate": 2
-  }
-}
-```
-
-**Response `409 Conflict`:**
-```json
-{
-  "errore": "SKU referenziate in configurazioni esistenti",
-  "codice": "SKU_IN_USE"
 }
 ```
 
@@ -776,29 +885,33 @@ Le SKU vengono eliminate solo se non associate ad altri prodotti.
 
 ## Riepilogo Endpoint
 
-| # | Metodo | URI | Ruolo |
-|---|--------|-----|-------|
-| 1 | `POST` | `/api/auth/login` | PUBBLICO |
-| 2 | `GET` | `/api/prodotti` | FORNITORE, CLIENTE |
-| 3 | `GET` | `/api/prodotti/{codice}` | FORNITORE, CLIENTE |
-| 4 | `POST` | `/api/prodotti` | FORNITORE |
-| 5 | `DELETE` | `/api/prodotti/{codice}` | FORNITORE |
-| 6 | `POST` | `/api/prodotti/{codice}/figli` | FORNITORE |
-| 7 | `DELETE` | `/api/prodotti/{codice}/figli/{figlioCodice}` | FORNITORE |
-| 8 | `POST` | `/api/prodotti/{codice}/sku` | FORNITORE |
-| 9 | `DELETE` | `/api/prodotti/{codice}/sku/{skuId}` | FORNITORE |
-| 10 | `POST` | `/api/sku` | FORNITORE |
-| 11 | `GET` | `/api/sku` | FORNITORE |
-| 12 | `PATCH` | `/api/sku/{id}` | FORNITORE |
-| 13 | `DELETE` | `/api/sku/{id}` | FORNITORE |
-| 14 | `GET` | `/api/ricerca?q=...` | FORNITORE |
-| 15 | `GET` | `/api/configurazioni` | CLIENTE |
-| 16 | `POST` | `/api/configurazioni` | CLIENTE |
-| 17 | `GET` | `/api/configurazioni/{id}` | CLIENTE |
-| 18 | `PUT` | `/api/configurazioni/{id}` | CLIENTE |
-| 19 | `DELETE` | `/api/configurazioni/{id}` | CLIENTE |
-| 20 | `POST` | `/api/configurazioni/{id}/clona` | CLIENTE |
+| # | Metodo | URI | Ruolo | CSRF |
+|---|--------|-----|-------|:----:|
+| 1 | `POST` | `/api/login` | PUBBLICO | No |
+| 2 | `POST` | `/api/logout` | TUTTI | Sì |
+| 3 | `GET` | `/api/prodotti` | FORNITORE, CLIENTE | — |
+| 4 | `GET` | `/api/prodotti/{codice}` | FORNITORE, CLIENTE | — |
+| 5 | `POST` | `/api/prodotti` | FORNITORE | Sì |
+| 6 | `PATCH` | `/api/prodotti/{codice}` | FORNITORE | Sì |
+| 7 | `DELETE` | `/api/prodotti/{codice}` | FORNITORE | Sì |
+| 8 | `POST` | `/api/prodotti/{codice}/figli` | FORNITORE | Sì |
+| 9 | `DELETE` | `/api/prodotti/{codice}/figli/{figlioCodice}` | FORNITORE | Sì |
+| 10 | `POST` | `/api/prodotti/{codice}/sku` | FORNITORE | Sì |
+| 11 | `DELETE` | `/api/prodotti/{codice}/sku/{skuId}` | FORNITORE | Sì |
+| 12 | `POST` | `/api/sku` | FORNITORE | Sì |
+| 13 | `GET` | `/api/sku` | FORNITORE | — |
+| 14 | `PATCH` | `/api/sku/{id}` | FORNITORE | Sì |
+| 15 | `DELETE` | `/api/sku/{id}` | FORNITORE | Sì |
+| 16 | `GET` | `/api/ricerca?q=...` | FORNITORE | — |
+| 17 | `GET` | `/api/configurazioni` | CLIENTE | — |
+| 18 | `POST` | `/api/configurazioni` | CLIENTE | Sì |
+| 19 | `GET` | `/api/configurazioni/{id}` | CLIENTE | — |
+| 20 | `PUT` | `/api/configurazioni/{id}` | CLIENTE | Sì |
+| 21 | `DELETE` | `/api/configurazioni/{id}` | CLIENTE | Sì |
+| 22 | `POST` | `/api/configurazioni/{id}/clona` | CLIENTE | Sì |
 
 ---
 
-*Documento generato: 2026-05-02 — Questa è la Bibbia. Non si cambia senza code review.*
+*Documento aggiornato: 2026-05-03 — v2.1 post-ristrutturazione multi-module.*  
+*Auth: HttpSession + JSESSIONID. CSRF: Synchronizer Token via X-CSRF-Token header.*
+
