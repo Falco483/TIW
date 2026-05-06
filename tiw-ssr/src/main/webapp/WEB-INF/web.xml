@@ -37,11 +37,11 @@
     </filter>
 
     <filter-mapping>
-        <filter-name>AccessControlFilter</filter-name>
+        <filter-name>CsrfFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
     <filter-mapping>
-        <filter-name>CsrfFilter</filter-name>
+        <filter-name>AccessControlFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
     <filter-mapping>

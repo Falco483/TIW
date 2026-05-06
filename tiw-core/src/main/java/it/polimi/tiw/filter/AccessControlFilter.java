@@ -17,7 +17,7 @@ import jakarta.servlet.http.HttpSession;
 // Mappare il filter a tutti gli URL dell'applicazione
 public class AccessControlFilter implements Filter {
 
-    private static final Set<String> PUBLIC_PATHS = Set.of("/login");
+    private static final Set<String> PUBLIC_PATHS = Set.of("/login", "/api/login");
     private static final String STATIC_PREFIX = "/static/";
 
     @Override
@@ -48,10 +48,13 @@ public class AccessControlFilter implements Filter {
                         || relativePath.endsWith("/index.html");
 
         if (isAuthenticated || isPublic) {
-            // Utente autenticato O risorsa pubblica: lascia passare
             chain.doFilter(request, response);
+        } else if (relativePath.startsWith("/api/")) {
+            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            res.setContentType("application/json");
+            res.setCharacterEncoding("UTF-8");
+            res.getWriter().write("{\"errore\": \"Non autenticato\"}");
         } else {
-            // Non autenticato su risorsa protetta: redirect al login
             res.sendRedirect(req.getContextPath() + "/login");
         }
     }
