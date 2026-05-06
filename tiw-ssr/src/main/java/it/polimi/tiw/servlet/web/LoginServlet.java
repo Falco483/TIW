@@ -90,7 +90,8 @@ public class LoginServlet extends HttpServlet {
 
         // 4b. Credenziali corrette → crea sessione e redirect alla home
         HttpSession session = request.getSession();
-        session.setAttribute("utente", utente);
+        session.setAttribute(UtenteSessionDTO.SESSION_KEY, utente);
+        session.setAttribute("csrfToken", java.util.UUID.randomUUID().toString());
 
         String contextPath = request.getContextPath();
 
