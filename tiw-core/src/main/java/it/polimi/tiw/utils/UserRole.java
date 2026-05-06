@@ -13,15 +13,13 @@ public enum UserRole {
     public static UserRole fromString(String value) throws IllegalArgumentException {
         if (value == null) throw new IllegalArgumentException("Role value is null");
         switch (value.toLowerCase()) {
-            case "cliente":
-            case "client":
-            case "customer":
+            case "cliente", "client", "customer" -> {
                 return CLIENTE;
-            case "fornitore":
-            case "supplier":
-            case "vendor":
+            }
+            case "fornitore", "supplier", "vendor" -> {
                 return FORNITORE;
-            default: throw new IllegalArgumentException("Unknown role: " + value);
+            }
+            default -> throw new IllegalArgumentException("Unknown role: " + value);
         }
     }
 
