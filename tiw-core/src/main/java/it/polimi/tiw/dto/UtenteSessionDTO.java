@@ -1,5 +1,7 @@
 package it.polimi.tiw.dto;
 
+import it.polimi.tiw.utils.UserRole;
+
 /**
  * DTO immutabile per i dati utente salvati in HttpSession.
  *
@@ -21,7 +23,7 @@ package it.polimi.tiw.dto;
  * PERCHÉ UN RECORD JAVA:
  *   Un record è immutabile per design: i campi sono final, il costruttore
  *   è auto-generato, equals/hashCode/toString sono auto-generati.
- *   Non puoi fare session.getAttribute("utente").setRuolo("FORNITORE")
+ *   Non puoi fare session.getAttribute("utente").setRuolo(UserRole.FORNITORE)
  *   per scalare i privilegi → protezione strutturale.
  *
  * PERCHÉ NON SALVIAMO SOLO userId + ruolo:
@@ -35,7 +37,7 @@ public record UtenteSessionDTO(
         String username,
         String nome,
         String cognome,
-        String ruolo      // "FORNITORE" o "CLIENTE"
+        UserRole ruolo
 ) {
     /**
      * Chiave di sessione. Usata da Filter e Controller per recuperare il DTO.
@@ -46,10 +48,10 @@ public record UtenteSessionDTO(
     public static final String SESSION_KEY = "utente";
 
     public boolean isFornitore() {
-        return "FORNITORE".equals(ruolo);
+        return ruolo == UserRole.FORNITORE;
     }
 
     public boolean isCliente() {
-        return "CLIENTE".equals(ruolo);
+        return ruolo == UserRole.CLIENTE;
     }
 }

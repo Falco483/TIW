@@ -1,15 +1,18 @@
 package it.polimi.tiw.filter;
 
-import jakarta.servlet.*;
-import jakarta.servlet.annotation.WebFilter;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
-
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Set;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 /**
  * CSRF Filter — Synchronizer Token Pattern.
@@ -22,7 +25,6 @@ import java.util.Set;
  * controllo CSRF perché l'utente non ha ancora una sessione (login)
  * o perché sono risorse statiche.
  */
-@WebFilter(filterName = "CsrfFilter", urlPatterns = "/*")
 public class CsrfFilter implements Filter {
 
     public static final String CSRF_TOKEN_SESSION_ATTR = "csrfToken";
@@ -47,6 +49,7 @@ public class CsrfFilter implements Filter {
      *      di basso impatto nel nostro dominio accademico.
      */
     private static final Set<String> EXCLUDED_PATHS = Set.of("/login", "/api/login");
+    private static final String STATIC_PREFIX = "/static/";
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -56,6 +59,14 @@ public class CsrfFilter implements Filter {
 
         HttpServletRequest  httpReq  = (HttpServletRequest) request;
         HttpServletResponse httpResp = (HttpServletResponse) response;
+
+        // Bypass totale per risorse statiche
+        String relativePath = httpReq.getRequestURI()
+                .substring(httpReq.getContextPath().length());
+        if (relativePath.startsWith(STATIC_PREFIX)) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         // STEP 1: Inietta token in sessione se esiste e non lo ha ancora.
         HttpSession session = httpReq.getSession(false);
@@ -71,10 +82,6 @@ public class CsrfFilter implements Filter {
 
         // STEP 2: Verifica CSRF solo su metodi mutanti E path non esclusi.
         if (MUTATING_METHODS.contains(httpReq.getMethod())) {
-
-            // Calcola il path relativo al context (es: /tiw-ssr/login → /login)
-            String relativePath = httpReq.getRequestURI()
-                    .substring(httpReq.getContextPath().length());
 
             // Bypass per i path esclusi (login)
             if (EXCLUDED_PATHS.contains(relativePath)) {

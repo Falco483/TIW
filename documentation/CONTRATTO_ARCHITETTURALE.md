@@ -1,8 +1,8 @@
 # Contratto Architetturale — TIW Configuratore di Prodotto
 
-> **Scopo**: Questo documento stabilisce le decisioni tecniche e architetturali da concordare **prima** di scrivere una riga di codice. Ogni scelta qui fissa un "contratto" che entrambi i membri del gruppo devono rispettare. Modificare questi contratti in corso d'opera è costoso e fonte di conflitti.
+> **Scopo**: Questo documento stabilisce le decisioni tecniche e architetturali concordate prima di scrivere codice. Ogni scelta qui fissa un "contratto" che entrambi i membri del gruppo devono rispettare.
 >
-> **Come usarlo**: Leggete ogni sezione, discutete i punti aperti (marcati ⚠️), e scrivete la decisione finale. Una volta concordato, questo diventa la vostra Costituzione del progetto.
+> **Stato**: Aggiornato al 2026-05-05 per riflettere le decisioni già prese e il codice già presente nel repository.
 
 ---
 
@@ -19,151 +19,75 @@
 9. [Versione JS — Contratto API REST-Like](#9-versione-js--contratto-api-rest-like)
 10. [Vincoli Critici del Dominio](#10-vincoli-critici-del-dominio)
 11. [Divisione del Lavoro](#11-divisione-del-lavoro)
-12. [Decisioni Aperte ⚠️](#12-decisioni-aperte)
+12. [Decisioni Aperte](#12-decisioni-aperte)
 13. [Checklist Pre-Coding](#13-checklist-pre-coding)
 
 ---
 
 ## 1. Stack Tecnologico
 
-Queste tecnologie sono **imposte dal corso** e non sono negoziabili.
-
-| Layer | Tecnologia | Note |
+| Layer | Tecnologia | Stato |
 |---|---|---|
-| **Servlet Container** | Apache Tomcat 10.1 | Jakarta EE 9+, namespace `jakarta.*` (non più `javax.*`) |
-| **Backend** | Java + Jakarta Servlet API | HttpServlet, doGet/doPost |
-| **Database** | MySQL | JDBC con PreparedStatement obbligatorio (no Statement grezzo) |
-| **Template Engine** | ⚠️ Thymeleaf **oppure** JSP+JSTL | Vedere sezione 12 |
-| **AJAX (versione JS)** | Fetch API o XMLHttpRequest | Preferire `fetch` + `async/await` per leggibilità |
-| **Frontend** | HTML5 + CSS + JavaScript ES6+ | Nessun framework JS esterno (React, Vue, ecc.) |
-| **Build** | Eclipse + WAR manuale **oppure** Maven | ⚠️ Vedere sezione 12 |
-| **Connection Pooling** | JNDI DataSource su Tomcat (context.xml) | Non usare DriverManager direttamente in produzione |
+| **Servlet Container** | Apache Tomcat 10.1 | ✅ Configurato in `Servers/` |
+| **Backend** | Java 17 + Jakarta Servlet API 6.0 | ✅ — namespace `jakarta.*` (non `javax.*`) |
+| **Database** | MySQL 8+ | ✅ Schema in `database/schema.sql` |
+| **Template Engine** | **Thymeleaf 3.1.2** | ✅ Deciso — dipendenza nel `tiw-ssr/pom.xml` |
+| **AJAX (versione JS)** | Fetch API + `async/await` | — da implementare nel frontend |
+| **Frontend** | HTML5 + CSS + JavaScript ES6+ | — nessun framework esterno |
+| **Build** | **Maven multi-module** | ✅ Deciso — `pom.xml` radice con 3 moduli |
+| **Connection Pooling** | JNDI DataSource su Tomcat (`context.xml`) | 🔧 Da configurare (Fase 1, collega) |
+| **Hashing password** | **BCrypt (jbcrypt)** | ✅ Deciso — da aggiungere al `pom.xml` |
 
-### Dipendenze JAR minime (da includere in WEB-INF/lib o pom.xml)
+### Dipendenze Maven (centralizzate nel POM padre)
 
-```
-- mysql-connector-j-*.jar          (JDBC driver MySQL)
-- thymeleaf-*.jar                  (se si usa Thymeleaf)
-                   oppure
-- jakarta.servlet.jsp.jstl-*.jar   (se si usa JSTL)
-- jstl-*.jar
+```xml
+<!-- pom.xml radice — dependencyManagement -->
+jakarta.servlet-api   6.0.0   (provided)
+mysql-connector-j     8.3.0   (runtime)
+jackson-databind      2.17.0
+jackson-datatype-jsr310 2.17.0
+thymeleaf             3.1.2.RELEASE
+mindrot-jbcrypt       0.4     (da aggiungere per PasswordUtils)
+tiw-core              1.0-SNAPSHOT
 ```
 
 ---
 
 ## 2. Schema del Database
 
-Questa è la decisione **più critica** del progetto. Un schema sbagliato obbliga a riscrivere tutti i DAO.
-
 ### 2.1 Principi guida
 
-- **Gerarchia come Adjacency List**: ogni prodotto ha un `parent_id` nullable. Con il vincolo di profondità massima 4 livelli e unicità del padre, l'adjacency list è la scelta più semplice e corretta.
-- **Discriminatore di tipo**: un unico campo `tipo` nella tabella `prodotto` (`SEMPLICE` | `COMPOSTO`) evita JOIN complessi tra tabelle separate. È il pattern preferito quando le entità hanno struttura simile.
-- **Unicità del padre**: garantita da un `UNIQUE KEY` sulla colonna `parent_id` — un figlio può apparire al massimo una volta come figlio.
+- **Gerarchia come Adjacency List**: ogni prodotto ha un `id_padre` INT nullable (FK autoreferenziale). Con profondità max 4 e MySQL 8+ (CTE ricorsive), è la scelta più semplice. ✅ **Deciso**
+- **Discriminatore di tipo**: un unico campo `tipo ENUM('SEMPLICE','COMPOSTO')` nella tabella `prodotto` evita JOIN su tabelle separate. ✅ **Deciso**
+- **Surrogate key INT**: `prodotto.id` è la PK (INT AUTO_INCREMENT); `codice` è VARCHAR UNIQUE, usato come identificatore business nei form/URL. ✅ **Deciso** (lo schema reale usa `id`, non `codice` come PK)
+- **Price Snapshotting**: `configurazione_dettaglio.prezzo_unitario_congelato` congela il prezzo al momento del salvataggio. ✅ **Deciso**
 
-### 2.2 Schema Proposto
+### 2.2 Schema definitivo
 
-```sql
--- ============================================================
--- UTENTI
--- ============================================================
-CREATE TABLE utente (
-    username       VARCHAR(50)  PRIMARY KEY,
-    password_hash  VARCHAR(255) NOT NULL,       -- MAI plaintext
-    nome           VARCHAR(100) NOT NULL,
-    cognome        VARCHAR(100) NOT NULL,
-    ruolo          ENUM('FORNITORE', 'CLIENTE') NOT NULL
-);
+Lo schema completo e aggiornato si trova in **`database/schema.sql`**. Di seguito la struttura essenziale:
 
--- ============================================================
--- PRODOTTI (Semplici e Composti in un'unica tabella)
--- ============================================================
-CREATE TABLE prodotto (
-    codice       VARCHAR(50)    PRIMARY KEY,
-    nome         VARCHAR(200)   NOT NULL,
-    tipo         ENUM('SEMPLICE', 'COMPOSTO') NOT NULL,
-
-    -- Solo per COMPOSTO (NULL per SEMPLICE):
-    descrizione  TEXT           NULL,
-    prezzo_min   DECIMAL(10,2)  NULL CHECK (prezzo_min >= 0),
-    prezzo_max   DECIMAL(10,2)  NULL CHECK (prezzo_max >= prezzo_min),
-
-    -- Gerarchia: NULL = prodotto radice di primo livello
-    parent_codice VARCHAR(50)   NULL,
-
-    FOREIGN KEY (parent_codice) REFERENCES prodotto(codice)
-        ON DELETE RESTRICT   -- non cancellare padre se ha figli
-);
-
--- ============================================================
--- SKU
--- ============================================================
-CREATE TABLE sku (
-    codice              INT           PRIMARY KEY AUTO_INCREMENT,
-    nome                VARCHAR(200)  NOT NULL,
-    fotografia          VARCHAR(500)  NULL,       -- path relativo o URL
-    descrizione_tecnica TEXT          NULL,
-    prezzo              DECIMAL(10,2) NOT NULL CHECK (prezzo >= 0)
-);
-
--- ============================================================
--- ASSOCIAZIONE SKU ↔ PRODOTTO SEMPLICE (N:M)
--- Una SKU può essere associata a più prodotti semplici
--- Un prodotto semplice deve avere almeno una SKU (check applicativo)
--- ============================================================
-CREATE TABLE prodotto_sku (
-    prodotto_codice VARCHAR(50) NOT NULL,
-    sku_codice      INT         NOT NULL,
-    PRIMARY KEY (prodotto_codice, sku_codice),
-    FOREIGN KEY (prodotto_codice) REFERENCES prodotto(codice) ON DELETE CASCADE,
-    FOREIGN KEY (sku_codice)      REFERENCES sku(codice)      ON DELETE CASCADE
-);
-
--- ============================================================
--- CONFIGURAZIONI (create dai clienti)
--- ============================================================
-CREATE TABLE configurazione (
-    id                INT          PRIMARY KEY AUTO_INCREMENT,
-    nome              VARCHAR(200) NOT NULL,
-    data_creazione    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    data_modifica     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                   ON UPDATE CURRENT_TIMESTAMP,
-    prezzo_totale     DECIMAL(10,2) NOT NULL CHECK (prezzo_totale >= 0),
-    cliente_username  VARCHAR(50)  NOT NULL,
-    prodotto_radice   VARCHAR(50)  NOT NULL,   -- prodotto composto di 1° livello
-    FOREIGN KEY (cliente_username) REFERENCES utente(username),
-    FOREIGN KEY (prodotto_radice)  REFERENCES prodotto(codice)
-);
-
--- ============================================================
--- SELEZIONI NELLA CONFIGURAZIONE
--- Per ogni configurazione: quale SKU è stata scelta per ogni prodotto semplice
--- ============================================================
-CREATE TABLE configurazione_sku (
-    configurazione_id INT         NOT NULL,
-    prodotto_codice   VARCHAR(50) NOT NULL,   -- prodotto SEMPLICE
-    sku_codice        INT         NOT NULL,
-    PRIMARY KEY (configurazione_id, prodotto_codice),
-    FOREIGN KEY (configurazione_id) REFERENCES configurazione(id) ON DELETE CASCADE,
-    FOREIGN KEY (prodotto_codice)   REFERENCES prodotto(codice),
-    FOREIGN KEY (sku_codice)        REFERENCES sku(codice)
-);
+```
+utente                    ← autenticazione e ruoli
+prodotto                  ← catalogo (SEMPLICE + COMPOSTO, adjacency list)
+sku                       ← realizzazioni concrete di un prodotto semplice
+prodotto_sku              ← N:M fra prodotto e sku
+configurazione            ← "scontrino" del cliente
+configurazione_dettaglio  ← righe dello scontrino (con prezzo congelato)
 ```
 
-### 2.3 Vincoli garantiti a livello applicativo (non solo DB)
+Differenze rispetto alla bozza originale:
+- `prodotto`: PK è `id INT AUTO_INCREMENT`, non `codice`. Il riferimento padre usa `id_padre INT` (non `parent_codice VARCHAR`).
+- `configurazione_dettaglio`: si chiama così nello schema reale (non `configurazione_sku`), e include `prezzo_unitario_congelato`.
+- Tutti i `CASCADE` e i `CHECK` constraint sono già presenti nello script.
 
-Questi vincoli il DB **non può** garantire da solo — vanno implementati nei DAO/Servlet:
+### 2.3 Vincoli garantiti a livello applicativo
 
 | Vincolo | Dove verificare |
 |---|---|
-| Profondità massima 4 livelli | DAO `ProdottoDAO.calcolaLivello()` prima di INSERT |
-| Assenza di cicli | DAO `ProdottoDAO.verificaAciclicita()` risalendo la catena di antenati |
-| Almeno una SKU per prodotto semplice | Servlet/DAO prima di SAVE, e al momento del tentativo di configurazione |
-| Una SKU per ogni prodotto semplice in una configurazione | Servlet `ConfigurazioneServlet` prima di INSERT |
-
-### 2.4 Nota sulla password
-
-Per semplicità accademica: usare `SHA-256` con `MessageDigest` Java. **Non usare MD5**. Idealmente `BCrypt` (libreria esterna), ma verificare con il docente se è ammessa.
+| Profondità massima 4 livelli | `ProdottoDAO.calcolaLivello()` prima di INSERT |
+| Assenza di cicli | `ProdottoDAO.verificaAciclicita()` risalendo gli antenati |
+| Almeno una SKU per prodotto semplice | DAO/Servlet prima di SAVE e prima di configurare |
+| Una SKU per ogni prodotto semplice per configurazione | `ConfigurazioneDAO` prima di INSERT (PK composita lo garantisce anche a DB) |
 
 ---
 
@@ -175,82 +99,89 @@ Per semplicità accademica: usare `SHA-256` con `MessageDigest` Java. **Non usar
 Browser
   │
   ▼
-[Servlet Filter]  ← gestisce autenticazione/autorizzazione su tutte le rotte
+[CsrfFilter]            ← CSRF token: inietta su GET, valida su POST/PUT/DELETE
   │
   ▼
-[Servlet Controller]  ← riceve request, valida input, chiama DAO, prepara model
+[AccessControlFilter]   ← controlla sessione; redirect /login se assente
+  │
+  ▼
+[RoleFilter]            ← controlla ruolo vs path (/fornitore/* vs /cliente/*)
+  │
+  ▼
+[Servlet Controller]  ← valida input, chiama DAO, prepara model / serializza JSON
   │         │
   │         ▼
-  │     [DAO Layer]  ← SOLO SQL, nessuna logica di business
+  │     [DAO Layer]  ← SOLO SQL, zero logica di business
   │         │
   │         ▼
   │     [MySQL DB]
   │
   ▼
-[View: Thymeleaf/JSP]  ← SOLO presentazione, nessuna logica
+[View: Thymeleaf]  ← SOLO presentazione (tiw-ssr)
+[JSON response]    ← Jackson serializza (tiw-spa)
 ```
 
 ### 3.2 Package Java
 
 ```
-it.polimi.tiw.
-    ├── model/          ← POJO (Utente, Prodotto, SKU, Configurazione)
-    ├── dao/            ← UtenteDAO, ProdottoDAO, SKUDAO, ConfigurazioneDAO
-    ├── servlet/
-    │   ├── html/       ← Servlet per versione HTML pura
-    │   └── js/         ← Servlet per versione JS (rispondono JSON)
-    ├── filter/         ← AuthenticationFilter, RoleFilter
-    └── utils/          ← ConnectionFactory, PasswordUtils, ecc.
-```
+it.polimi.tiw.              ← modulo tiw-core (JAR condiviso)
+    ├── model/              ← POJO (Utente, Prodotto, SKU, Configurazione)
+    ├── dao/                ← UtenteDAO, ProdottoDAO, SKUDAO, ConfigurazioneDAO
+    ├── filter/             ← CsrfFilter ✅, AccessControlFilter ✅, RoleFilter ✅
+    ├── dto/                ← UtenteSessionDTO ✅ (record immutabile)
+    └── utils/              ← ConnectionFactory 🔧, PasswordUtils 🔧
 
-> **Decisione chiave**: Le due versioni (HTML e JS) condividono Model e DAO. Le Servlet sono separate perché producono output diverso (HTML vs JSON).
+it.polimi.tiw.servlet.web.  ← modulo tiw-ssr (WAR Thymeleaf)
+it.polimi.tiw.servlet.api.  ← modulo tiw-spa (WAR JSON API)
+```
 
 ### 3.3 Regola fondamentale MVC
 
-- **Model** (DAO + POJO): non sa nulla di HTTP, Session, request/response.
-- **View** (JSP/Thymeleaf): non contiene logica di business, solo condizionali di presentazione.
-- **Controller** (Servlet): non scrive SQL direttamente — **solo** chiama metodi DAO.
+- **DAO**: non sa nulla di HTTP, Session, request/response. Riceve `Connection` via costruttore.
+- **View** (Thymeleaf): solo condizionali di presentazione, nessuna logica di business.
+- **Servlet**: non scrive SQL — chiama solo metodi DAO. Non si fida dell'input del client.
 
 ---
 
 ## 4. Struttura del Progetto
 
-Due **WAR distinte**, due progetti separati in Eclipse/IDE.
+✅ **Deciso**: Maven multi-module. Il codice condiviso non viene copiato — vive in `tiw-core` come JAR.
 
 ```
-tiw-html/                           tiw-js/
-├── src/main/java/                  ├── src/main/java/
-│   └── it/polimi/tiw/              │   └── it/polimi/tiw/
-│       ├── model/                  │       ├── model/         (stesso codice)
-│       ├── dao/                    │       ├── dao/           (stesso codice)
-│       ├── servlet/html/           │       ├── servlet/js/
-│       ├── filter/                 │       ├── filter/        (stesso codice)
-│       └── utils/                  │       └── utils/         (stesso codice)
-├── src/main/webapp/
-│   ├── WEB-INF/
-│   │   ├── web.xml
-│   │   └── views/                  │   ├── WEB-INF/views/
-│   │       ├── login.html          │   │   └── index.html     (SPA unica)
-│   │       ├── fornitore/          │   ├── static/
-│   │       │   ├── home.html       │   │   ├── js/
-│   │       │   └── ricerca.html    │   │   └── css/
-│   │       └── cliente/
-│   │           ├── home.html
-│   │           ├── sceltaSku.html
-│   │           ├── dettaglio.html
-│   │           └── mieConfigurazioni.html
-│   └── static/
-│       ├── css/
-│       └── images/                 ← upload foto SKU
+tiw-parent/                    ← POM padre (packaging=pom, no artefatto)
+├── pom.xml                    ← versioni centralizzate, plugin config
+│
+├── tiw-core/                  ← JAR condiviso da entrambi i WAR
+│   └── src/main/java/it/polimi/tiw/
+│       ├── model/             ← POJO
+│       ├── dao/               ← Data Access Objects
+│       ├── filter/            ← CsrfFilter, AccessControlFilter, RoleFilter
+│       ├── dto/               ← UtenteSessionDTO
+│       └── utils/             ← ConnectionFactory, PasswordUtils
+│
+├── tiw-ssr/                   ← WAR versione Thymeleaf (SSR)
+│   └── src/main/
+│       ├── java/it/polimi/tiw/servlet/web/   ← controller HTTP → HTML
+│       └── webapp/WEB-INF/templates/         ← template Thymeleaf
+│
+├── tiw-spa/                   ← WAR versione SPA (JSON API)
+│   └── src/main/java/it/polimi/tiw/servlet/api/  ← controller HTTP → JSON
+│
+├── database/
+│   ├── schema.sql             ← DDL definitivo MySQL 8+
+│   └── data_test.sql          ← dati di test
+│
+└── Servers/                   ← config Tomcat Eclipse (context.xml, server.xml)
 ```
 
-> ⚠️ **Attenzione**: il codice duplicato (model, dao, filter, utils) può essere estratto in un progetto "tiw-common" come dipendenza Maven, oppure copiato. Decidere insieme.
+**Build**: `mvn clean package` dalla radice. Produce:
+- `tiw-core/target/tiw-core-1.0-SNAPSHOT.jar`
+- `tiw-ssr/target/tiw-ssr.war`
+- `tiw-spa/target/tiw-spa.war`
 
 ---
 
 ## 5. Convenzioni di Naming
-
-Rispettare queste convenzioni evita conflitti quando si integra il codice.
 
 ### 5.1 Java
 
@@ -259,47 +190,47 @@ Rispettare queste convenzioni evita conflitti quando si integra il codice.
 | Package | lowercase, dot-separated | `it.polimi.tiw.dao` |
 | Classe Model | PascalCase | `Prodotto`, `SKU`, `Configurazione` |
 | Classe DAO | PascalCase + "DAO" | `ProdottoDAO`, `SKUDAO` |
-| Classe Servlet | PascalCase + "Servlet" | `LoginServlet`, `HomeFornitoreServlet` |
-| Classe Filter | PascalCase + "Filter" | `AuthenticationFilter` |
-| Metodi DAO | verbo + sostantivo | `findById()`, `insert()`, `delete()`, `findAllByParent()` |
-| Costanti | UPPER_SNAKE_CASE | `SESSION_USER = "utente"` |
+| Classe Servlet (SSR) | PascalCase + "Controller" | `WebProdottoController`, `LoginServlet` |
+| Classe Servlet (SPA) | "Api" + PascalCase + "Controller" | `ApiProdottoController` |
+| Classe Filter | PascalCase + "Filter" | `AccessControlFilter`, `CsrfFilter`, `RoleFilter` |
+| Metodi DAO | verbo + sostantivo | `findById()`, `insert()`, `findAllRoot()` |
+| Costanti | UPPER_SNAKE_CASE | `SESSION_KEY = "utente"` |
 
 ### 5.2 Database
 
 | Elemento | Convenzione | Esempio |
 |---|---|---|
 | Tabelle | snake_case, singolare | `prodotto`, `sku`, `configurazione` |
-| Colonne | snake_case | `parent_codice`, `prezzo_min` |
-| FK | `tabella_riferita_campo` | `prodotto_codice`, `sku_codice` |
-| Indici | `idx_tabella_campo` | `idx_configurazione_cliente` |
+| Colonne | snake_case | `id_padre`, `prezzo_min` |
+| FK | `fk_tabella_campo` | `fk_cfg_cliente`, `fk_ps_sku` |
+| Indici | `idx_tabella_campo` | `idx_cfg_cliente`, `idx_prodotto_nome` |
 
 ### 5.3 URL
 
 | Elemento | Convenzione | Esempio |
 |---|---|---|
 | Pagine HTML | kebab-case | `/fornitore/home`, `/cliente/scelta-sku` |
-| Endpoint JSON (JS) | kebab-case, sostantivo plurale | `/api/prodotti`, `/api/configurazioni` |
+| Endpoint JSON | kebab-case, sostantivo plurale | `/api/prodotti`, `/api/configurazioni` |
 | Parametri query | camelCase | `?prodottoCodice=PC001` |
 
-### 5.4 Variabili di Sessione (chiavi `HttpSession`)
+### 5.4 Sessione HTTP
 
-Usare costanti condivise in una classe `SessionConstants`:
+La chiave di sessione per l'utente loggato è centralizzata in `UtenteSessionDTO.SESSION_KEY = "utente"`.
+Non usare la classe `SessionConstants` (soppressa — era ridondante con il DTO).
 
 ```java
-public class SessionConstants {
-    public static final String UTENTE        = "utente";        // oggetto Utente
-    public static final String RUOLO         = "ruolo";         // "FORNITORE" | "CLIENTE"
-    // (opzionale) per versione HTML: preservare form su errore
-    public static final String FORM_ERRORS   = "formErrors";
-    public static final String FORM_VALUES   = "formValues";
-}
+// Scrittura (LoginServlet):
+session.setAttribute(UtenteSessionDTO.SESSION_KEY, new UtenteSessionDTO(...));
+
+// Lettura (Filter, Servlet):
+UtenteSessionDTO utente = (UtenteSessionDTO) session.getAttribute(UtenteSessionDTO.SESSION_KEY);
 ```
 
 ---
 
 ## 6. URL Mapping e Routing
 
-### 6.1 Versione HTML
+### 6.1 Versione HTML (tiw-ssr)
 
 | URL | Metodo | Servlet | Descrizione |
 |---|---|---|---|
@@ -307,38 +238,37 @@ public class SessionConstants {
 | `/login` | POST | `LoginServlet` | Processa credenziali |
 | `/logout` | GET | `LogoutServlet` | Invalida sessione, redirect a login |
 | `/fornitore/home` | GET | `HomeFornitoreServlet` | Home fornitore con 3 form |
-| `/fornitore/home` | POST | `HomeFornitoreServlet` | Elabora creazione SKU/Prodotto |
+| `/fornitore/home` | POST | `HomeFornitoreServlet` | Crea SKU / Prodotto |
 | `/fornitore/ricerca` | GET | `RicercaServlet` | Pagina ricerca |
 | `/fornitore/ricerca` | POST | `RicercaServlet` | Esegue ricerca |
 | `/fornitore/rimuovi` | POST | `RimuoviServlet` | Elimina relazione o oggetto |
-| `/cliente/home` | GET | `HomeClienteServlet` | Lista prodotti composti (con paginazione) |
+| `/cliente/home` | GET | `HomeClienteServlet` | Lista prodotti composti (paginazione) |
 | `/cliente/scelta-sku` | GET | `SceltaSkuServlet` | Pagina configurazione |
 | `/cliente/scelta-sku` | POST | `SceltaSkuServlet` | Salva configurazione |
 | `/cliente/dettaglio` | GET | `DettaglioServlet` | Dettaglio configurazione |
 | `/cliente/configurazioni` | GET | `MieConfigurazioniServlet` | Lista configurazioni |
 | `/cliente/configurazioni` | POST | `MieConfigurazioniServlet` | Cancella / Clona / Modifica |
 
-### 6.2 Versione JavaScript (endpoint API)
+### 6.2 Versione JavaScript (tiw-spa)
 
-Tutti gli endpoint JSON usano il prefisso `/api/`. Restituiscono sempre `Content-Type: application/json`.
+Tutti gli endpoint usano il prefisso `/api/`. Restituiscono sempre `Content-Type: application/json; charset=UTF-8`.
 
-| URL | Metodo | Descrizione | Response |
-|---|---|---|---|
-| `/api/sku` | POST | Crea SKU | `{ codice, nome, ... }` |
-| `/api/sku/{codice}` | PATCH | Aggiorna attributo SKU | `{ success: true }` |
-| `/api/prodotti` | POST | Crea prodotto (semplice o composto) | `{ codice, ... }` |
-| `/api/prodotti/{codice}` | GET | Dettaglio prodotto con albero | `{ prodotto + figli ricorsivi }` |
-| `/api/prodotti/{codice}/figli` | POST | Aggiungi sottoprodotto | |
-| `/api/prodotti/{codice}/figli/{figlio}` | DELETE | Rimuovi relazione padre-figlio | |
-| `/api/prodotti/{codice}/sku` | POST | Aggiungi SKU a prodotto semplice | |
-| `/api/prodotti/{codice}/sku/{sku}` | DELETE | Rimuovi SKU da prodotto semplice | |
-| `/api/ricerca` | GET | `?q=termine` ricerca prodotti+SKU | `[ array risultati ]` |
-| `/api/configurazioni` | GET | Lista configurazioni cliente | |
-| `/api/configurazioni` | POST | Crea nuova configurazione | |
-| `/api/configurazioni/{id}` | DELETE | Cancella configurazione | |
-| `/api/configurazioni/{id}/clona` | POST | Clona configurazione | |
-
-> **Nota**: il termine "REST" qui è improprio perché non abbiamo un'autenticazione stateless — usiamo sessione HTTP. È comunque il pattern corretto per questo progetto.
+| URL | Metodo | Descrizione |
+|---|---|---|
+| `/api/login` | POST | Autenticazione — esclusa da CSRF |
+| `/api/logout` | POST | Invalida sessione |
+| `/api/prodotti` | GET | Lista prodotti radice |
+| `/api/prodotti` | POST | Crea prodotto |
+| `/api/prodotti/{codice}` | GET | Dettaglio con albero ricorsivo |
+| `/api/prodotti/{codice}/figli` | POST | Aggiungi sottoprodotto |
+| `/api/prodotti/{codice}/figli/{figlio}` | DELETE | Rimuovi relazione padre-figlio |
+| `/api/prodotti/{codice}/sku` | POST | Aggiungi SKU a prodotto semplice |
+| `/api/prodotti/{codice}/sku/{id}` | DELETE | Rimuovi SKU da prodotto semplice |
+| `/api/ricerca` | GET | `?q=termine` — ricerca prodotti + SKU |
+| `/api/configurazioni` | GET | Lista configurazioni del cliente |
+| `/api/configurazioni` | POST | Crea nuova configurazione |
+| `/api/configurazioni/{id}` | DELETE | Cancella configurazione |
+| `/api/configurazioni/{id}/clona` | POST | Clona configurazione |
 
 ---
 
@@ -347,76 +277,100 @@ Tutti gli endpoint JSON usano il prefisso `/api/`. Restituiscono sempre `Content
 ### 7.1 Cosa va in sessione
 
 ```java
-// Solo l'oggetto Utente (POJO leggero)
-session.setAttribute(SessionConstants.UTENTE, utente); // include username, nome, cognome, ruolo
+// Solo il DTO leggero — MAI il POJO Utente (contiene password_hash)
+UtenteSessionDTO dto = new UtenteSessionDTO(
+    utente.getUsername(), utente.getNome(), utente.getCognome(), utente.getRuolo()
+);
+session.setAttribute(UtenteSessionDTO.SESSION_KEY, dto);
 ```
 
-Non mettere in sessione: liste di prodotti, risultati di ricerca, oggetti pesanti. La sessione deve essere **minimale**.
+Il record `UtenteSessionDTO` è immutabile per costruzione (Java `record`): non ha setter, quindi non è possibile scalare i privilegi a runtime con `setRuolo()`. Contiene solo `username`, `nome`, `cognome`, `ruolo`.
 
-### 7.2 Authentication Filter
+### 7.2 CSRF Token
 
-Un unico `AuthenticationFilter` mappato su `/*` (o `/fornitore/*` + `/cliente/*` + `/api/*`).
+✅ **Implementato** in `CsrfFilter`. Il token **non va generato nella LoginServlet**: il filtro lo inietta automaticamente in sessione al primo GET post-login.
+
+- **Generazione**: 32 byte di `SecureRandom`, Base64-url-encoded. Salvato in sessione come `"csrfToken"`.
+- **Distribuzione SSR**: il template Thymeleaf deve includere `<input type="hidden" name="_csrf" th:value="${session.csrfToken}">` in ogni form mutante.
+- **Distribuzione SPA**: ogni chiamata `fetch()` POST/PUT/DELETE deve includere l'header `X-CSRF-Token: <valore>`. Il token va letto dalla sessione tramite un endpoint GET iniziale o da un meta-tag nella pagina base.
+- **Validazione**: confronto constant-time (`MessageDigest.isEqual`) nel filtro su ogni richiesta mutante non in whitelist.
+
+### 7.3 Access Control Filter ✅
+
+✅ **Implementato** in `AccessControlFilter`. Mappato su `/*` (eseguito dopo `CsrfFilter`).
+
+Path pubblici (pass-through senza sessione):
+- `/login`
+- `/static/*`
+- qualsiasi path che termina con `/index.html`
+
+Logica:
 
 ```
-Logica del Filter:
-1. Se la richiesta è verso /login o /static/* → lascia passare (chain.doFilter)
-2. Controlla session.getAttribute("utente")
-3. Se null → redirect a /login
-4. Se ruolo != quello richiesto dal path (/fornitore/* vs /cliente/*) → 403 o redirect
-5. Altrimenti → chain.doFilter (procede normalmente)
+1. Calcola relativePath = URI − contextPath
+2. isPublic = PUBLIC_PATHS.contains(relativePath)
+             || relativePath.startsWith("/static/")
+             || relativePath.endsWith("/index.html")
+3. isAuthenticated = sessione presente
+                     && sessione contiene UtenteSessionDTO
+4. Se isAuthenticated || isPublic → chain.doFilter()
+5. Altrimenti → redirect /login
 ```
 
-### 7.3 Controllo Ruolo nei Servlet
+Il controllo del ruolo è delegato al `RoleFilter` (eseguito subito dopo nella chain).
 
-Ogni Servlet di fornitore verifica `utente.getRuolo().equals("FORNITORE")`. Non fidarsi solo del path — **difendersi sempre server-side** anche se il filter già controlla.
+### 7.4 Role Filter ✅
+
+✅ **Implementato** in `RoleFilter`. Mappato su `/*` (eseguito dopo `AccessControlFilter`).
+
+Agisce solo su path con prefisso ruolo-specifico:
+- `/fornitore/*` e `/api/fornitore/*` → richiede `utente.isFornitore()`
+- `/cliente/*` e `/api/cliente/*` → richiede `utente.isCliente()`
+- Tutti gli altri path (es. `/login`, `/static/*`) → pass-through senza controllo
+
+```
+1. Se path non è area fornitore né area cliente → chain.doFilter()
+2. Recupera UtenteSessionDTO dalla sessione (AccessControlFilter garantisce che esista)
+3. Se DTO assente (sessione scaduta tra i due filtri) → redirect /login
+4. Se ruolo non corrisponde all'area → 403 (JSON per /api/*, redirect /login per SSR)
+5. Altrimenti → chain.doFilter()
+```
+
+I Servlet verificano il ruolo **anche internamente** (difesa in profondità — non fidarsi solo del filtro).
 
 ---
 
 ## 8. Gestione degli Errori e Validazione
 
-### 8.1 Regola doppia validazione
+### 8.1 Doppia validazione
 
-**Ogni input utente va validato due volte:**
-1. **Client-side** (HTML5 `required`, `min`, `pattern`, o JavaScript): per UX immediata
-2. **Server-side** (Servlet prima di chiamare DAO): per sicurezza (non ci si fida del client)
+Ogni input va validato due volte:
+1. **Client-side** (HTML5 `required`, `min`, `pattern` o JavaScript): UX immediata
+2. **Server-side** (Servlet prima di chiamare il DAO): sicurezza — non ci si fida del client mai
 
-### 8.2 Strategia form con errori (versione HTML)
+### 8.2 Errori form (versione HTML)
 
-Quando un form POST fallisce la validazione server-side:
-1. Non fare redirect (usare `forward` alla stessa pagina)
-2. Inserire in `request` (non session) i valori precedentemente inseriti e i messaggi di errore
-3. Il template ripopola i campi con `${param.nomeCampo}` o `${requestScope.formValues}`
+Quando un POST fallisce la validazione server-side: usare `forward` (non redirect) alla stessa pagina.
 
 ```java
-// Nel Servlet, in caso di errore:
 request.setAttribute("errori", listaErrori);
-request.setAttribute("valoriForm", mappaValori); // preserva input
-RequestDispatcher dispatcher = request.getRequestDispatcher("/WEB-INF/views/fornitore/home.html");
-dispatcher.forward(request, response);
+request.setAttribute("valoriForm", mappaValori);  // per ripopolare i campi
+request.getRequestDispatcher("/WEB-INF/templates/fornitore/home.html").forward(request, response);
 ```
 
-### 8.3 Risposta JSON agli errori (versione JS)
+### 8.3 Errori JSON (versione SPA)
 
-Usare HTTP status code semantici:
-- `400 Bad Request` → validazione fallita (body JSON con `{ "errore": "messaggio" }`)
-- `401 Unauthorized` → non autenticato
-- `403 Forbidden` → autenticato ma ruolo errato
-- `404 Not Found` → risorsa non trovata
-- `500 Internal Server Error` → eccezione non gestita
-
-```java
-// Helper da mettere in una classe Utils
-response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-response.setContentType("application/json");
-response.getWriter().write("{\"errore\": \"Codice già esistente\"}");
+```
+400 Bad Request   → validazione fallita         { "errore": "messaggio" }
+401 Unauthorized  → sessione assente             { "errore": "Non autenticato" }
+403 Forbidden     → ruolo errato o CSRF fallito  { "errore": "Accesso negato" }
+404 Not Found     → risorsa non trovata          { "errore": "Non trovato" }
+500 Server Error  → eccezione non gestita        { "errore": "Errore interno" }
 ```
 
-### 8.4 Sicurezza parametri
+### 8.4 Autorizzazione sulle risorse
 
-Ogni Servlet che riceve un `codice` o `id` dal client deve:
-1. Verificare che il parametro esista e non sia vuoto
-2. Verificare che la risorsa esista nel DB
-3. **Verificare che l'utente abbia il diritto di operare su quella risorsa** (es: un cliente non può vedere configurazioni di un altro cliente)
+Ogni Servlet che riceve un `id` o `codice` dal client deve verificare che **l'utente loggato abbia il diritto di operare su quella risorsa** (es: un cliente non può leggere configurazioni di un altro cliente). Non basta che la risorsa esista — deve essere di proprietà dell'utente corrente.
 
 ---
 
@@ -424,11 +378,10 @@ Ogni Servlet che riceve un `codice` o `id` dal client deve:
 
 ### 9.1 Formato risposta standard
 
-Tutti gli endpoint JSON rispettano questo contratto:
-
 ```json
 // Successo
-{ "data": { ... } }   oppure   { "data": [ ... ] }
+{ "data": { ... } }
+{ "data": [ ... ] }
 
 // Errore
 { "errore": "Messaggio leggibile dall'utente" }
@@ -450,151 +403,129 @@ Tutti gli endpoint JSON rispettano questo contratto:
       "nome": "Case",
       "tipo": "SEMPLICE",
       "sku": [
-        { "codice": 1, "nome": "Fractal Design", "prezzo": 89.99 }
+        { "id": 1, "nome": "Fractal Design", "prezzo": 89.99 }
       ]
-    },
-    {
-      "codice": "ELAB001",
-      "nome": "Sistema di Elaborazione",
-      "tipo": "COMPOSTO",
-      "figli": [ "..." ]
     }
   ]
 }
 ```
 
-### 9.3 Regola SPA: stato sul client
+### 9.3 Stato sul client (SPA)
 
-Nella versione JS l'albero del prodotto viene caricato una volta e mantenuto in memoria JavaScript (oggetto/variabile globale). Le operazioni di modifica (aggiungi figlio, rimuovi, ecc.) aggiornano:
-1. Il server via fetch (fonte di verità)
+L'albero del prodotto viene caricato una volta e mantenuto in memoria JavaScript. Le operazioni di modifica aggiornano:
+1. Il server via `fetch` (fonte di verità)
 2. L'oggetto JS locale (per aggiornare la UI senza ricaricare tutto l'albero)
 
 ---
 
 ## 10. Vincoli Critici del Dominio
 
-Questi sono i punti dove è più facile sbagliare. Richiedono implementazione attenta.
-
 ### 10.1 Verifica aciclicità
 
-Prima di aggiungere il prodotto B come figlio di A, verificare che A non sia già discendente di B.
-
-```
-Algoritmo: risali la catena di antenati di A.
-Se trovi B tra gli antenati → CICLO → blocca operazione.
-```
+Prima di aggiungere B come figlio di A: verificare che A non sia già discendente di B.
 
 ```sql
--- Query DAO: trova tutti gli antenati di un prodotto (con profondità limitata a 4)
 WITH RECURSIVE antenati AS (
-    SELECT codice, parent_codice, 1 AS livello
-    FROM prodotto WHERE codice = ?
+    SELECT id, id_padre, 1 AS livello
+    FROM prodotto WHERE id = ?          -- A
     UNION ALL
-    SELECT p.codice, p.parent_codice, a.livello + 1
-    FROM prodotto p JOIN antenati a ON p.codice = a.parent_codice
+    SELECT p.id, p.id_padre, a.livello + 1
+    FROM prodotto p JOIN antenati a ON p.id = a.id_padre
     WHERE a.livello < 4
 )
-SELECT codice FROM antenati;
+SELECT id FROM antenati;
+-- Se B compare nell'insieme → ciclo → blocca
 ```
 
-> Se MySQL supporta CTE ricorsive (MySQL 8+), usarle. Altrimenti implementare in Java con query iterative.
+### 10.2 Verifica profondità massima (4 livelli)
 
-### 10.2 Verifica profondità massima
-
-Prima di aggiungere B come figlio di A, calcolare il livello di A nella gerarchia:
-- A a livello 1 (radice) → B può essere al massimo a livello 4 (→ B può avere figli fino a livello 4)
-- A a livello 3 → B è a livello 4 → B **non può avere figli** (è forzato a essere semplice)
-- A a livello 4 → non si può aggiungere figli
+Prima di inserire B come figlio di A, calcolare il livello di A (quante FK risalendo fino alla radice). Se il livello di A è già 4, bloccare. Se è 3, B può essere inserito ma non potrà avere figli.
 
 ### 10.3 Paginazione cliente
 
-La home cliente mostra **10 prodotti** per pagina, ordinati per nome **decrescente**.
+La home cliente mostra 10 prodotti per pagina, ordinati per nome decrescente.
 
 ```sql
 SELECT * FROM prodotto
-WHERE tipo = 'COMPOSTO' AND parent_codice IS NULL
+WHERE tipo = 'COMPOSTO' AND id_padre IS NULL
 ORDER BY nome DESC
 LIMIT ? OFFSET ?;
 ```
 
-Parametri da passare alla view: `paginaCorrente`, `totalePagine`, `hasPrecedente`, `hasSuccessiva`.
+Passare alla view: `paginaCorrente`, `totalePagine`, `hasPrecedente`, `hasSuccessiva`.
 
-### 10.4 Prezzo totale configurazione
+### 10.4 Price Snapshotting
 
-Il prezzo totale si calcola **sommando i prezzi delle SKU selezionate** al momento del salvataggio. Non va ricalcolato dinamicamente (il prezzo di una SKU potrebbe cambiare dopo).
-
-```sql
--- Al momento del salvataggio, calcola e persisti il prezzo totale
-SELECT SUM(s.prezzo) FROM sku s
-JOIN configurazione_sku cs ON s.codice = cs.sku_codice
-WHERE cs.configurazione_id = ?;
-```
+Al salvataggio della configurazione, copiare il prezzo corrente di ogni SKU selezionata in `configurazione_dettaglio.prezzo_unitario_congelato`. Non ricalcolarlo mai a posteriori.
 
 ### 10.5 Clone configurazione
 
-"Clona" significa creare una nuova riga in `configurazione` con le stesse righe in `configurazione_sku`, ma con nuovo `id`, nome modificato (es. "Copia di X"), data attuale. Il prezzo rimane lo stesso delle SKU originali.
+Nuova riga in `configurazione` con stesso `prodotto_radice_id`, nome "Copia di X", data attuale, e stesse righe in `configurazione_dettaglio` (stesso prezzo congelato originale — non ricampionare dal catalogo).
 
 ---
 
 ## 11. Divisione del Lavoro
 
-### Suggerimento di suddivisione (da concordare)
-
-Il progetto si divide naturalmente in queste macro-aree:
-
-| Area | Complessità | Suggerimento assegnazione |
+| Area | Responsabile | Stato |
 |---|---|---|
-| **Setup DB + DDL** | Bassa | Fare insieme (30 min) |
-| **Model + DAO** | Media-Alta | Fare insieme o distribuire 50/50 |
-| **Auth (Login/Logout/Filter)** | Media | Persona A |
-| **Interfaccia Fornitore HTML** | Alta | Persona A |
-| **Interfaccia Cliente HTML** | Alta | Persona B |
-| **Endpoint JSON (versione JS)** | Media | Distribuire per ruolo (chi ha fatto HTML) |
-| **Frontend JS SPA Fornitore** | Alta | Persona A |
-| **Frontend JS SPA Cliente** | Alta | Persona B |
-| **CSS e impaginazione** | Bassa | Distribuire |
-| **Dataset di test** | Bassa | Persona B |
-
-> **Regola**: Model e DAO vanno **concordati insieme** prima di dividersi, perché tutto il codice dipende da queste interfacce.
+| Maven multi-module + POM | Collega | ✅ |
+| Schema DB (`schema.sql`) | Collega | ✅ |
+| `CsrfFilter` | Collega | ✅ |
+| `UtenteSessionDTO` | Collega | ✅ |
+| `ProdottoDAO` (base) | Collega | ✅ parziale |
+| `ConnectionFactory` + `context.xml` | Collega | 🔧 in corso |
+| `PasswordUtils` (BCrypt) | — | 🔧 da fare |
+| `UtenteDAO` | — | 🔧 da fare |
+| `AccessControlFilter` | Collega | ✅ |
+| `RoleFilter` | Collega | ✅ |
+| `LoginServlet` (entrambi i WAR) | — | 🔧 da fare |
+| Servlet fornitore (HTML) | — | 🔧 da fare |
+| Servlet cliente (HTML) | — | 🔧 da fare |
+| Template Thymeleaf | — | 🔧 da fare |
+| Endpoint JSON SPA | — | 🔧 da fare |
+| Frontend JS SPA | — | 🔧 da fare |
+| `data_test.sql` | — | 🔧 da fare |
 
 ### DAO da implementare (priorità)
 
-1. `UtenteDAO` — `findByUsername()`, `insert()`, `checkCredentials()`
-2. `ProdottoDAO` — `findById()`, `insert()`, `findAllRoot()`, `findChildren()`, `findAllSemplici()`, `calcolaLivello()`, `verificaAciclicita()`, `addChild()`, `removeChild()`, `deleteRecursive()`, `search()`
-3. `SKUDAO` — `findById()`, `insert()`, `findBySemplice()`, `addToSemplice()`, `removeFromSemplice()`, `delete()`
-4. `ConfigurazioneDAO` — `insert()`, `findByCliente()`, `findById()`, `delete()`, `clone()`, `updateSelezioni()`
+1. `UtenteDAO` — `findByUsername()`, `checkCredentials()`
+2. `ProdottoDAO` — `findById()`, `insert()`, `findAllRoot()`, `findChildren()`, `calcolaLivello()`, `verificaAciclicita()`, `addChild()`, `removeChild()`, `search()`
+3. `SKUDAO` — `findById()`, `insert()`, `findBySemplice()`, `addToSemplice()`, `removeFromSemplice()`
+4. `ConfigurazioneDAO` — `insert()`, `findByCliente()`, `findById()`, `delete()`, `clone()`
 
 ---
 
 ## 12. Decisioni Aperte
 
-Questi punti **devono essere discussi e risolti prima di iniziare a scrivere codice**.
+Tutte le decisioni originariamente aperte sono state risolte:
 
-| # | Decisione | Opzione A | Opzione B | Note |
-|---|---|---|---|---|
-| ⚠️ 1 | **Template engine** | Thymeleaf | JSP + JSTL | Thymeleaf è moderno e raccomandato dal corso; JSP+JSTL è più comune negli esempi didattici |
-| ⚠️ 2 | **Build system** | Eclipse projects + WAR manuale | Maven | Maven facilita dipendenze e build, ma richiede configurazione iniziale |
-| ⚠️ 3 | **Codice condiviso** | Due progetti Eclipse separati con copia del codice | Un progetto "common" come dependency | La copia è più semplice ma crea duplicati |
-| ⚠️ 4 | **Password hashing** | SHA-256 con MessageDigest | Confronto diretto (solo per demo) | Il docente potrebbe accettare confronto diretto per semplicità, ma SHA-256 è corretto |
-| ⚠️ 5 | **Tipo codice prodotto** | Stringa (VARCHAR) | Intero auto-increment | Lo schema delle specifiche usa "codice" senza dire il tipo; stringa è più flessibile |
-| ⚠️ 6 | **Upload foto SKU** | File caricato sul server (multipart) | Solo URL/path fornito dall'utente | Il multipart è più completo ma richiede gestione filesystem |
-| ⚠️ 7 | **MySQL CTE ricorsive** | MySQL 8+ (supporta WITH RECURSIVE) | MySQL 5.7 (no CTE, serve Java) | Verificare versione MySQL del laboratorio |
+| # | Decisione | Scelta | Note |
+|---|---|---|---|
+| 1 | Template engine | **Thymeleaf 3.1.2** | Dipendenza presente in `tiw-ssr/pom.xml` |
+| 2 | Build system | **Maven multi-module** | `pom.xml` radice funzionante |
+| 3 | Codice condiviso | **Modulo `tiw-core` (JAR)** | Nessuna copia di file |
+| 4 | Password hashing | **BCrypt (jbcrypt)** | Da aggiungere al `pom.xml` |
+| 5 | Tipo chiave prodotto | **INT surrogate (`id`) + VARCHAR `codice` UNIQUE** | Schema reale usa `id INT AUTO_INCREMENT` come PK |
+| 6 | Upload foto SKU | **Path/URL fornito dall'utente** | Nessun multipart, per semplicità accademica |
+| 7 | MySQL CTE ricorsive | **MySQL 8+** | Schema usa `WITH RECURSIVE` |
 
 ---
 
 ## 13. Checklist Pre-Coding
 
-Prima di scrivere la prima Servlet, verificare che siano stati completati:
-
-- [ ] Decisioni aperte (sezione 12) tutte risolte e scritte qui sopra
-- [ ] Schema DB concordato e file `.sql` scritto
-- [ ] Ambiente di sviluppo configurato (Tomcat in Eclipse/IntelliJ, connessione MySQL)
-- [ ] Struttura cartelle del progetto creata (anche vuota)
-- [ ] Package Java creati con classi vuote (Model + DAO stub)
-- [ ] `ConnectionFactory` (o DataSource JNDI) funzionante e testato
-- [ ] Login/Logout funzionante end-to-end (il foundation di tutto)
-- [ ] Database popolato con dati di test per tutti gli scenari
+- [x] Decisioni aperte tutte risolte
+- [x] Schema DB concordato e scritto (`database/schema.sql`)
+- [x] Struttura Maven multi-module creata e funzionante
+- [x] `CsrfFilter` implementato
+- [x] `UtenteSessionDTO` implementato
+- [ ] `ConnectionFactory` (JNDI) funzionante — in corso (collega)
+- [ ] `PasswordUtils` (BCrypt) implementata
+- [ ] `UtenteDAO.checkCredentials()` implementato
+- [x] `AccessControlFilter` implementato
+- [x] `RoleFilter` implementato
+- [ ] `LoginServlet` end-to-end funzionante (SSR + SPA)
+- [ ] Database popolato con `data_test.sql`
 
 ---
 
-*Documento creato: 2026-05-02 — Da aggiornare ad ogni decisione concordata.*
+*Documento aggiornato: 2026-05-05*

@@ -52,6 +52,11 @@
             <artifactId>jakarta.servlet-api</artifactId>
             <!-- version ereditata dal parent via dependencyManagement -->
         </dependency>
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <!-- version ereditata dal parent via dependencyManagement -->
+        </dependency>
     </dependencies>
 
 </project>
