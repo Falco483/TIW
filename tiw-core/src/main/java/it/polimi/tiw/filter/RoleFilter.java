@@ -1,0 +1,81 @@
+package it.polimi.tiw.filter;
+
+import java.io.IOException;
+
+import it.polimi.tiw.dto.UtenteSessionDTO;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+
+// Registrato via web.xml su /*  (eseguito dopo AccessControlFilter)
+public class RoleFilter implements Filter {
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {}
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response,
+                         FilterChain chain)
+            throws IOException, ServletException {
+
+        HttpServletRequest  req = (HttpServletRequest)  request;
+        HttpServletResponse res = (HttpServletResponse) response;
+
+        // Path relativo al context
+        String relativePath = req.getRequestURI()
+                .substring(req.getContextPath().length());
+
+        // RoleFilter agisce solo su path protetti per ruolo
+        boolean isFornitoreArea = relativePath.startsWith("/fornitore/")
+                               || relativePath.startsWith("/api/fornitore/");
+        boolean isClienteArea   = relativePath.startsWith("/cliente/")
+                               || relativePath.startsWith("/api/cliente/");
+
+        if (!isFornitoreArea && !isClienteArea) {
+            // Path neutro (es: /login, /static/*) — nessun controllo ruolo
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // AccessControlFilter ha già garantito che la sessione esista e contenga il DTO
+        HttpSession session = req.getSession(false);
+        UtenteSessionDTO utente = (UtenteSessionDTO) session.getAttribute(UtenteSessionDTO.SESSION_KEY);
+
+        if (utente == null) {
+            // Sessione presente ma DTO assente (es. sessione scaduta tra i due filtri)
+            res.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        boolean hasAccess = (isFornitoreArea && utente.isFornitore())
+                         || (isClienteArea   && utente.isCliente());
+
+        if (!hasAccess) {
+            reject(req, res);
+            return;
+        }
+
+        chain.doFilter(request, response);
+    }
+
+    private void reject(HttpServletRequest req, HttpServletResponse res) throws IOException {
+        res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+        if (req.getRequestURI().startsWith(req.getContextPath() + "/api/")) {
+            res.setContentType("application/json");
+            res.setCharacterEncoding("UTF-8");
+            res.getWriter().write("{\"errore\": \"Accesso negato\"}");
+        } else {
+            res.sendRedirect(req.getContextPath() + "/login");
+        }
+    }
+
+    @Override
+    public void destroy() {}
+}

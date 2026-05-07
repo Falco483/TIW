@@ -1,15 +1,21 @@
-# macOS
+# === IDE ===
 .DS_Store
-
-# Eclipse workspace metadata (config locale, non versionare)
+*.iml
+.idea/
+.vscode/
 /.metadata/
-eclipse/
 
-# Configurazione server Tomcat (specifica della macchina)
-Servers/
+# === Eclipse (legacy, progetto migrato a Maven) ===
+.classpath
+.project
+.settings/
 
-# Cartella workspace vecchia con progetti di test
-progetto TIW/
+# === Maven build output ===
+target/
 
-# File compilati Java
+# === Compilati Java ===
 *.class
+
+# === Tomcat config locale ===
+Servers/
+apache-tomcat*/

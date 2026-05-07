@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Configuratore di Prodotto</title>
+</head>
+<body>
+
+<h1>Configuratore di Prodotto</h1>
+<h2>Accesso</h2>
+
+<div th:if="${errore}" role="alert">
+    <p th:text="${errore}"></p>
+</div>
+
+<form method="post" action="login" novalidate>
+
+    <div>
+        <label for="username">Username</label>
+        <input type="text"
+               id="username"
+               name="username"
+               required
+               autocomplete="username"
+               autofocus>
+    </div>
+
+    <div>
+        <label for="password">Password</label>
+        <input type="password"
+               id="password"
+               name="password"
+               required
+               autocomplete="current-password">
+    </div>
+
+    <button type="submit">Accedi</button>
+
+</form>
+
+</body>
+</html>
