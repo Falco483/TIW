@@ -1,7 +1,7 @@
 package it.polimi.tiw.servlet.web;
 
 import it.polimi.tiw.dao.ProdottoDAO;
-import it.polimi.tiw.model.ProdottoComposto;
+import it.polimi.tiw.model.Prodotto;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
 
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.WebContext;
@@ -21,8 +20,8 @@ import org.thymeleaf.templateresolver.WebApplicationTemplateResolver;
 import org.thymeleaf.web.IWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
-@WebServlet("/cliente/home")
-public class WebProdottoController extends HttpServlet {
+@WebServlet("/cliente/configura")
+public class ConfiguraServlet extends HttpServlet {
 
     private Connection connection = null;
     private JakartaServletWebApplication webApp;
@@ -57,51 +56,36 @@ public class WebProdottoController extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        Connection conn = this.connection;
+        String codice = request.getParameter("codice");
+        if (codice == null || codice.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Codice prodotto mancante");
+            return;
+        }
 
+        Connection conn = this.connection;
         if (conn == null) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Connessione al DB non disponibile");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Connessione al DB non disponibile");
             return;
         }
 
         try {
-            int pagina = 1;
-            String paginaParam = request.getParameter("pagina");
-            if (paginaParam != null && !paginaParam.isEmpty()) {
-                try {
-                    pagina = Integer.parseInt(paginaParam);
-                    if (pagina < 1) pagina = 1;
-                } catch (NumberFormatException e) {
-                    pagina = 1;
-                }
-            }
-
             ProdottoDAO dao = new ProdottoDAO(conn);
-            int totale = dao.contaProdottiComposti();
-            int limit = 10;
-            int totalePagine = (totale + limit - 1) / limit;
-            
-            if (pagina > totalePagine && totalePagine > 0) {
-                pagina = totalePagine;
+            Prodotto albero = dao.getAlberoProdotto(codice);
+
+            if (albero == null) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Prodotto non trovato");
+                return;
             }
 
-            int offset = (pagina - 1) * limit;
-
-            List<ProdottoComposto> prodotti = dao.estraiProdottiCompostiPaginati(offset, limit);
-            
             IWebExchange webExchange = webApp.buildExchange(request, response);
             WebContext ctx = new WebContext(webExchange, request.getLocale());
-            ctx.setVariable("prodotti", prodotti);
-            ctx.setVariable("paginaCorrente", pagina);
-            ctx.setVariable("totalePagine", totalePagine);
+            ctx.setVariable("radice", albero);
             
             response.setContentType("text/html;charset=UTF-8");
-            templateEngine.process("cliente_home", ctx, response.getWriter());
-                   
+            templateEngine.process("configura", ctx, response.getWriter());
+            
         } catch (SQLException e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Errore nel recupero dei prodotti");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Errore nel caricamento del prodotto");
         }
     }
 }

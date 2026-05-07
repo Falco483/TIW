@@ -6,7 +6,7 @@ import java.math.BigDecimal;
  * POJO per un Prodotto. DTO puro: solo dati, nessuna logica.
  * Usato sia dai Controller Thymeleaf sia dai Controller API.
  */
-public class Prodotto {
+public abstract class Prodotto {
 
     private int id;
     private String codice;

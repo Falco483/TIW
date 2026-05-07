@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Configura Prodotto</title>
+</head>
+<body>
+    <h2>Configura: <span th:text="${radice.nome}"></span></h2>
+    
+    <form method="POST" th:action="@{/cliente/salva}">
+        <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
+        <input type="hidden" name="codiceRadice" th:value="${radice.codice}" />
+        
+        <label for="nomeConfigurazione">Nome Configurazione:</label>
+        <input type="text" id="nomeConfigurazione" name="nomeConfigurazione" required />
+        <br/><br/>
+        
+        <h3>Seleziona Componenti</h3>
+        <ul>
+            <li th:replace="~{::albero(${radice})}"></li>
+        </ul>
+        
+        <button type="submit">Salva Configurazione</button>
+    </form>
+
+    <th:block th:fragment="albero(nodo)">
+        <span th:text="${nodo.nome}"></span>
+        
+        <th:block th:if="${nodo.tipo == 'COMPOSTO'}">
+            <ul>
+                <li th:each="figlio : ${nodo.figli}">
+                    <th:block th:replace="~{::albero(${figlio})}"></th:block>
+                </li>
+            </ul>
+        </th:block>
+        
+        <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
+            <select th:name="'sku_' + ${nodo.id}" required>
+                <option value="" disabled selected>Scegli un'opzione...</option>
+                <option th:each="sku : ${nodo.skus}" 
+                        th:value="${sku.id}" 
+                        th:text="${sku.nome + ' - ' + sku.prezzo + ' €'}">
+                </option>
+            </select>
+        </th:block>
+    </th:block>
+
+</body>
+</html>
