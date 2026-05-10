@@ -56,9 +56,17 @@ public class ConfiguraServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String codice = request.getParameter("codice");
-        if (codice == null || codice.isEmpty()) {
+        String codiceStr = request.getParameter("codice");
+        if (codiceStr == null || codiceStr.isEmpty()) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Codice prodotto mancante");
+            return;
+        }
+
+        int codice;
+        try {
+            codice = Integer.parseInt(codiceStr);
+        } catch (NumberFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Codice prodotto non valido");
             return;
         }
 

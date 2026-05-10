@@ -52,11 +52,19 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         UtenteSessionDTO utente = (UtenteSessionDTO) session.getAttribute("utente");
 
-        String codiceRadice = request.getParameter("codiceRadice");
+        String codiceRadiceStr = request.getParameter("codiceRadice");
         String nomeConfigurazione = request.getParameter("nomeConfigurazione");
 
-        if (codiceRadice == null || codiceRadice.isEmpty() || nomeConfigurazione == null || nomeConfigurazione.isEmpty()) {
+        if (codiceRadiceStr == null || codiceRadiceStr.isEmpty() || nomeConfigurazione == null || nomeConfigurazione.isEmpty()) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Dati mancanti");
+            return;
+        }
+
+        int codiceRadice;
+        try {
+            codiceRadice = Integer.parseInt(codiceRadiceStr);
+        } catch (NumberFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Codice radice non valido");
             return;
         }
 

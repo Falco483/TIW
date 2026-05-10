@@ -36,14 +36,14 @@ INSERT INTO utente (username, password_hash, nome, cognome, ruolo) VALUES
 
 -- Radice (COMPOSTO, id_padre = NULL)
 INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre) VALUES
-('PC-001', 'PC Desktop', 'COMPOSTO', 'Configurazione base per PC Desktop', 500.00, 3000.00, NULL);
+(1000, 'PC Desktop', 'COMPOSTO', 'Configurazione base per PC Desktop', 500.00, 3000.00, NULL);
 
 -- Figli diretti della radice (SEMPLICE)
 INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre) VALUES
-('CPU-001', 'CPU',          'SEMPLICE', NULL, NULL, NULL, 1),
-('RAM-001', 'RAM',          'SEMPLICE', NULL, NULL, NULL, 1),
-('DSK-001', 'Disco',        'SEMPLICE', NULL, NULL, NULL, 1),
-('GPU-001', 'Scheda Video', 'SEMPLICE', NULL, NULL, NULL, 1);
+(1001, 'CPU',          'SEMPLICE', NULL, NULL, NULL, 1),
+(1002, 'RAM',          'SEMPLICE', NULL, NULL, NULL, 1),
+(1003, 'Disco',        'SEMPLICE', NULL, NULL, NULL, 1),
+(1004, 'Scheda Video', 'SEMPLICE', NULL, NULL, NULL, 1);
 
 -- =============================================================================
 -- 2. SKU — Varianti concrete per ogni prodotto semplice

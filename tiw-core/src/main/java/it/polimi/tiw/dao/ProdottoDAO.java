@@ -73,7 +73,7 @@ public class ProdottoDAO {
         return risultati;
     }
 
-    public Prodotto getAlberoProdotto(String codice) throws SQLException {
+    public Prodotto getAlberoProdotto(int codice) throws SQLException {
         String rootSql = """
             SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
             FROM prodotto
@@ -82,7 +82,7 @@ public class ProdottoDAO {
             
         Prodotto root = null;
         try (PreparedStatement stmt = connection.prepareStatement(rootSql)) {
-            stmt.setString(1, codice);
+            stmt.setInt(1, codice);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     root = mapRow(rs);
@@ -160,7 +160,7 @@ public class ProdottoDAO {
         }
         
         p.setId(rs.getInt("id"));
-        p.setCodice(rs.getString("codice"));
+        p.setCodice(rs.getInt("codice"));
         p.setNome(rs.getString("nome"));
         p.setTipo(rs.getString("tipo"));
         
