@@ -2,17 +2,19 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Configura Prodotto</title>
+    <title th:text="${idConfigInModifica != null ? 'Modifica Configurazione' : 'Configura Prodotto'}">Configura Prodotto</title>
 </head>
 <body>
-    <h2>Configura: <span th:text="${radice.nome}"></span></h2>
+    <h2 th:text="${idConfigInModifica != null ? 'Modifica: ' : 'Configura: '} + ${radice.nome}"></h2>
     
     <form method="POST" th:action="@{/cliente/salva}">
         <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
         <input type="hidden" name="codiceRadice" th:value="${radice.codice}" />
+        <input type="hidden" name="idModifica" th:value="${idConfigInModifica}" />
         
         <label for="nomeConfigurazione">Nome Configurazione:</label>
-        <input type="text" id="nomeConfigurazione" name="nomeConfigurazione" required />
+        <input type="text" id="nomeConfigurazione" name="nomeConfigurazione" required
+               th:value="${nomeConfigurazione}" />
         <br/><br/>
         
         <h3>Seleziona Componenti</h3>
@@ -20,7 +22,7 @@
             <li th:replace="~{::albero(${radice})}"></li>
         </ul>
         
-        <button type="submit">Salva Configurazione</button>
+        <button type="submit" th:text="${idConfigInModifica != null ? 'Aggiorna Configurazione' : 'Salva Configurazione'}">Salva Configurazione</button>
     </form>
 
     <th:block th:fragment="albero(nodo)">
@@ -36,10 +38,12 @@
         
         <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
             <select th:name="'sku_' + ${nodo.id}" required>
-                <option value="" disabled selected>Scegli un'opzione...</option>
+                <option value="" disabled
+                        th:selected="${mappaScelte == null || mappaScelte.get(nodo.id) == null}">Scegli un'opzione...</option>
                 <option th:each="sku : ${nodo.skus}" 
                         th:value="${sku.id}" 
-                        th:text="${sku.nome + ' - ' + sku.prezzo + ' €'}">
+                        th:text="${sku.nome + ' - ' + sku.prezzo + ' €'}"
+                        th:selected="${mappaScelte != null && mappaScelte.get(nodo.id) == sku.id}">
                 </option>
             </select>
         </th:block>
@@ -47,3 +51,4 @@
 
 </body>
 </html>
+

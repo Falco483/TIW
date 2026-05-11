@@ -21,6 +21,11 @@ import org.thymeleaf.templateresolver.WebApplicationTemplateResolver;
 import org.thymeleaf.web.IWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
+/**
+ * Servlet che gestisce la Home Page del cliente.
+ * Mostra la lista dei prodotti radice (composti) disponibili per la configurazione,
+ * implementando la paginazione lato server.
+ */
 @WebServlet("/cliente/home")
 public class WebProdottoController extends HttpServlet {
 
@@ -28,6 +33,9 @@ public class WebProdottoController extends HttpServlet {
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 
+    /**
+     * Inizializza la servlet stabilendo la connessione al database e configurando Thymeleaf.
+     */
     @Override
     public void init() throws ServletException {
         try {
@@ -45,6 +53,9 @@ public class WebProdottoController extends HttpServlet {
         }
     }
 
+    /**
+     * Chiude la connessione al database.
+     */
     @Override
     public void destroy() {
         try {
@@ -53,6 +64,10 @@ public class WebProdottoController extends HttpServlet {
         } catch (SQLException e) {}
     }
 
+    /**
+     * Gestisce la richiesta GET della home cliente.
+     * Calcola la pagina corrente, recupera i prodotti paginati dal DAO e renderizza la home.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -66,6 +81,7 @@ public class WebProdottoController extends HttpServlet {
         }
 
         try {
+            // Gestione della paginazione
             int pagina = 1;
             String paginaParam = request.getParameter("pagina");
             if (paginaParam != null && !paginaParam.isEmpty()) {
@@ -78,16 +94,18 @@ public class WebProdottoController extends HttpServlet {
             }
 
             ProdottoDAO dao = new ProdottoDAO(conn);
-            int totale = dao.contaProdottiComposti();
-            int limit = 10;
+            int totale = dao.contaProdottiComposti(); // Numero totale di prodotti per il calcolo delle pagine
+            int limit = 10; // Prodotti per pagina
             int totalePagine = (totale + limit - 1) / limit;
             
+            // Corregge la pagina se fuori dai limiti
             if (pagina > totalePagine && totalePagine > 0) {
                 pagina = totalePagine;
             }
 
             int offset = (pagina - 1) * limit;
 
+            // Recupera solo i prodotti della pagina corrente
             List<ProdottoComposto> prodotti = dao.estraiProdottiCompostiPaginati(offset, limit);
             
             IWebExchange webExchange = webApp.buildExchange(request, response);

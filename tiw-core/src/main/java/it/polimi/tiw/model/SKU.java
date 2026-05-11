@@ -2,6 +2,9 @@ package it.polimi.tiw.model;
 
 import java.math.BigDecimal;
 
+/**
+ * Rappresenta una SKU (Stock Keeping Unit), ovvero una variante concreta di un prodotto semplice.
+ */
 public class Sku {
     private int id;
     private int codice;

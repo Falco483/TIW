@@ -23,11 +23,19 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
+/**
+ * Servlet che gestisce il salvataggio di una configurazione.
+ * Gestisce sia il primo salvataggio (INSERT) che l'aggiornamento di una configurazione esistente (UPDATE).
+ * Implementa il "Price Snapshotting" ricalcolando il prezzo totale in base ai prezzi attuali del catalogo.
+ */
 @WebServlet("/cliente/salva")
 public class SalvaConfigurazioneServlet extends HttpServlet {
 
     private Connection connection = null;
 
+    /**
+     * Inizializza la servlet stabilendo la connessione al database.
+     */
     @Override
     public void init() throws ServletException {
         try {
@@ -37,6 +45,9 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Chiude la connessione al database.
+     */
     @Override
     public void destroy() {
         try {
@@ -45,6 +56,10 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         } catch (SQLException e) {}
     }
 
+    /**
+     * Gestisce il salvataggio dei dati inviati dal form di configurazione.
+     * Recupera le SKU scelte, ricalcola il prezzo totale, e aggiorna o inserisce i dati nel DB in modo transazionale.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -54,7 +69,9 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
 
         String codiceRadiceStr = request.getParameter("codiceRadice");
         String nomeConfigurazione = request.getParameter("nomeConfigurazione");
+        String idModificaStr = request.getParameter("idModifica");
 
+        // Validazione parametri obbligatori
         if (codiceRadiceStr == null || codiceRadiceStr.isEmpty() || nomeConfigurazione == null || nomeConfigurazione.isEmpty()) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Dati mancanti");
             return;
@@ -68,6 +85,18 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
             return;
         }
 
+        // Determina se è una modifica o un nuovo inserimento in base alla presenza di idModifica
+        boolean isModifica = (idModificaStr != null && !idModificaStr.isEmpty());
+        int idModifica = 0;
+        if (isModifica) {
+            try {
+                idModifica = Integer.parseInt(idModificaStr);
+            } catch (NumberFormatException e) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "ID modifica non valido");
+                return;
+            }
+        }
+
         Connection conn = this.connection;
         if (conn == null) {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "No DB connection");
@@ -75,6 +104,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         }
 
         try {
+            // Avvio transazione
             conn.setAutoCommit(false);
             
             ProdottoDAO pDao = new ProdottoDAO(conn);
@@ -88,6 +118,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                 return;
             }
 
+            // Raccoglie le SKU selezionate dai parametri (es. sku_123=456) e ricalcola il prezzo totale
             List<DettaglioDTO> dettagli = new ArrayList<>();
             BigDecimal prezzoTotale = BigDecimal.ZERO;
 
@@ -99,10 +130,11 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                         int idProdotto = Integer.parseInt(pName.substring(4));
                         int idSku = Integer.parseInt(request.getParameter(pName));
                         
+                        // Price Snapshotting: legge il prezzo attuale dal catalogo
                         BigDecimal prezzoSku = sDao.getPrezzoReale(idSku);
                         if (prezzoSku == null) {
                             conn.rollback();
-                            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "SKU non valida");
+                            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Una delle SKU selezionate non è più valida");
                             return;
                         }
 
@@ -123,37 +155,49 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                 return;
             }
 
-            Configurazione conf = new Configurazione();
-            conf.setClienteUsername(utente.username());
-            conf.setProdottoRadiceId(radice.getId());
-            conf.setNome(nomeConfigurazione);
-            conf.setPrezzoTotale(prezzoTotale);
+            if (isModifica) {
+                // --- MODIFICA: aggiorna testata, cancella vecchi dettagli, inserisce nuovi ---
+                Configurazione conf = new Configurazione();
+                conf.setId(idModifica);
+                conf.setClienteUsername(utente.username());
+                conf.setNome(nomeConfigurazione);
+                conf.setPrezzoTotale(prezzoTotale);
 
-            int idConfig = cDao.inserisciTestata(conf);
-            cDao.inserisciDettagliBatch(idConfig, dettagli);
+                cDao.updateTestata(conf);
+                cDao.deleteDettagli(idModifica);
+                cDao.inserisciDettagliBatch(idModifica, dettagli);
+            } else {
+                // --- NUOVO INSERIMENTO: crea testata e poi inserisce dettagli in batch ---
+                Configurazione conf = new Configurazione();
+                conf.setClienteUsername(utente.username());
+                conf.setProdottoRadiceId(radice.getId());
+                conf.setNome(nomeConfigurazione);
+                conf.setPrezzoTotale(prezzoTotale);
 
+                int idConfig = cDao.inserisciTestata(conf);
+                cDao.inserisciDettagliBatch(idConfig, dettagli);
+            }
+
+            // Fine transazione
             conn.commit();
             
-            // Re-indirizziamo alla home cliente per ora
+            // Redirect alla lista delle configurazioni dell'utente
             response.sendRedirect(request.getContextPath() + "/cliente/configurazioni");
 
         } catch (SQLException e) {
             try {
-                if (conn != null) {
-                    conn.rollback();
-                }
+                if (conn != null) conn.rollback();
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Errore salvataggio configurazione");
         } finally {
             try {
-                if (conn != null) {
-                    conn.setAutoCommit(true);
-                }
+                if (conn != null) conn.setAutoCommit(true);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
     }
 }
+

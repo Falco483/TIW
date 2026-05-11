@@ -5,10 +5,21 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+/**
+ * Factory per la creazione di connessioni JDBC al database MySQL.
+ * Legge i parametri di configurazione (driver, URL, credenziali) dal web.xml tramite il ServletContext.
+ */
 public class ConnectionFactory {
 
     private ConnectionFactory() {}
 
+    /**
+     * Stabilisce e restituisce una nuova connessione al database.
+     * @param ctx Il ServletContext da cui leggere i parametri d'inizializzazione.
+     * @return Una connessione JDBC attiva.
+     * @throws SQLException In caso di errore di connessione.
+     * @throws ClassNotFoundException Se il driver JDBC non viene trovato.
+     */
     public static Connection getConnection(ServletContext ctx)
             throws SQLException, ClassNotFoundException {
 

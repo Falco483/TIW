@@ -3,8 +3,8 @@ package it.polimi.tiw.model;
 import java.math.BigDecimal;
 
 /**
- * POJO per un Prodotto. DTO puro: solo dati, nessuna logica.
- * Usato sia dai Controller Thymeleaf sia dai Controller API.
+ * Rappresenta un prodotto generico nel sistema.
+ * Classe base astratta per ProdottoComposto e ProdottoSemplice.
  */
 public abstract class Prodotto {
 

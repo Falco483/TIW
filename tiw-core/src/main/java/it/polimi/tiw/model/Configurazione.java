@@ -3,6 +3,10 @@ package it.polimi.tiw.model;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Rappresenta una configurazione salvata da un cliente.
+ * Contiene i riferimenti all'utente, al prodotto radice, il nome personalizzato e il prezzo totale calcolato.
+ */
 public class Configurazione {
     private int id;
     private String clienteUsername;
@@ -34,4 +38,14 @@ public class Configurazione {
 
     public BigDecimal getPrezzoTotale() { return prezzoTotale; }
     public void setPrezzoTotale(BigDecimal prezzoTotale) { this.prezzoTotale = prezzoTotale; }
+
+    // Campo transiente: nome del prodotto radice (caricato via JOIN, non persistito)
+    private String nomeProdottoRadice;
+    public String getNomeProdottoRadice() { return nomeProdottoRadice; }
+    public void setNomeProdottoRadice(String nomeProdottoRadice) { this.nomeProdottoRadice = nomeProdottoRadice; }
+
+    // Campo transiente: codice del prodotto radice (per i link di modifica)
+    private int codiceProdottoRadice;
+    public int getCodiceProdottoRadice() { return codiceProdottoRadice; }
+    public void setCodiceProdottoRadice(int codiceProdottoRadice) { this.codiceProdottoRadice = codiceProdottoRadice; }
 }
