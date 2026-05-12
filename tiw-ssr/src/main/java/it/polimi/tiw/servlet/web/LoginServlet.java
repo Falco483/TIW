@@ -129,6 +129,7 @@ public class LoginServlet extends HttpServlet {
         WebContext ctx = new WebContext(webExchange, request.getLocale());
         if (errore != null) {
             ctx.setVariable("errore", errore);
+            ctx.setVariable("usernameInserito", request.getParameter("username"));
         }
         response.setContentType("text/html;charset=UTF-8");
         templateEngine.process("login", ctx, response.getWriter());
