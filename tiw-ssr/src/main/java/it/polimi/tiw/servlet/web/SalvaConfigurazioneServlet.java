@@ -42,8 +42,8 @@ import it.polimi.tiw.model.ProdottoComposto;
  */
 @WebServlet("/cliente/salva")
 public class SalvaConfigurazioneServlet extends HttpServlet {
-
-    private Connection connection = null;
+	
+	private Connection connection = null;
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 

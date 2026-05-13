@@ -28,6 +28,7 @@ import org.thymeleaf.web.servlet.JakartaServletWebApplication;
  */
 @WebServlet("/cliente/home")
 public class WebProdottoController extends HttpServlet {
+    private static final long serialVersionUID = 1L;
 
     private Connection connection = null;
     private JakartaServletWebApplication webApp;

@@ -33,6 +33,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @WebServlet("/fornitore/home")
 public class HomeFornitoreServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
 
     private static final String SESSION_ERRORI         = "home.errori";
     private static final String SESSION_VALORI_FORM    = "home.valoriForm";
@@ -75,22 +76,16 @@ public class HomeFornitoreServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         List<String> errori = null;
         Map<String, String> valoriForm = null;
-        Object risultato = null;
-        String tipoRisultato = null;
 
         if (session != null) {
             errori        = (List<String>) session.getAttribute(SESSION_ERRORI);
             valoriForm    = (Map<String, String>) session.getAttribute(SESSION_VALORI_FORM);
-            risultato     = session.getAttribute(SESSION_RISULTATO);
-            tipoRisultato = (String) session.getAttribute(SESSION_TIPO_RISULTATO);
 
             session.removeAttribute(SESSION_ERRORI);
             session.removeAttribute(SESSION_VALORI_FORM);
-            session.removeAttribute(SESSION_RISULTATO);
-            session.removeAttribute(SESSION_TIPO_RISULTATO);
         }
 
-        renderHome(request, response, errori, valoriForm, risultato, tipoRisultato);
+        renderHome(request, response, errori, valoriForm);
     }
 
     @Override
@@ -128,7 +123,7 @@ public class HomeFornitoreServlet extends HttpServlet {
         HttpSession session = req.getSession(true);
         session.setAttribute(SESSION_RISULTATO, risultato);
         session.setAttribute(SESSION_TIPO_RISULTATO, tipoRisultato);
-        res.sendRedirect(req.getContextPath() + "/fornitore/home");
+        res.sendRedirect(req.getContextPath() + "/fornitore/risultato");
     }
 
     // -------------------------------------------------------------------------
@@ -351,8 +346,7 @@ public class HomeFornitoreServlet extends HttpServlet {
     // -------------------------------------------------------------------------
 
     private void renderHome(HttpServletRequest request, HttpServletResponse response,
-                            List<String> errori, Map<String, String> valoriForm,
-                            Object risultato, String tipoRisultato) throws IOException {
+                            List<String> errori, Map<String, String> valoriForm) throws IOException {
         try {
             SKUDAO skuDAO = new SKUDAO(connection);
             ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
@@ -365,8 +359,6 @@ public class HomeFornitoreServlet extends HttpServlet {
             ctx.setVariable("tuttiIProdotti", tuttiIProdotti);
             if (errori != null && !errori.isEmpty()) ctx.setVariable("errori", errori);
             if (valoriForm != null)                  ctx.setVariable("valoriForm", valoriForm);
-            if (risultato != null)                   ctx.setVariable("risultato", risultato);
-            if (tipoRisultato != null)               ctx.setVariable("tipoRisultato", tipoRisultato);
 
             response.setContentType("text/html;charset=UTF-8");
             templateEngine.process("fornitore/home", ctx, response.getWriter());

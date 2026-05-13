@@ -35,7 +35,10 @@ import java.util.Map;
 @WebServlet("/cliente/azione")
 public class ConfigurazioneActionServlet extends HttpServlet {
 
-    private Connection connection = null;
+    /**
+	 * 
+	 */
+	private Connection connection = null;
 
     /**
      * Inizializza la servlet stabilendo la connessione al database.

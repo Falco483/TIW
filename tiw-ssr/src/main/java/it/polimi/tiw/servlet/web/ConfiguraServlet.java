@@ -32,7 +32,11 @@ import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 @WebServlet("/cliente/configura")
 public class ConfiguraServlet extends HttpServlet {
 
-    private Connection connection = null;
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private Connection connection = null;
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 
@@ -99,8 +103,8 @@ public class ConfiguraServlet extends HttpServlet {
 
         try {
             ProdottoDAO dao = new ProdottoDAO(conn);
-            // Carica l'intero albero gerarchico del prodotto
-            Prodotto albero = dao.getAlberoProdotto(codice);
+            // Carica l'intero albero gerarchico del prodotto tramite il suo codice
+            Prodotto albero = dao.getAlberoProdottoByCodice(codice);
 
             if (albero == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Prodotto non trovato");

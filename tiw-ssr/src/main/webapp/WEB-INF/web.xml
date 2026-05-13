@@ -19,7 +19,7 @@
     </context-param>
     <context-param>
         <param-name>dbPassword</param-name>
-        <param-value>Luc@1234</param-value>
+        <param-value>root1234</param-value>
     </context-param>
 
 

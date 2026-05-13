@@ -31,7 +31,7 @@ import jakarta.servlet.http.HttpSession;
 @WebServlet("/login")
 public class LoginServlet extends HttpServlet {
 
-    private Connection connection = null;
+   	private Connection connection = null;
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 
@@ -42,8 +42,8 @@ public class LoginServlet extends HttpServlet {
     public void init() throws ServletException {
         try {
             connection = ConnectionFactory.getConnection(getServletContext());
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException | ClassNotFoundException e) {
+            throw new UnavailableException("Connessione al DB fallita");
         }
 
         webApp = JakartaServletWebApplication.buildApplication(getServletContext());
@@ -87,7 +87,12 @@ public class LoginServlet extends HttpServlet {
             return;
         }
 
-        // 3. Verifica credenziali nel DB tramite DAO
+        // 3. Verifica connessione e credenziali nel DB tramite DAO
+        if (connection == null) {
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "No DB connection");
+            return;
+        }
+
         UtenteSessionDTO utente;
         try {
             UtenteDAO utenteDAO = new UtenteDAO(connection);

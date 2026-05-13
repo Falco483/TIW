@@ -8,6 +8,7 @@
 <body>
 
 <header>
+    <a th:href="@{/fornitore/home}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
     <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span></h1>
     <a href="/logout">Logout</a>
 </header>
@@ -19,48 +20,6 @@
     </ul>
 </div>
 
-<!-- Risultato salvataggio -->
-<section th:if="${risultato != null}">
-    <h2>Elemento creato con successo</h2>
-
-    <div th:switch="${tipoRisultato}">
-
-        <!-- SKU creata -->
-        <div th:case="'sku'">
-            <h3>SKU</h3>
-            <table>
-                <tr><th>Codice</th>      <td th:text="${risultato.codice}"></td></tr>
-                <tr><th>Nome</th>        <td th:text="${risultato.nome}"></td></tr>
-                <tr><th>Fotografia</th>  <td th:text="${risultato.fotografia}"></td></tr>
-                <tr><th>Descrizione tecnica</th><td th:text="${risultato.descrizioneTecnica}"></td></tr>
-                <tr><th>Prezzo</th>      <td th:text="${risultato.prezzo} + ' €'"></td></tr>
-            </table>
-        </div>
-
-        <!-- Prodotto semplice creato -->
-        <div th:case="'semplice'">
-            <h3>Prodotto Semplice: <span th:text="${risultato.nome}"></span></h3>
-            <p>Codice: <span th:text="${risultato.codice}"></span></p>
-            <h4>SKU associate</h4>
-            <ul>
-                <li th:each="sku : ${risultato.skus}">
-                    <span th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></span>
-                </li>
-            </ul>
-        </div>
-
-        <!-- Prodotto composto creato -->
-        <div th:case="'composto'">
-            <h3>Prodotto Composto: <span th:text="${risultato.nome}"></span></h3>
-            <p>Codice: <span th:text="${risultato.codice}"></span></p>
-            <p>Descrizione: <span th:text="${risultato.descrizione}"></span></p>
-            <p>Fascia di prezzo: <span th:text="${risultato.prezzoMin}"></span> € — <span th:text="${risultato.prezzoMax}"></span> €</p>
-            <h4>Componenti</h4>
-            <div th:replace="~{fornitore/home :: albero(${risultato})}"></div>
-        </div>
-
-    </div>
-</section>
 
 <!-- ===== FORM 1: Crea SKU ===== -->
 <section>
@@ -183,24 +142,6 @@
         <button type="submit">SALVA PRODOTTO COMPOSTO</button>
     </form>
 </section>
-
-<!-- Fragment ricorsivo per albero prodotto composto -->
-<th:block th:fragment="albero(nodo)">
-    <ul>
-        <li th:if="${nodo.tipo == 'SEMPLICE'}">
-            <strong th:text="${nodo.nome}"></strong>
-            <ul>
-                <li th:each="sku : ${nodo.skus}"
-                    th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></li>
-            </ul>
-        </li>
-        <li th:if="${nodo.tipo == 'COMPOSTO'}">
-            <strong th:text="${nodo.nome}"></strong>
-            <div th:each="figlio : ${nodo.figli}"
-                 th:replace="~{fornitore/home :: albero(${figlio})}"></div>
-        </li>
-    </ul>
-</th:block>
 
 </body>
 </html>
