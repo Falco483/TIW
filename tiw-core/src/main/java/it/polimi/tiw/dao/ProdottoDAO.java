@@ -14,10 +14,19 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * DAO per la gestione dei Prodotti.
+ * Gestisce il caricamento dei prodotti radice, la paginazione e la ricostruzione
+ * ricorsiva dell'albero dei componenti (Composti e Semplici) con le relative SKU.
+ */
 public class ProdottoDAO {
 
     private final Connection connection;
 
+    /**
+     * Costruttore del DAO.
+     * @param connection La connessione al database.
+     */
     public ProdottoDAO(Connection connection) {
         this.connection = connection;
     }
@@ -26,6 +35,10 @@ public class ProdottoDAO {
     // Query
     // -------------------------------------------------------------------------
 
+    /**
+     * Recupera tutti i prodotti radice (che non hanno un padre) di tipo COMPOSTO.
+     * @return Lista di prodotti radice.
+     */
     public List<Prodotto> getProdottiRadice() throws SQLException {
         String sql = """
             SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
@@ -43,6 +56,11 @@ public class ProdottoDAO {
         return risultati;
     }
 
+    /**
+     * Conta il numero totale di prodotti composti radice.
+     * Usato per calcolare il numero di pagine per la paginazione.
+     * @return Conteggio totale.
+     */
     public int contaProdottiComposti() throws SQLException {
         String sql = "SELECT COUNT(*) FROM prodotto WHERE tipo = 'COMPOSTO' AND id_padre IS NULL";
         try (PreparedStatement stmt = connection.prepareStatement(sql);
@@ -51,6 +69,12 @@ public class ProdottoDAO {
         }
     }
 
+    /**
+     * Recupera una lista paginata di prodotti composti radice.
+     * @param offset Punto di inizio.
+     * @param limit Numero massimo di risultati per pagina.
+     * @return Lista di prodotti composti paginata.
+     */
     public List<ProdottoComposto> estraiProdottiCompostiPaginati(int offset, int limit) throws SQLException {
         String sql = """
             SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
@@ -72,36 +96,26 @@ public class ProdottoDAO {
         return risultati;
     }
 
-    // Tutti i prodotti (semplici + composti) ordinati per nome decrescente.
-    // Usato per popolare le checkboxes nel form "Crea Prodotto Composto".
-    public List<Prodotto> findAll() throws SQLException {
-        String sql = """
+    /**
+     * Carica l'intero albero di un prodotto (composto o semplice) partendo dal suo codice.
+     * Se è composto, carica ricorsivamente i figli. Se è semplice, carica le SKU associate.
+     * @param codice Codice identificativo del prodotto.
+     * @return L'oggetto prodotto completo di sotto-albero.
+     */
+    public Prodotto getAlberoProdotto(int codice) throws SQLException {
+        String rootSql = """
             SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
             FROM prodotto
             ORDER BY nome DESC
             """;
-        List<Prodotto> risultati = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                risultati.add(mapRow(rs));
-            }
-        }
-        return risultati;
-    }
-
-    public List<Prodotto> findAllOrfani() throws SQLException {
-        String sql = """
-            SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
-            FROM prodotto
-            WHERE id_padre IS NULL
-            ORDER BY nome DESC
-            """;
-        List<Prodotto> risultati = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                risultati.add(mapRow(rs));
+            
+        Prodotto root = null;
+        try (PreparedStatement stmt = connection.prepareStatement(rootSql)) {
+            stmt.setInt(1, codice);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    root = mapRow(rs);
+                }
             }
         }
         return risultati;
@@ -246,6 +260,11 @@ public class ProdottoDAO {
     // Caricamento ricorsivo (privato)
     // -------------------------------------------------------------------------
 
+    /**
+     * Carica ricorsivamente tutti i figli di un prodotto composto.
+     * Per ogni figlio, se è composto continua la ricorsione, se è semplice carica le SKU.
+     * @param padre Il prodotto composto di cui caricare i componenti.
+     */
     private void caricaFigli(ProdottoComposto padre) throws SQLException {
         String sql = """
             SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
@@ -267,6 +286,10 @@ public class ProdottoDAO {
         }
     }
 
+    /**
+     * Carica tutte le varianti concrete (SKU) associate a un prodotto semplice.
+     * @param prodottoSemplice Il prodotto semplice di cui caricare le SKU.
+     */
     private void caricaSku(ProdottoSemplice prodottoSemplice) throws SQLException {
         String sql = """
             SELECT s.id, s.codice, s.nome, s.fotografia, s.descrizione_tecnica, s.prezzo
@@ -295,6 +318,11 @@ public class ProdottoDAO {
     // Mapping
     // -------------------------------------------------------------------------
 
+    /**
+     * Converte una riga del ResultSet in un oggetto Prodotto (Semplice o Composto).
+     * @param rs Il ResultSet corrente.
+     * @return L'istanza corretta di Prodotto.
+     */
     private Prodotto mapRow(ResultSet rs) throws SQLException {
         Prodotto p;
         if ("COMPOSTO".equals(rs.getString("tipo"))) {
@@ -307,7 +335,7 @@ public class ProdottoDAO {
             p = new ProdottoSemplice();
         }
         p.setId(rs.getInt("id"));
-        p.setCodice(rs.getString("codice"));
+        p.setCodice(rs.getInt("codice"));
         p.setNome(rs.getString("nome"));
         p.setTipo(rs.getString("tipo"));
         int idPadre = rs.getInt("id_padre");

@@ -3,6 +3,10 @@ package it.polimi.tiw.model;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Rappresenta un prodotto semplice (foglia dell'albero).
+ * Non contiene altri prodotti, ma ha una lista di varianti concrete (SKU).
+ */
 public class ProdottoSemplice extends Prodotto {
     private List<Sku> skus = new ArrayList<>();
 

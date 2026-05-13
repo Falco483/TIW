@@ -73,7 +73,7 @@ CREATE TABLE utente (
 -- =============================================================================
 CREATE TABLE prodotto (
     id          INT             AUTO_INCREMENT PRIMARY KEY,
-    codice      VARCHAR(50)     NOT NULL UNIQUE,
+    codice      INT             NOT NULL UNIQUE,
     nome        VARCHAR(200)    NOT NULL,
     tipo        ENUM('SEMPLICE', 'COMPOSTO') NOT NULL,
 

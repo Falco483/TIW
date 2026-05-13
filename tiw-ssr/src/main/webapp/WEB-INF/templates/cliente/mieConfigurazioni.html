@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Le mie Configurazioni</title>
+</head>
+<body>
+    <h1>Le mie Configurazioni</h1>
+
+    <a th:href="@{/cliente/home}">&larr; Torna ai prodotti</a>
+
+    <div th:if="${#lists.isEmpty(configurazioni)}" style="margin-top: 20px;">
+        <p>Non hai ancora salvato nessuna configurazione.</p>
+    </div>
+
+    <table border="1" th:unless="${#lists.isEmpty(configurazioni)}" style="margin-top: 20px;">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Prodotto</th>
+                <th>Prezzo Totale</th>
+                <th>Data Creazione</th>
+                <th>Data Modifica</th>
+                <th>Azioni</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="conf : ${configurazioni}">
+                <td th:text="${conf.nome}"></td>
+                <td th:text="${conf.nomeProdottoRadice}"></td>
+                <td th:text="${conf.prezzoTotale + ' €'}"></td>
+                <td th:text="${#temporals.format(conf.dataCreazione, 'dd/MM/yyyy HH:mm')}"></td>
+                <td th:text="${#temporals.format(conf.dataModifica, 'dd/MM/yyyy HH:mm')}"></td>
+                <td>
+                    <!-- Modifica -->
+                    <a th:href="@{/cliente/configura(codice=${conf.codiceProdottoRadice}, idConfig=${conf.id})}">Modifica</a>
+
+                    <!-- Clona (POST con CSRF) -->
+                    <form method="POST" th:action="@{/cliente/azione}" style="display: inline;">
+                        <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
+                        <input type="hidden" name="azione" value="clona" />
+                        <input type="hidden" name="id" th:value="${conf.id}" />
+                        <button type="submit">Clona</button>
+                    </form>
+
+                    <!-- Elimina (POST con CSRF) -->
+                    <form method="POST" th:action="@{/cliente/azione}" style="display: inline;"
+                          onsubmit="return confirm('Sei sicuro di voler eliminare questa configurazione?');">
+                        <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
+                        <input type="hidden" name="azione" value="elimina" />
+                        <input type="hidden" name="id" th:value="${conf.id}" />
+                        <button type="submit">Elimina</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>
