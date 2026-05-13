@@ -121,8 +121,31 @@ public class ProdottoDAO {
         }
     }
 
+    public Prodotto findByCodice(int codice) throws SQLException {
+        String sql = """
+            SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
+            FROM prodotto WHERE codice = ?
+            """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, codice);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? mapRow(rs) : null;
+            }
+        }
+    }
+
     public Prodotto getAlberoProdotto(int id) throws SQLException {
         Prodotto root = findById(id);
+        if (root instanceof ProdottoComposto pc) {
+            caricaFigli(pc);
+        } else if (root instanceof ProdottoSemplice ps) {
+            caricaSku(ps);
+        }
+        return root;
+    }
+
+    public Prodotto getAlberoProdottoByCodice(int codice) throws SQLException {
+        Prodotto root = findByCodice(codice);
         if (root instanceof ProdottoComposto pc) {
             caricaFigli(pc);
         } else if (root instanceof ProdottoSemplice ps) {
@@ -286,7 +309,7 @@ public class ProdottoDAO {
                     sku.setFotografia(rs.getString("fotografia"));
                     sku.setDescrizioneTecnica(rs.getString("descrizione_tecnica"));
                     sku.setPrezzo(rs.getBigDecimal("prezzo"));
-                    prodottoSemplice.addSku(sku);
+                    prodottoSemplice.addSKU(sku);
                 }
             }
         }

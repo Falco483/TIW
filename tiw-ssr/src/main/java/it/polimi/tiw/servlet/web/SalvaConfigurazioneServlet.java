@@ -142,7 +142,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
             SKUDAO sDao = new SKUDAO(conn);
             ConfigurazioneDAO cDao = new ConfigurazioneDAO(conn);
 
-            Prodotto radice = pDao.getAlberoProdotto(codiceRadice);
+            Prodotto radice = pDao.getAlberoProdottoByCodice(codiceRadice);
             if (radice == null) {
                 conn.rollback();
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Prodotto radice non valido");
@@ -266,7 +266,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         
         try {
             ProdottoDAO pDao = new ProdottoDAO(conn);
-            Prodotto radice = pDao.getAlberoProdotto(codiceRadice);
+            Prodotto radice = pDao.getAlberoProdottoByCodice(codiceRadice);
             
             if (radice == null) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Prodotto radice non valido");
