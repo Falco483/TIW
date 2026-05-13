@@ -8,19 +8,19 @@ import java.util.List;
  * Non contiene altri prodotti, ma ha una lista di varianti concrete (SKU).
  */
 public class ProdottoSemplice extends Prodotto {
-    private List<Sku> skus = new ArrayList<>();
+    private List<SKU> skus = new ArrayList<>();
 
     public ProdottoSemplice() {}
 
-    public List<Sku> getSkus() {
+    public List<SKU> getSKUs() {
         return skus;
     }
 
-    public void setSkus(List<Sku> skus) {
+    public void setSKUs(List<SKU> skus) {
         this.skus = skus;
     }
 
-    public void addSku(Sku sku) {
+    public void addSKU(SKU sku) {
         this.skus.add(sku);
     }
 }

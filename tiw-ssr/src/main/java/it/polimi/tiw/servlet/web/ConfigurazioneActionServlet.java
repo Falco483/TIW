@@ -1,7 +1,7 @@
 package it.polimi.tiw.servlet.web;
 
 import it.polimi.tiw.dao.ConfigurazioneDAO;
-import it.polimi.tiw.dao.SkuDAO;
+import it.polimi.tiw.dao.SKUDAO;
 import it.polimi.tiw.dto.DettaglioDTO;
 import it.polimi.tiw.dto.UtenteSessionDTO;
 import it.polimi.tiw.model.Configurazione;
@@ -136,7 +136,7 @@ public class ConfigurazioneActionServlet extends HttpServlet {
             conn.setAutoCommit(false);
 
             ConfigurazioneDAO cDao = new ConfigurazioneDAO(conn);
-            SkuDAO sDao = new SkuDAO(conn);
+            SKUDAO sDao = new SKUDAO(conn);
 
             // 1. Verifica che la configurazione originale esista e appartenga all'utente
             Configurazione originale = cDao.getConfigurazioneById(idConfig, username);

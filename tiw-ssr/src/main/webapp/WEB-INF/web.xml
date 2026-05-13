@@ -11,7 +11,7 @@
     </context-param>
     <context-param>
         <param-name>dbUrl</param-name>
-        <param-value>jdbc:mysql://localhost:3306/tiw_db</param-value>
+        <param-value>jdbc:mysql://127.0.0.1:3306/tiw_db</param-value>
     </context-param>
     <context-param>
         <param-name>dbUser</param-name>
@@ -19,7 +19,7 @@
     </context-param>
     <context-param>
         <param-name>dbPassword</param-name>
-        <param-value>root1234</param-value>
+        <param-value>Luc@1234</param-value>
     </context-param>
 
 

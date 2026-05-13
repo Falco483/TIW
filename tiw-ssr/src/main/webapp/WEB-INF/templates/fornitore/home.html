@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="it" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Fornitore — Configuratore di Prodotto</title>
+</head>
+<body>
+
+<header>
+    <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span></h1>
+    <a href="/logout">Logout</a>
+</header>
+
+<!-- Errori -->
+<div th:if="${errori}" role="alert">
+    <ul>
+        <li th:each="errore : ${errori}" th:text="${errore}"></li>
+    </ul>
+</div>
+
+<!-- Risultato salvataggio -->
+<section th:if="${risultato != null}">
+    <h2>Elemento creato con successo</h2>
+
+    <div th:switch="${tipoRisultato}">
+
+        <!-- SKU creata -->
+        <div th:case="'sku'">
+            <h3>SKU</h3>
+            <table>
+                <tr><th>Codice</th>      <td th:text="${risultato.codice}"></td></tr>
+                <tr><th>Nome</th>        <td th:text="${risultato.nome}"></td></tr>
+                <tr><th>Fotografia</th>  <td th:text="${risultato.fotografia}"></td></tr>
+                <tr><th>Descrizione tecnica</th><td th:text="${risultato.descrizioneTecnica}"></td></tr>
+                <tr><th>Prezzo</th>      <td th:text="${risultato.prezzo} + ' €'"></td></tr>
+            </table>
+        </div>
+
+        <!-- Prodotto semplice creato -->
+        <div th:case="'semplice'">
+            <h3>Prodotto Semplice: <span th:text="${risultato.nome}"></span></h3>
+            <p>Codice: <span th:text="${risultato.codice}"></span></p>
+            <h4>SKU associate</h4>
+            <ul>
+                <li th:each="sku : ${risultato.skus}">
+                    <span th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Prodotto composto creato -->
+        <div th:case="'composto'">
+            <h3>Prodotto Composto: <span th:text="${risultato.nome}"></span></h3>
+            <p>Codice: <span th:text="${risultato.codice}"></span></p>
+            <p>Descrizione: <span th:text="${risultato.descrizione}"></span></p>
+            <p>Fascia di prezzo: <span th:text="${risultato.prezzoMin}"></span> € — <span th:text="${risultato.prezzoMax}"></span> €</p>
+            <h4>Componenti</h4>
+            <div th:replace="~{fornitore/home :: albero(${risultato})}"></div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ===== FORM 1: Crea SKU ===== -->
+<section>
+    <h2>Crea nuova SKU</h2>
+    <form method="post" action="home" novalidate>
+        <input type="hidden" name="tipoForm" value="sku">
+        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+
+        <div>
+            <label for="codiceSku">Codice (intero)</label>
+            <input type="number" id="codiceSku" name="codiceSku" required min="0"
+                   th:value="${valoriForm != null ? valoriForm['codiceSku'] : ''}">
+        </div>
+        <div>
+            <label for="nomeSku">Nome</label>
+            <input type="text" id="nomeSku" name="nomeSku" required
+                   th:value="${valoriForm != null ? valoriForm['nomeSku'] : ''}">
+        </div>
+        <div>
+            <label for="fotografiaSku">Fotografia (URL o percorso)</label>
+            <input type="text" id="fotografiaSku" name="fotografiaSku" required
+                   th:value="${valoriForm != null ? valoriForm['fotografiaSku'] : ''}">
+        </div>
+        <div>
+            <label for="descrizioneTecnicaSku">Descrizione tecnica</label>
+            <textarea id="descrizioneTecnicaSku" name="descrizioneTecnicaSku" required
+                      th:text="${valoriForm != null ? valoriForm['descrizioneTecnicaSku'] : ''}"></textarea>
+        </div>
+        <div>
+            <label for="prezzoSku">Prezzo (€)</label>
+            <input type="number" id="prezzoSku" name="prezzoSku" required min="0" step="0.01"
+                   th:value="${valoriForm != null ? valoriForm['prezzoSku'] : ''}">
+        </div>
+
+        <button type="submit">SALVA SKU</button>
+    </form>
+</section>
+
+<!-- ===== FORM 2: Crea Prodotto Semplice ===== -->
+<section>
+    <h2>Crea Prodotto Semplice</h2>
+    <form method="post" action="home" novalidate>
+        <input type="hidden" name="tipoForm" value="semplice">
+        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+
+        <div>
+            <label for="codiceSemplice">Codice</label>
+            <input type="text" id="codiceSemplice" name="codiceSemplice" required
+                   th:value="${valoriForm != null ? valoriForm['codiceSemplice'] : ''}">
+        </div>
+        <div>
+            <label for="nomeSemplice">Nome</label>
+            <input type="text" id="nomeSemplice" name="nomeSemplice" required
+                   th:value="${valoriForm != null ? valoriForm['nomeSemplice'] : ''}">
+        </div>
+
+        <fieldset>
+            <legend>SKU disponibili (seleziona almeno una)</legend>
+            <div th:if="${tutteLeSku == null or tutteLeSku.isEmpty()}">
+                <em>Nessuna SKU disponibile. Creane una prima.</em>
+            </div>
+            <div th:each="sku : ${tutteLeSku}">
+                <label>
+                    <input type="checkbox" name="idSkuSelezionate" th:value="${sku.id}">
+                    <span th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></span>
+                </label>
+            </div>
+        </fieldset>
+
+        <button type="submit">SALVA PRODOTTO SEMPLICE</button>
+    </form>
+</section>
+
+<!-- ===== FORM 3: Crea Prodotto Composto ===== -->
+<section>
+    <h2>Crea Prodotto Composto</h2>
+    <form method="post" action="home" novalidate>
+        <input type="hidden" name="tipoForm" value="composto">
+        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+
+        <div>
+            <label for="codiceComposto">Codice</label>
+            <input type="text" id="codiceComposto" name="codiceComposto" required
+                   th:value="${valoriForm != null ? valoriForm['codiceComposto'] : ''}">
+        </div>
+        <div>
+            <label for="nomeComposto">Nome</label>
+            <input type="text" id="nomeComposto" name="nomeComposto" required
+                   th:value="${valoriForm != null ? valoriForm['nomeComposto'] : ''}">
+        </div>
+        <div>
+            <label for="descrizioneComposto">Descrizione</label>
+            <textarea id="descrizioneComposto" name="descrizioneComposto" required
+                      th:text="${valoriForm != null ? valoriForm['descrizioneComposto'] : ''}"></textarea>
+        </div>
+        <div>
+            <label for="prezzoMinComposto">Prezzo minimo (€)</label>
+            <input type="number" id="prezzoMinComposto" name="prezzoMinComposto" required min="0" step="0.01"
+                   th:value="${valoriForm != null ? valoriForm['prezzoMinComposto'] : ''}">
+        </div>
+        <div>
+            <label for="prezzoMaxComposto">Prezzo massimo (€)</label>
+            <input type="number" id="prezzoMaxComposto" name="prezzoMaxComposto" required min="0" step="0.01"
+                   th:value="${valoriForm != null ? valoriForm['prezzoMaxComposto'] : ''}">
+        </div>
+
+        <fieldset>
+            <legend>Sottoprodotti disponibili (seleziona almeno uno)</legend>
+            <div th:if="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}">
+                <em>Nessun sottoprodotto disponibile.</em>
+            </div>
+            <div th:each="p : ${tuttiIProdotti}">
+                <label>
+                    <input type="checkbox" name="idFigli" th:value="${p.id}">
+                    <span th:text="${p.nome} + ' [' + ${p.tipo} + ']'"></span>
+                </label>
+            </div>
+        </fieldset>
+
+        <button type="submit">SALVA PRODOTTO COMPOSTO</button>
+    </form>
+</section>
+
+<!-- Fragment ricorsivo per albero prodotto composto -->
+<th:block th:fragment="albero(nodo)">
+    <ul>
+        <li th:if="${nodo.tipo == 'SEMPLICE'}">
+            <strong th:text="${nodo.nome}"></strong>
+            <ul>
+                <li th:each="sku : ${nodo.skus}"
+                    th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></li>
+            </ul>
+        </li>
+        <li th:if="${nodo.tipo == 'COMPOSTO'}">
+            <strong th:text="${nodo.nome}"></strong>
+            <div th:each="figlio : ${nodo.figli}"
+                 th:replace="~{fornitore/home :: albero(${figlio})}"></div>
+        </li>
+    </ul>
+</th:block>
+
+</body>
+</html>

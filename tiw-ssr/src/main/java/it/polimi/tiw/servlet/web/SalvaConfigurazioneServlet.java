@@ -2,7 +2,7 @@ package it.polimi.tiw.servlet.web;
 
 import it.polimi.tiw.dao.ConfigurazioneDAO;
 import it.polimi.tiw.dao.ProdottoDAO;
-import it.polimi.tiw.dao.SkuDAO;
+import it.polimi.tiw.dao.SKUDAO;
 import it.polimi.tiw.dto.DettaglioDTO;
 import it.polimi.tiw.dto.UtenteSessionDTO;
 import it.polimi.tiw.model.Configurazione;
@@ -139,7 +139,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
             conn.setAutoCommit(false);
 
             ProdottoDAO pDao = new ProdottoDAO(conn);
-            SkuDAO sDao = new SkuDAO(conn);
+            SKUDAO sDao = new SKUDAO(conn);
             ConfigurazioneDAO cDao = new ConfigurazioneDAO(conn);
 
             Prodotto radice = pDao.getAlberoProdotto(codiceRadice);
