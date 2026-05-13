@@ -23,6 +23,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
+/**
+ * Servlet che gestisce l'autenticazione degli utenti (Login).
+ * Fornisce il form di login (GET) e processa le credenziali inviate (POST).
+ * In caso di successo, crea la sessione utente e genera un token CSRF.
+ */
 @WebServlet("/login")
 public class LoginServlet extends HttpServlet {
 
@@ -30,12 +35,15 @@ public class LoginServlet extends HttpServlet {
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 
+    /**
+     * Inizializza la servlet stabilendo la connessione al database e configurando Thymeleaf.
+     */
     @Override
     public void init() throws ServletException {
         try {
             connection = ConnectionFactory.getConnection(getServletContext());
-        } catch (SQLException | ClassNotFoundException e) {
-            throw new UnavailableException("Connessione al DB fallita");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         webApp = JakartaServletWebApplication.buildApplication(getServletContext());
@@ -50,12 +58,20 @@ public class LoginServlet extends HttpServlet {
         this.templateEngine.setTemplateResolver(resolver);
     }
 
+    /**
+     * Mostra la pagina di login (form vuoto).
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
         mostraLogin(request, response, null);
     }
 
+    /**
+     * Gestisce l'invio delle credenziali di login.
+     * Valida i dati, interroga il database tramite UtenteDAO e, se corretti,
+     * inizializza la sessione utente e reindirizza alla home corretta (Cliente o Fornitore).
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
@@ -64,7 +80,7 @@ public class LoginServlet extends HttpServlet {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
-        // 2. Validazione base (mai fidarsi del client)
+        // 2. Validazione base
         if (username == null || username.isBlank()
             || password == null || password.isBlank()) {
             mostraLogin(request, response, "Inserire username e password.");
@@ -91,10 +107,12 @@ public class LoginServlet extends HttpServlet {
         // 4b. Credenziali corrette → crea sessione e redirect alla home
         HttpSession session = request.getSession();
         session.setAttribute(UtenteSessionDTO.SESSION_KEY, utente);
+        // Generazione del token CSRF per la sicurezza delle operazioni POST successive
         session.setAttribute("csrfToken", java.util.UUID.randomUUID().toString());
 
         String contextPath = request.getContextPath();
 
+        // Redirect basato sul ruolo dell'utente
         if (utente.ruolo() == UserRole.CLIENTE) {
             response.sendRedirect(contextPath + "/cliente/home");
             return;
@@ -102,17 +120,24 @@ public class LoginServlet extends HttpServlet {
         response.sendRedirect(contextPath + "/fornitore/home");
     }
 
+    /**
+     * Metodo helper per renderizzare la pagina di login, opzionalmente con un messaggio di errore.
+     */
     private void mostraLogin(HttpServletRequest request, HttpServletResponse response,
-                             String errore) throws IOException {
+                              String errore) throws IOException {
         IWebExchange webExchange = webApp.buildExchange(request, response);
         WebContext ctx = new WebContext(webExchange, request.getLocale());
         if (errore != null) {
             ctx.setVariable("errore", errore);
+            ctx.setVariable("usernameInserito", request.getParameter("username"));
         }
         response.setContentType("text/html;charset=UTF-8");
         templateEngine.process("login", ctx, response.getWriter());
     }
 
+    /**
+     * Chiude la connessione al database.
+     */
     @Override
     public void destroy() {
         try {

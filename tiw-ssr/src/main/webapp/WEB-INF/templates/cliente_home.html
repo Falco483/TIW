@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Home Cliente - Prodotti</title>
+</head>
+<body>
+    <h1>Benvenuto, <span th:text="${session.utente.nome}">Utente</span>!</h1>
+    
+    <div style="margin-bottom: 15px;">
+        <a th:href="@{/cliente/configurazioni}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Le mie configurazioni</a>
+    </div>
+
+    <h2>Prodotti Disponibili</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Codice</th>
+                <th>Nome</th>
+                <th>Descrizione</th>
+                <th>Prezzo Min</th>
+                <th>Prezzo Max</th>
+                <th>Azione</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="prod : ${prodotti}">
+                <td th:text="${prod.codice}"></td>
+                <td th:text="${prod.nome}"></td>
+                <td th:text="${prod.descrizione}"></td>
+                <td th:text="${prod.prezzoMin != null ? prod.prezzoMin + ' €' : '-'}"></td>
+                <td th:text="${prod.prezzoMax != null ? prod.prezzoMax + ' €' : '-'}"></td>
+                <td>
+                    <a th:href="@{/cliente/configura(codice=${prod.codice})}">Seleziona</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 10px;">
+        <a th:if="${paginaCorrente > 1}" th:href="@{/cliente/home(pagina=${paginaCorrente - 1})}">Indietro</a>
+        <span>Pagina <span th:text="${paginaCorrente}"></span> di <span th:text="${totalePagine}"></span></span>
+        <a th:if="${paginaCorrente < totalePagine}" th:href="@{/cliente/home(pagina=${paginaCorrente + 1})}">Avanti</a>
+    </div>
+
+</body>
+</html>

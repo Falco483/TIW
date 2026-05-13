@@ -11,23 +11,31 @@ import it.polimi.tiw.dto.UtenteSessionDTO;
 import it.polimi.tiw.utils.UserRole;
 
 /**
- * UtenteDAO — Data Access Object per la tabella `utente`.
- * Riceve Connection via costruttore (DI manuale). NON la chiude.
+ * DAO per la gestione dell'autenticazione degli utenti.
+ * Gestisce la verifica delle credenziali interfacciandosi con la tabella `utente`
+ * e validando l'hash della password tramite BCrypt.
  */
 public class UtenteDAO {
 
     private final Connection connection;
 
+    /**
+     * Costruttore del DAO.
+     * @param connection La connessione al database.
+     */
     public UtenteDAO(Connection connection) {
         this.connection = connection;
     }
 
     /**
-     * Verifica le credenziali di accesso.
+     * Verifica le credenziali di accesso (username e password).
+     * Recupera l'utente dal DB, verifica che l'hash della password corrisponda
+     * usando BCrypt e restituisce un DTO con i dati necessari per la sessione.
      *
-     * @return il DTO da salvare in sessione, oppure {@code null} se username
-     *         non esiste o la password non corrisponde
-     * @throws SQLException in caso di errore DB
+     * @param username Lo username inserito dall'utente.
+     * @param password La password in chiaro inserita dall'utente.
+     * @return Un DTO contenente i dati dell'utente loggato, o null se fallisce.
+     * @throws SQLException In caso di errori durante l'interrogazione del database.
      */
     public UtenteSessionDTO checkCredentials(String username, String password) throws SQLException {
         String query = """
@@ -41,13 +49,15 @@ public class UtenteDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    return null; // utente non trovato
+                    return null; // Utente non trovato
                 }
 
+                // Verifica la password hashata con BCrypt
                 if (!BCrypt.checkpw(password, rs.getString("password_hash"))) {
-                    return null; // password errata
+                    return null; // Password errata
                 }
 
+                // Mappa il ruolo stringa all'enum corrispondente
                 return new UtenteSessionDTO(
                         username,
                         rs.getString("nome"),

@@ -29,6 +29,25 @@ public class ApiProdottoController extends HttpServlet {
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+    private Connection connection = null;
+
+    @Override
+    public void init() throws jakarta.servlet.ServletException {
+        try {
+            connection = it.polimi.tiw.utils.ConnectionFactory.getConnection(getServletContext());
+        } catch (SQLException | ClassNotFoundException e) {
+            throw new jakarta.servlet.UnavailableException("Connessione al DB fallita");
+        }
+    }
+
+    @Override
+    public void destroy() {
+        try {
+            if (connection != null && !connection.isClosed())
+                connection.close();
+        } catch (SQLException e) {}
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
@@ -36,9 +55,7 @@ public class ApiProdottoController extends HttpServlet {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        Connection conn = getServletContext().getAttribute("dbConnection") != null
-                ? (Connection) getServletContext().getAttribute("dbConnection")
-                : null;
+        Connection conn = this.connection;
 
         if (conn == null) {
             sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
