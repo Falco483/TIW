@@ -1,6 +1,7 @@
 package it.polimi.tiw.dao;
 
 import it.polimi.tiw.model.SKU;
+import it.polimi.tiw.model.ElementoCatalogo;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -79,5 +80,41 @@ public class SKUDAO {
         sku.setDescrizioneTecnica(rs.getString("descrizione_tecnica"));
         sku.setPrezzo(rs.getBigDecimal("prezzo"));
         return sku;
+    }
+
+    // -------------------------------------------------------------------------
+    // Ricerca e Gestione Fornitore
+    // -------------------------------------------------------------------------
+
+    public List<ElementoCatalogo> search(String query) throws SQLException {
+        String sql = "SELECT id, codice, nome, descrizione_tecnica, prezzo FROM sku WHERE nome LIKE ? OR descrizione_tecnica LIKE ? ORDER BY nome ASC";
+        List<ElementoCatalogo> risultati = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            String like = "%" + query + "%";
+            ps.setString(1, like);
+            ps.setString(2, like);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ElementoCatalogo ec = new ElementoCatalogo();
+                    ec.setId(rs.getInt("id"));
+                    ec.setCodice(rs.getInt("codice"));
+                    ec.setNome(rs.getString("nome"));
+                    ec.setTipo("SKU");
+                    ec.setDescrizione(rs.getString("descrizione_tecnica"));
+                    ec.setPrezzoMin(rs.getBigDecimal("prezzo"));
+                    ec.setPrezzoMax(rs.getBigDecimal("prezzo"));
+                    risultati.add(ec);
+                }
+            }
+        }
+        return risultati;
+    }
+
+    public void eliminaDefinitivamente(int id) throws SQLException {
+        String sql = "DELETE FROM sku WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            stmt.executeUpdate();
+        }
     }
 }

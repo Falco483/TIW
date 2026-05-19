@@ -280,4 +280,27 @@ public class ConfigurazioneDAO {
         }
         return lista;
     }
+    /**
+     * Elimina automaticamente tutte le configurazioni dei clienti che contengono
+     * il componente (SKU o Prodotto) specificato.
+     * 
+     * Questa pulizia è necessaria prima di eliminare un componente dal catalogo
+     * per evitare errori di integrità referenziale (RESTRICT) sulla tabella
+     * configurazione_dettaglio.
+     * 
+     * @param idComponente ID del componente da cercare nei dettagli
+     * @param tipo "SKU" oppure "PRODOTTO" (case insensitive)
+     * @throws SQLException se la query DELETE fallisce
+     */
+    public void eliminaConfigurazioniPerComponente(int idComponente, String tipo) throws SQLException {
+        String colonna = tipo.equalsIgnoreCase("SKU") ? "id_sku" : "id_prodotto";
+        
+        // Eliminiamo la testata. Il database eliminerà a cascata i dettagli (ON DELETE CASCADE).
+        String sql = "DELETE FROM configurazione WHERE id IN (SELECT id_configurazione FROM configurazione_dettaglio WHERE " + colonna + " = ?)";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, idComponente);
+            pstmt.executeUpdate();
+        }
+    }
 }

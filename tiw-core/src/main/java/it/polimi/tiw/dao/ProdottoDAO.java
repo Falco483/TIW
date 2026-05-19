@@ -4,6 +4,7 @@ import it.polimi.tiw.model.Prodotto;
 import it.polimi.tiw.model.ProdottoComposto;
 import it.polimi.tiw.model.ProdottoSemplice;
 import it.polimi.tiw.model.SKU;
+import it.polimi.tiw.model.ElementoCatalogo;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -337,5 +338,63 @@ public class ProdottoDAO {
         int idPadre = rs.getInt("id_padre");
         p.setIdPadre(rs.wasNull() ? null : idPadre);
         return p;
+    }
+
+    // -------------------------------------------------------------------------
+    // Ricerca e Gestione Fornitore
+    // -------------------------------------------------------------------------
+
+    public List<ElementoCatalogo> search(String query) throws SQLException {
+        String sql = """
+            SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max
+            FROM prodotto
+            WHERE nome LIKE ? OR descrizione LIKE ?
+            ORDER BY nome ASC
+            """;
+        List<ElementoCatalogo> risultati = new ArrayList<>();
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            String like = "%" + query + "%";
+            stmt.setString(1, like);
+            stmt.setString(2, like);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    ElementoCatalogo ec = new ElementoCatalogo();
+                    ec.setId(rs.getInt("id"));
+                    ec.setCodice(rs.getInt("codice"));
+                    ec.setNome(rs.getString("nome"));
+                    ec.setTipo(rs.getString("tipo"));
+                    ec.setDescrizione(rs.getString("descrizione"));
+                    ec.setPrezzoMin(rs.getBigDecimal("prezzo_min"));
+                    ec.setPrezzoMax(rs.getBigDecimal("prezzo_max"));
+                    risultati.add(ec);
+                }
+            }
+        }
+        return risultati;
+    }
+
+    public void rimuoviAssociazioneSku(int idProdotto, int idSku) throws SQLException {
+        String sql = "DELETE FROM prodotto_sku WHERE id_prodotto = ? AND id_sku = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, idProdotto);
+            stmt.setInt(2, idSku);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void rimuoviFiglio(int idFiglio) throws SQLException {
+        String sql = "UPDATE prodotto SET id_padre = NULL WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, idFiglio);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void eliminaDefinitivamente(int id) throws SQLException {
+        String sql = "DELETE FROM prodotto WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            stmt.executeUpdate();
+        }
     }
 }

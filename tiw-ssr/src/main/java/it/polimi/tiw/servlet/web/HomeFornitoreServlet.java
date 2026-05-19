@@ -8,8 +8,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.nio.file.Paths;
+import java.io.File;
 
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
+import jakarta.servlet.annotation.MultipartConfig;
 
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.WebContext;
@@ -32,8 +37,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @WebServlet("/fornitore/home")
+@MultipartConfig(maxFileSize = 1024 * 1024 * 5, maxRequestSize = 1024 * 1024 * 10)
 public class HomeFornitoreServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
+
+    private static final String UPLOAD_DIR = "C:\\Users\\Antonio\\Desktop\\progetto TIW\\foto\\";
 
     private static final String SESSION_ERRORI         = "home.errori";
     private static final String SESSION_VALORI_FORM    = "home.valoriForm";
@@ -131,17 +139,36 @@ public class HomeFornitoreServlet extends HttpServlet {
     // -------------------------------------------------------------------------
 
     private void handleCreaSku(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+            throws IOException, ServletException {
         String nomeRaw           = request.getParameter("nomeSku");
         String codiceRaw         = request.getParameter("codiceSku");
-        String fotografiaRaw     = request.getParameter("fotografiaSku");
         String descrizioneTecRaw = request.getParameter("descrizioneTecnicaSku");
         String prezzoRaw         = request.getParameter("prezzoSku");
+
+        Part filePart = request.getPart("fotografia");
+        String percorsoImmagine = null;
+
+        if (filePart != null && filePart.getSize() > 0) {
+            File uploadDir = new File(UPLOAD_DIR);
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
+
+            String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+            String extension = "";
+            int i = fileName.lastIndexOf('.');
+            if (i > 0) {
+                extension = fileName.substring(i);
+            }
+            String nomeFileUnivoco = UUID.randomUUID().toString() + extension;
+
+            filePart.write(UPLOAD_DIR + nomeFileUnivoco);
+            percorsoImmagine = "/foto/" + nomeFileUnivoco;
+        }
 
         Map<String, String> valoriForm = new HashMap<>();
         valoriForm.put("nomeSku", nomeRaw);
         valoriForm.put("codiceSku", codiceRaw);
-        valoriForm.put("fotografiaSku", fotografiaRaw);
         valoriForm.put("descrizioneTecnicaSku", descrizioneTecRaw);
         valoriForm.put("prezzoSku", prezzoRaw);
 
@@ -149,7 +176,6 @@ public class HomeFornitoreServlet extends HttpServlet {
 
         if (isBlank(nomeRaw))           errori.add("Il nome della SKU è obbligatorio.");
         if (isBlank(codiceRaw))         errori.add("Il codice della SKU è obbligatorio.");
-        if (isBlank(fotografiaRaw))     errori.add("La fotografia della SKU è obbligatoria.");
         if (isBlank(descrizioneTecRaw)) errori.add("La descrizione tecnica della SKU è obbligatoria.");
         if (isBlank(prezzoRaw))         errori.add("Il prezzo della SKU è obbligatorio.");
 
@@ -180,8 +206,8 @@ public class HomeFornitoreServlet extends HttpServlet {
 
         try {
             SKUDAO skuDAO = new SKUDAO(connection);
-            int id = skuDAO.insert(codice, nomeRaw.trim(), fotografiaRaw.trim(),
-                                   descrizioneTecRaw.trim(), prezzo);
+            int id = skuDAO.insert(codice, nomeRaw != null ? nomeRaw.trim() : "", percorsoImmagine,
+                                   descrizioneTecRaw != null ? descrizioneTecRaw.trim() : "", prezzo);
             SKU skuCreata = skuDAO.findById(id);
             redirectConSuccesso(request, response, skuCreata, "sku");
         } catch (SQLException e) {
