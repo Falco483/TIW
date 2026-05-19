@@ -59,8 +59,13 @@ public class SKUDAO {
         }
     }
 
-    // Fondamentale per il "Price Snapshotting": assicura che il prezzo salvato
-    // nella configurazione sia quello attuale del catalogo.
+    /**
+     * Recupera il prezzo corrente di una specifica SKU dal database.
+     * Fondamentale per il "Price Snapshotting": assicura che il prezzo salvato
+     * nella configurazione sia quello attuale del catalogo.
+     * @param idSku ID della SKU.
+     * @return Il prezzo come BigDecimal, o null se la SKU non esiste.
+     */
     public BigDecimal getPrezzoReale(int idSku) throws SQLException {
         String sql = "SELECT prezzo FROM sku WHERE id = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
