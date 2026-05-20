@@ -3,20 +3,22 @@
 
 <head>
     <meta charset="UTF-8">
-    <title th:text="${idConfigInModifica != null ? 'Modifica Configurazione' : 'Configura Prodotto'}">Configura Prodotto
+    <title th:text="${idConfig != null ? 'Modifica Configurazione' : 'Configura Prodotto'}">Configura Prodotto
     </title>
 </head>
 
 <body>
     <header>
-        <a th:href="@{/cliente/home}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
+        <a th:href="@{/cliente/home}"
+            style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
     </header>
-    <h2 th:text="${idConfigInModifica != null ? 'Modifica: ' : 'Configura: '} + ${radice.nome}"></h2>
+    <h2 th:text="${idConfig != null ? 'Modifica: ' : 'Configura: '} + ${radice.nome}"></h2>
 
-    <form method="POST" th:action="@{/cliente/salva}">
+    <form method="POST" th:action="@{/cliente/configura}">
         <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
         <input type="hidden" name="codiceRadice" th:value="${radice.codice}" />
-        <input type="hidden" name="idModifica" th:value="${idConfigInModifica}" />
+        <input type="hidden" name="idConfig" th:value="${idConfig}" />
+        <input th:each="id : ${apertoSet}" type="hidden" name="aperto" th:value="${id}" />
 
         <div th:if="${errore != null}" th:text="${errore}" style="color:red; margin-bottom: 10px;"></div>
 
@@ -27,24 +29,16 @@
 
         <h3>Seleziona Componenti</h3>
         <ul>
-            <li th:replace="~{::albero(${radice})}"></li>
+            <li th:replace="~{::albero(${radice}, true)}"></li>
         </ul>
 
         <button type="submit"
-            th:text="${idConfigInModifica != null ? 'Aggiorna Configurazione' : 'Salva Configurazione'}">Salva
+            th:text="${idConfig != null ? 'Aggiorna Configurazione' : 'Salva Configurazione'}">Salva
             Configurazione</button>
     </form>
 
-    <th:block th:fragment="albero(nodo)" th:if="${nodo != null}">
+    <th:block th:fragment="albero(nodo, isRadice)" th:if="${nodo != null}">
         <span th:text="${nodo.nome}"></span>
-
-        <th:block th:if="${nodo.tipo == 'COMPOSTO'}">
-            <ul>
-                <li th:each="figlio : ${nodo.figli}">
-                    <th:block th:replace="~{::albero(${figlio})}"></th:block>
-                </li>
-            </ul>
-        </th:block>
 
         <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
             <select th:name="'sku_' + ${nodo.id}" required>
@@ -55,6 +49,19 @@
                     th:selected="${mappaScelte != null && mappaScelte.get(nodo.id) == sku.id}">
                 </option>
             </select>
+        </th:block>
+
+        <th:block th:if="${nodo.tipo == 'COMPOSTO'}">
+            <th:block th:if="${isRadice || apertoSet.contains(nodo.codice)}">
+                <ul>
+                    <li th:each="figlio : ${nodo.figli}">
+                        <th:block th:replace="~{::albero(${figlio}, false)}"></th:block>
+                    </li>
+                </ul>
+            </th:block>
+            <th:block th:unless="${isRadice || apertoSet.contains(nodo.codice)}">
+                <button type="submit" name="espandi" th:value="${nodo.codice}" formnovalidate>Espandi ▶</button>
+            </th:block>
         </th:block>
     </th:block>
 

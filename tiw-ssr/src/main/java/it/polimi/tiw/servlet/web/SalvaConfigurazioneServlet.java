@@ -7,6 +7,7 @@ import it.polimi.tiw.dto.DettaglioDTO;
 import it.polimi.tiw.dto.UtenteSessionDTO;
 import it.polimi.tiw.model.Configurazione;
 import it.polimi.tiw.model.Prodotto;
+import it.polimi.tiw.model.ProdottoComposto;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -22,16 +23,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.WebContext;
-import org.thymeleaf.templatemode.TemplateMode;
-import org.thymeleaf.templateresolver.WebApplicationTemplateResolver;
-import org.thymeleaf.web.IWebExchange;
-import org.thymeleaf.web.servlet.JakartaServletWebApplication;
-import it.polimi.tiw.model.ProdottoComposto;
+import java.util.Set;
 
 /**
  * Servlet che gestisce il salvataggio di una configurazione.
@@ -42,26 +37,13 @@ import it.polimi.tiw.model.ProdottoComposto;
  */
 @WebServlet("/cliente/salva")
 public class SalvaConfigurazioneServlet extends HttpServlet {
-	
-	private Connection connection = null;
-    private JakartaServletWebApplication webApp;
-    private TemplateEngine templateEngine;
 
-    /**
-     * Inizializza la servlet stabilendo la connessione al database e configurando Thymeleaf.
-     */
+    private Connection connection = null;
+
     @Override
     public void init() throws ServletException {
         try {
             connection = it.polimi.tiw.utils.ConnectionFactory.getConnection(getServletContext());
-
-            webApp = JakartaServletWebApplication.buildApplication(getServletContext());
-            WebApplicationTemplateResolver resolver = new WebApplicationTemplateResolver(webApp);
-            resolver.setTemplateMode(TemplateMode.HTML);
-            resolver.setPrefix("/WEB-INF/templates/");
-            resolver.setSuffix(".html");
-            templateEngine = new TemplateEngine();
-            templateEngine.setTemplateResolver(resolver);
         } catch (SQLException | ClassNotFoundException e) {
             throw new jakarta.servlet.UnavailableException("Connessione al DB fallita");
         }
@@ -93,7 +75,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
 
         String codiceRadiceStr = request.getParameter("codiceRadice");
         String nomeConfigurazione = request.getParameter("nomeConfigurazione");
-        String idModificaStr = request.getParameter("idModifica");
+        String idModificaStr = request.getParameter("idConfig");
 
         // Validazione codice radice
         if (codiceRadiceStr == null || codiceRadiceStr.isEmpty()) {
@@ -109,9 +91,23 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
             return;
         }
 
-        // Validazione nome (usa il nuovo metodo in caso di errore)
+        // Raccoglie apertoSet dai parametri hidden del form
+        Set<Integer> apertoSet = new HashSet<>();
+        String[] apertoParams = request.getParameterValues("aperto");
+        if (apertoParams != null) {
+            for (String s : apertoParams) {
+                try {
+                    apertoSet.add(Integer.parseInt(s));
+                } catch (NumberFormatException e) {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Parametri aperto non validi");
+                    return;
+                }
+            }
+        }
+
+        // Validazione nome
         if (nomeConfigurazione == null || nomeConfigurazione.trim().isEmpty()) {
-            ritornaAllaFormConErrore(request, response, "Il nome della configurazione non può essere vuoto", codiceRadice);
+            ritornaAllaFormConErrore(request, response, "Il nome della configurazione non può essere vuoto", codiceRadice, apertoSet);
             return;
         }
 
@@ -142,6 +138,15 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
             SKUDAO sDao = new SKUDAO(conn);
             ConfigurazioneDAO cDao = new ConfigurazioneDAO(conn);
 
+            if (isModifica) {
+                Configurazione confEsistente = cDao.getConfigurazioneById(idModifica, utente.username());
+                if (confEsistente == null) {
+                    conn.rollback();
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Configurazione non trovata o non di proprietà");
+                    return;
+                }
+            }
+
             Prodotto radice = pDao.getAlberoProdottoByCodice(codiceRadice);
             if (radice == null) {
                 conn.rollback();
@@ -170,7 +175,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                         BigDecimal prezzoSku = sDao.getPrezzoReale(idSku);
                         if (prezzoSku == null) {
                             conn.rollback();
-                            ritornaAllaFormConErrore(request, response, "Una delle SKU selezionate non è più valida o non esiste", codiceRadice);
+                            ritornaAllaFormConErrore(request, response, "Una delle SKU selezionate non è più valida o non esiste", codiceRadice, apertoSet);
                             return;
                         }
 
@@ -179,7 +184,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                         prezzoTotale = prezzoTotale.add(prezzoSku);
                     } catch (NumberFormatException e) {
                         conn.rollback();
-                        ritornaAllaFormConErrore(request, response, "Formato parametri SKU errato", codiceRadice);
+                        ritornaAllaFormConErrore(request, response, "Formato parametri SKU errato", codiceRadice, apertoSet);
                         return;
                     }
                 }
@@ -187,16 +192,17 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
 
             if (dettagli.isEmpty()) {
                 conn.rollback();
-                ritornaAllaFormConErrore(request, response, "Nessuna SKU selezionata", codiceRadice);
+                ritornaAllaFormConErrore(request, response, "Nessuna SKU selezionata", codiceRadice, apertoSet);
                 return;
             }
 
             if (actualSkuCount != expectedSkuCount) {
                 conn.rollback();
-                ritornaAllaFormConErrore(request, response, "Numero di SKU non corrispondente ai requisiti del prodotto (possibile manomissione)", codiceRadice);
+                ritornaAllaFormConErrore(request, response, "Numero di SKU non corrispondente ai requisiti del prodotto (possibile manomissione)", codiceRadice, apertoSet);
                 return;
             }
 
+            int idRedir;
             if (isModifica) {
                 // --- MODIFICA: aggiorna testata, cancella vecchi dettagli, inserisce nuovi ---
                 Configurazione conf = new Configurazione();
@@ -208,6 +214,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                 cDao.updateTestata(conf);
                 cDao.deleteDettagli(idModifica);
                 cDao.inserisciDettagliBatch(idModifica, dettagli);
+                idRedir = idModifica;
             } else {
                 // --- NUOVO INSERIMENTO: crea testata e poi inserisce dettagli in batch ---
                 Configurazione conf = new Configurazione();
@@ -216,15 +223,19 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                 conf.setNome(nomeConfigurazione);
                 conf.setPrezzoTotale(prezzoTotale);
 
-                int idConfig = cDao.inserisciTestata(conf);
-                cDao.inserisciDettagliBatch(idConfig, dettagli);
+                idRedir = cDao.inserisciTestata(conf);
+                cDao.inserisciDettagliBatch(idRedir, dettagli);
             }
 
             // Fine transazione
             conn.commit();
 
-            // Redirect alla lista delle configurazioni dell'utente
-            response.sendRedirect(request.getContextPath() + "/cliente/configurazioni");
+            // Pulizia degli attributi di sessione lasciati dalla navigazione progressiva
+            session.removeAttribute("configura.mappaScelte");
+            session.removeAttribute("configura.errore");
+            session.removeAttribute("configura.nomeInserito");
+
+            response.sendRedirect(request.getContextPath() + "/cliente/dettaglio?idConfig=" + idRedir);
 
         } catch (SQLException e) {
             try {
@@ -257,59 +268,41 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         return 0;
     }
 
-    private void ritornaAllaFormConErrore(HttpServletRequest request, HttpServletResponse response, String messaggio, int codiceRadice) throws ServletException, IOException {
-        Connection conn = this.connection;
-        if (conn == null) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "No DB connection");
-            return;
-        }
-        
-        try {
-            ProdottoDAO pDao = new ProdottoDAO(conn);
-            Prodotto radice = pDao.getAlberoProdottoByCodice(codiceRadice);
-            
-            if (radice == null) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Prodotto radice non valido");
-                return;
-            }
+    private void ritornaAllaFormConErrore(HttpServletRequest request, HttpServletResponse response,
+            String messaggio, int codiceRadice, Set<Integer> apertoSet) throws IOException {
 
-            IWebExchange webExchange = webApp.buildExchange(request, response);
-            WebContext ctx = new WebContext(webExchange, request.getLocale());
-            
-            ctx.setVariable("radice", radice);
-            ctx.setVariable("errore", messaggio);
-            ctx.setVariable("nomeInserito", request.getParameter("nomeConfigurazione"));
-            
-            String idModificaStr = request.getParameter("idModifica");
-            if (idModificaStr != null && !idModificaStr.isEmpty()) {
+        // Ricostruisce mappaScelte dai parametri sku_* del form
+        Map<Integer, Integer> mappaScelte = new HashMap<>();
+        Enumeration<String> params = request.getParameterNames();
+        while (params.hasMoreElements()) {
+            String pName = params.nextElement();
+            if (pName.startsWith("sku_")) {
                 try {
-                    ctx.setVariable("idConfigInModifica", Integer.parseInt(idModificaStr));
+                    int idProdotto = Integer.parseInt(pName.substring(4));
+                    int idSku = Integer.parseInt(request.getParameter(pName));
+                    mappaScelte.put(idProdotto, idSku);
                 } catch (NumberFormatException e) {
-                    // ignora e tratta come nuova
+                    // ignora parametri malformati
                 }
             }
-            
-            Map<Integer, Integer> mappaScelte = new HashMap<>();
-            Enumeration<String> params = request.getParameterNames();
-            while (params.hasMoreElements()) {
-                String pName = params.nextElement();
-                if (pName.startsWith("sku_")) {
-                    try {
-                        int idProdotto = Integer.parseInt(pName.substring(4));
-                        int idSku = Integer.parseInt(request.getParameter(pName));
-                        mappaScelte.put(idProdotto, idSku);
-                    } catch (NumberFormatException e) {
-                        // ignora format errati, se ci sono stati verranno ritestati
-                    }
-                }
-            }
-            ctx.setVariable("mappaScelte", mappaScelte);
-
-            response.setContentType("text/html;charset=UTF-8");
-            templateEngine.process("configura", ctx, response.getWriter());
-            
-        } catch (SQLException e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Errore nel caricamento del prodotto per la visualizzazione dell'errore");
         }
+
+        // Salva tutto in sessione come flash attributes: ConfiguraServlet.doGet li leggerà e li rimuoverà
+        HttpSession session = request.getSession();
+        session.setAttribute("configura.mappaScelte", mappaScelte);
+        session.setAttribute("configura.errore", messaggio);
+        session.setAttribute("configura.nomeInserito", request.getParameter("nomeConfigurazione"));
+
+        // Ricostruisce l'URL di redirect con codice, apertoSet e idConfig se presente
+        StringBuilder url = new StringBuilder(request.getContextPath() + "/cliente/configura");
+        url.append("?codice=").append(codiceRadice);
+        for (int id : apertoSet) {
+            url.append("&aperto=").append(id);
+        }
+        String idConfigStr = request.getParameter("idConfig");
+        if (idConfigStr != null && !idConfigStr.isEmpty()) {
+            url.append("&idConfig=").append(idConfigStr);
+        }
+        response.sendRedirect(url.toString());
     }
 }

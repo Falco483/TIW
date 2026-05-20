@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'Dettaglio: ' + ${configurazione.nome}">Dettaglio Configurazione</title>
+</head>
+<body>
+    <header>
+        <a th:href="@{/cliente/home}"
+            style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
+    </header>
+
+    <h2 th:text="${configurazione.nome}">Nome configurazione</h2>
+    <p>
+        <strong>Prezzo totale:</strong>
+        <span th:text="${configurazione.prezzoTotale + ' €'}"></span>
+    </p>
+
+    <h3>Componenti scelti</h3>
+    <ul>
+        <li th:replace="~{::albero(${radice})}"></li>
+    </ul>
+
+    <th:block th:fragment="albero(nodo)" th:if="${nodo != null}">
+        <span th:text="${nodo.nome}"></span>
+
+        <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
+            <th:block th:with="voce=${mappaVoci.get(nodo.id)}">
+                <ul th:if="${voce != null}">
+                    <li>
+                        <strong th:text="${voce.sku.nome}"></strong>
+                        <span th:if="${voce.sku.descrizioneTecnica != null and !voce.sku.descrizioneTecnica.isEmpty()}"
+                              th:text="' — ' + ${voce.sku.descrizioneTecnica}"></span>
+                        <span th:text="' — ' + ${voce.prezzoCongelato} + ' €'"></span>
+                        <br />
+                        <img th:if="${voce.sku.fotografia != null and !voce.sku.fotografia.isEmpty()}"
+                             th:src="${voce.sku.fotografia}" alt="foto SKU"
+                             style="max-height: 80px; margin: 4px 0;" />
+                    </li>
+                </ul>
+            </th:block>
+        </th:block>
+
+        <th:block th:if="${nodo.tipo == 'COMPOSTO'}">
+            <ul>
+                <li th:each="figlio : ${nodo.figli}">
+                    <th:block th:replace="~{::albero(${figlio})}"></th:block>
+                </li>
+            </ul>
+        </th:block>
+    </th:block>
+
+</body>
+</html>
