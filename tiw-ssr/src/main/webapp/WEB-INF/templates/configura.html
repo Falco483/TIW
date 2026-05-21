@@ -55,7 +55,7 @@
         <span th:text="${nodo.nome}"></span>
 
         <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
-            <select th:name="'sku_' + ${nodo.id}" required>
+            <select th:name="'sku_' + ${nodo.id}">
                 <option value="" disabled th:selected="${mappaScelte == null || mappaScelte.get(nodo.id) == null}">
                     Scegli un'opzione...</option>
                 <option th:each="sku : ${nodo.skus}" th:value="${sku.id}"

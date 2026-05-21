@@ -17,11 +17,9 @@
 </header>
 
 <!-- Messaggi di feedback (successo / errore) -->
-<div th:if="${session.messaggioSuccesso}" th:text="${session.messaggioSuccesso}" style="color: green; padding: 10px; border: 1px solid green; margin-bottom: 20px; background-color: #d4edda;"></div>
-<th:block th:if="${session.messaggioSuccesso != null}" th:text="${#session.removeAttribute('messaggioSuccesso')}"></th:block>
+<div th:if="${messaggioSuccesso}" th:text="${messaggioSuccesso}" style="color: green; padding: 10px; border: 1px solid green; margin-bottom: 20px; background-color: #d4edda;"></div>
 
-<div th:if="${session.erroreEliminazione}" th:text="${session.erroreEliminazione}" style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 20px; background-color: #f8d7da;"></div>
-<th:block th:if="${session.erroreEliminazione != null}" th:text="${#session.removeAttribute('erroreEliminazione')}"></th:block>
+<div th:if="${erroreEliminazione}" th:text="${erroreEliminazione}" style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 20px; background-color: #f8d7da;"></div>
 
 <!-- Errori -->
 <div th:if="${errori}" role="alert">

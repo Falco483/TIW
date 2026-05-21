@@ -184,7 +184,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                         prezzoTotale = prezzoTotale.add(prezzoSku);
                     } catch (NumberFormatException e) {
                         conn.rollback();
-                        ritornaAllaFormConErrore(request, response, "Formato parametri SKU errato", codiceRadice, apertoSet);
+                        ritornaAllaFormConErrore(request, response, "inserire tutte le opzioni", codiceRadice, apertoSet);
                         return;
                     }
                 }
@@ -192,13 +192,13 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
 
             if (dettagli.isEmpty()) {
                 conn.rollback();
-                ritornaAllaFormConErrore(request, response, "Nessuna SKU selezionata", codiceRadice, apertoSet);
+                ritornaAllaFormConErrore(request, response, "inserire tutte le opzioni", codiceRadice, apertoSet);
                 return;
             }
 
             if (actualSkuCount != expectedSkuCount) {
                 conn.rollback();
-                ritornaAllaFormConErrore(request, response, "Numero di SKU non corrispondente ai requisiti del prodotto (possibile manomissione)", codiceRadice, apertoSet);
+                ritornaAllaFormConErrore(request, response, "inserire tutte le opzioni", codiceRadice, apertoSet);
                 return;
             }
 
