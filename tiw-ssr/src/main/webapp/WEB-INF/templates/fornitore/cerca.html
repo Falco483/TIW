@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="it" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ricerca Catalogo — Configuratore di Prodotto</title>
+</head>
+<body>
+
+<header>
+    <a th:href="@{/fornitore/home}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
+    <h1>Ricerca Catalogo</h1>
+</header>
+
+<section>
+    <form method="get" th:action="@{/fornitore/cerca}">
+        <label for="query">Cerca SKU o Prodotti:</label>
+        <input type="text" id="query" name="query" th:value="${query}" required>
+        <button type="submit">Cerca</button>
+    </form>
+</section>
+
+<section th:if="${risultati != null}">
+    <h2>Risultati della ricerca</h2>
+    <div th:if="${risultati.isEmpty()}">
+        <p>Nessun elemento trovato per la ricerca effettuata.</p>
+    </div>
+    <ul th:if="${!risultati.isEmpty()}">
+        <li th:each="elem : ${risultati}">
+            <a th:href="@{/fornitore/cerca(query=${query}, idDettaglio=${elem.id}, tipoDettaglio=${elem.tipo})}">
+                <strong th:text="${elem.codice} + ' - ' + ${elem.nome}"></strong> 
+                <span th:text="'(' + ${elem.tipo} + ')'"></span>
+            </a>
+            <p style="margin: 0; font-size: 0.9em; color: #555;" th:text="${elem.descrizione}"></p>
+        </li>
+    </ul>
+</section>
+
+<section th:if="${risultato != null}" style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;">
+    <h2>Dettagli Elemento Selezionato</h2>
+    <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=false)}"></div>
+</section>
+
+</body>
+</html>

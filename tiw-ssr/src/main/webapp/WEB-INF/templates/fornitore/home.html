@@ -11,7 +11,17 @@
     <a th:href="@{/fornitore/home}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
     <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span></h1>
     <a href="/logout">Logout</a>
+    <div style="margin-top: 15px;">
+        <a th:href="@{/fornitore/cerca}" style="display: inline-block; padding: 8px 16px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Cerca nel Catalogo (SKU / Prodotti)</a>
+    </div>
 </header>
+
+<!-- Messaggi di feedback (successo / errore) -->
+<div th:if="${session.messaggioSuccesso}" th:text="${session.messaggioSuccesso}" style="color: green; padding: 10px; border: 1px solid green; margin-bottom: 20px; background-color: #d4edda;"></div>
+<th:block th:if="${session.messaggioSuccesso != null}" th:text="${#session.removeAttribute('messaggioSuccesso')}"></th:block>
+
+<div th:if="${session.erroreEliminazione}" th:text="${session.erroreEliminazione}" style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 20px; background-color: #f8d7da;"></div>
+<th:block th:if="${session.erroreEliminazione != null}" th:text="${#session.removeAttribute('erroreEliminazione')}"></th:block>
 
 <!-- Errori -->
 <div th:if="${errori}" role="alert">
@@ -24,7 +34,7 @@
 <!-- ===== FORM 1: Crea SKU ===== -->
 <section>
     <h2>Crea nuova SKU</h2>
-    <form method="post" action="home" novalidate>
+    <form method="post" action="home" novalidate enctype="multipart/form-data">
         <input type="hidden" name="tipoForm" value="sku">
         <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
 
@@ -39,9 +49,8 @@
                    th:value="${valoriForm != null ? valoriForm['nomeSku'] : ''}">
         </div>
         <div>
-            <label for="fotografiaSku">Fotografia (URL o percorso)</label>
-            <input type="text" id="fotografiaSku" name="fotografiaSku" required
-                   th:value="${valoriForm != null ? valoriForm['fotografiaSku'] : ''}">
+            <label for="fotografiaSku">Fotografia</label>
+            <input type="file" id="fotografiaSku" name="fotografia" accept="image/*" required />
         </div>
         <div>
             <label for="descrizioneTecnicaSku">Descrizione tecnica</label>
