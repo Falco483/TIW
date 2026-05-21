@@ -20,6 +20,20 @@
         <input type="hidden" name="idConfig" th:value="${idConfig}" />
         <input th:each="id : ${apertoSet}" type="hidden" name="aperto" th:value="${id}" />
 
+        <!--
+            Hidden fields per le scelte SKU di prodotti NON visibili nel form corrente
+            (nodi non espansi). Così le scelte sopravvivono a espansioni successive
+            senza bisogno di sessione.
+        -->
+        <th:block th:if="${mappaScelte != null}">
+            <th:block th:each="entry : ${mappaScelte.entrySet()}">
+                <input th:if="${!prodottiVisibili.contains(entry.key)}"
+                       type="hidden"
+                       th:name="'sku_' + ${entry.key}"
+                       th:value="${entry.value}" />
+            </th:block>
+        </th:block>
+
         <div th:if="${errore != null}" th:text="${errore}" style="color:red; margin-bottom: 10px;"></div>
 
         <label for="nomeConfigurazione">Nome Configurazione:</label>

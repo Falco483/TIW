@@ -5,6 +5,7 @@ import it.polimi.tiw.dao.ProdottoDAO;
 import it.polimi.tiw.dto.UtenteSessionDTO;
 import it.polimi.tiw.model.Configurazione;
 import it.polimi.tiw.model.Prodotto;
+import it.polimi.tiw.model.ProdottoComposto;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -81,9 +82,18 @@ public class ConfiguraServlet extends HttpServlet {
 
     /**
      * Gestisce le richieste GET per la configurazione.
-     * Recupera l'albero del prodotto dal database e, se richiesto, carica una
-     * configurazione
-     * esistente per permetterne la modifica pre-popolando le scelte dell'utente.
+     *
+     * Le scelte SKU dell'utente viaggiano nel form come hidden fields (stateless):
+     * non vengono mai scritte in sessione da questo metodo.
+     * La sessione viene letta solo per i flash attributes (errore, nomeInserito,
+     * mappaScelte) lasciati da SalvaConfigurazioneServlet in caso di errore di
+     * validazione, e rimossi immediatamente dopo la lettura.
+     *
+     * Priorità per costruire mappaScelte:
+     *  1. Parametri GET "sku_*"  → redirect post-espansione (contengono già tutto)
+     *  2. Flash "configura.mappaScelte" in sessione → redirect post-errore salvataggio
+     *  3. DB (solo in modalità modifica, prima visita senza scelte nell'URL)
+     *  4. null → nuova configurazione senza scelte pregresse
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -117,11 +127,55 @@ public class ConfiguraServlet extends HttpServlet {
             }
         }
 
+        // 1. Prova a leggere le scelte dai parametri GET "sku_*" (redirect post-espansione)
+        Map<Integer, Integer> mappaScelte = new HashMap<>();
+        Enumeration<String> params = request.getParameterNames();
+        while (params.hasMoreElements()) {
+            String nome = params.nextElement();
+            if (nome.startsWith("sku_")) {
+                try {
+                    int idProdotto = Integer.parseInt(nome.substring(4));
+                    int idSku     = Integer.parseInt(request.getParameter(nome));
+                    mappaScelte.put(idProdotto, idSku);
+                } catch (NumberFormatException e) {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Parametri SKU non validi nell'URL");
+                    return;
+                }
+            }
+        }
+
+        // Flash attributes lasciati da SalvaConfigurazioneServlet in caso di errore
         HttpSession session = request.getSession(false);
+        String errore      = null;
+        String nomeInserito = null;
+        if (session != null) {
+            errore       = (String) session.getAttribute("configura.errore");
+            nomeInserito = (String) session.getAttribute("configura.nomeInserito");
+            session.removeAttribute("configura.errore");
+            session.removeAttribute("configura.nomeInserito");
+
+            // 2. Flash mappaScelte → redirect post-errore (sovrascrive i parametri GET,
+            //    che in quel caso non sono presenti)
+            if (mappaScelte.isEmpty()) {
+                @SuppressWarnings("unchecked")
+                Map<Integer, Integer> flash =
+                    (Map<Integer, Integer>) session.getAttribute("configura.mappaScelte");
+                if (flash != null) {
+                    mappaScelte = flash;
+                }
+            }
+            session.removeAttribute("configura.mappaScelte");
+        }
+
+        // Se il flash non ha già impostato nomeInserito (caso errore), prendi dal
+        // parametro GET — è il nome che l'utente aveva scritto prima di cliccare Espandi
+        if (nomeInserito == null) {
+            nomeInserito = request.getParameter("nomeConfigurazione");
+        }
 
         try {
-            ProdottoDAO dao = new ProdottoDAO(connection);
-            Prodotto albero = dao.getAlberoProdottoByCodice(codice);
+            ProdottoDAO dao   = new ProdottoDAO(connection);
+            Prodotto    albero = dao.getAlberoProdottoByCodice(codice);
 
             if (albero == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Prodotto non trovato");
@@ -129,9 +183,11 @@ public class ConfiguraServlet extends HttpServlet {
             }
 
             IWebExchange webExchange = webApp.buildExchange(request, response);
-            WebContext ctx = new WebContext(webExchange, request.getLocale());
-            ctx.setVariable("radice", albero);
+            WebContext   ctx         = new WebContext(webExchange, request.getLocale());
+            ctx.setVariable("radice",    albero);
             ctx.setVariable("apertoSet", aperti);
+            ctx.setVariable("errore",    errore);
+            ctx.setVariable("nomeInserito", nomeInserito);
 
             String idConfigStr = request.getParameter("idConfig");
             if (idConfigStr != null && !idConfigStr.isEmpty()) {
@@ -139,7 +195,7 @@ public class ConfiguraServlet extends HttpServlet {
                     int idConfig = Integer.parseInt(idConfigStr);
 
                     UtenteSessionDTO utente = (UtenteSessionDTO) session.getAttribute("utente");
-                    ConfigurazioneDAO cDao = new ConfigurazioneDAO(connection);
+                    ConfigurazioneDAO cDao  = new ConfigurazioneDAO(connection);
 
                     Configurazione confEsistente = cDao.getConfigurazioneById(idConfig, utente.username());
                     if (confEsistente == null) {
@@ -148,57 +204,52 @@ public class ConfiguraServlet extends HttpServlet {
                         return;
                     }
 
-                    // In modalità modifica la sessione è persistente (non flash):
-                    // alla prima visita inizializziamo da DB e salviamo in sessione;
-                    // nelle GET successive (dopo espansioni) la sessione ha già le scelte
-                    // aggiornate
-                    Map<Integer, Integer> mappaScelte = (Map<Integer, Integer>) session
-                            .getAttribute("configura.mappaScelte");
-                    if (mappaScelte == null) {
+                    // 3. Prima visita in modalità modifica: nessuna scelta nell'URL né in flash
+                    //    → carica dal DB
+                    if (mappaScelte.isEmpty()) {
                         mappaScelte = cDao.getScelteDettaglio(idConfig);
-                        session.setAttribute("configura.mappaScelte", mappaScelte);
                     }
 
-                    // errore e nomeInserito: flash attributes salvati da ritornaAllaFormConErrore
-                    String errore = (String) session.getAttribute("configura.errore");
-                    session.removeAttribute("configura.errore");
-                    String nomeInserito = (String) session.getAttribute("configura.nomeInserito");
-                    session.removeAttribute("configura.nomeInserito");
-
-                    ctx.setVariable("mappaScelte", mappaScelte);
-                    ctx.setVariable("idConfig", idConfig);
+                    ctx.setVariable("idConfig",           idConfig);
                     ctx.setVariable("nomeConfigurazione", confEsistente.getNome());
-                    ctx.setVariable("errore", errore);
-                    ctx.setVariable("nomeInserito", nomeInserito);
-                    response.setContentType("text/html;charset=UTF-8");
-                    templateEngine.process("configura", ctx, response.getWriter());
-                    return;
                 } catch (NumberFormatException e) {
-                    // idConfig non valido → ignora, procede come nuova configurazione
+                    // idConfig non valido → ignora, tratta come nuova configurazione
                 }
             }
 
-            // Modalità nuova configurazione: mappaScelte è persistente in sessione (si pulisce
-            // solo al salvataggio con successo), errore e nomeInserito sono flash attributes
-            Map<Integer, Integer> mappaScelte = null;
-            String errore = null;
-            String nomeInserito = null;
-            if (session != null) {
-                mappaScelte = (Map<Integer, Integer>) session.getAttribute("configura.mappaScelte");
-                errore = (String) session.getAttribute("configura.errore");
-                session.removeAttribute("configura.errore");
-                nomeInserito = (String) session.getAttribute("configura.nomeInserito");
-                session.removeAttribute("configura.nomeInserito");
-            }
-            ctx.setVariable("mappaScelte", mappaScelte);
-            ctx.setVariable("errore", errore);
-            ctx.setVariable("nomeInserito", nomeInserito);
+            // Calcola quali prodotti semplici sono attualmente visibili nel form
+            // (hanno un <select> renderizzato). Serve al template per sapere
+            // quali scelte emettere come hidden field invece.
+            Set<Integer> prodottiVisibili = calcolaProdottiVisibili(albero, aperti, true);
+
+            ctx.setVariable("mappaScelte",       mappaScelte.isEmpty() ? null : mappaScelte);
+            ctx.setVariable("prodottiVisibili",  prodottiVisibili);
             response.setContentType("text/html;charset=UTF-8");
             templateEngine.process("configura", ctx, response.getWriter());
 
         } catch (SQLException e) {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Errore nel caricamento del prodotto");
         }
+    }
+
+    /**
+     * Calcola ricorsivamente l'insieme degli id dei prodotti SEMPLICI attualmente
+     * visibili nell'albero (quelli per cui il template renderizza un {@code <select>}).
+     * Un prodotto semplice è visibile se tutti i suoi antenati composti sono espansi
+     * (ovvero sono la radice oppure presenti in {@code aperti}).
+     */
+    private Set<Integer> calcolaProdottiVisibili(Prodotto nodo, Set<Integer> aperti, boolean isRadice) {
+        Set<Integer> visibili = new HashSet<>();
+        if ("SEMPLICE".equals(nodo.getTipo())) {
+            visibili.add(nodo.getId());
+        } else if ("COMPOSTO".equals(nodo.getTipo()) && nodo instanceof ProdottoComposto composto) {
+            if (isRadice || aperti.contains(nodo.getCodice())) {
+                for (Prodotto figlio : composto.getFigli()) {
+                    visibili.addAll(calcolaProdottiVisibili(figlio, aperti, false));
+                }
+            }
+        }
+        return visibili;
     }
 
     @Override
@@ -255,8 +306,9 @@ public class ConfiguraServlet extends HttpServlet {
         }
 
         if (espandiIdStr != null) {
-            // Branch espansione: aggiunge il nodo richiesto all'insieme degli aperti,
-            // salva le scelte in sessione e reindirizza alla GET con lo stato aggiornato
+            // Branch espansione: aggiunge il nodo richiesto all'insieme degli aperti
+            // e reindirizza alla GET portando le scelte correnti come parametri "sku_*"
+            // nell'URL (nessuna scrittura in sessione).
             int espandiId;
             try {
                 espandiId = Integer.parseInt(espandiIdStr);
@@ -267,16 +319,6 @@ public class ConfiguraServlet extends HttpServlet {
 
             apertoSet.add(espandiId);
 
-            HttpSession session = request.getSession();
-            // Merge: parte dalla mappa in sessione (contiene scelte di nodi non visibili)
-            // e sovrascrive con i valori del form (scelte aggiornate dall'utente)
-            Map<Integer, Integer> mappaBase = (Map<Integer, Integer>) session.getAttribute("configura.mappaScelte");
-            if (mappaBase != null) {
-                mappaBase.putAll(mappaScelte);
-                mappaScelte = mappaBase;
-            }
-            session.setAttribute("configura.mappaScelte", mappaScelte);
-
             StringBuilder url = new StringBuilder(request.getContextPath() + "/cliente/configura");
             url.append("?codice=").append(codiceRadice);
             for (int id : apertoSet) {
@@ -284,6 +326,16 @@ public class ConfiguraServlet extends HttpServlet {
             }
             if (idConfigStr != null && !idConfigStr.isEmpty()) {
                 url.append("&idConfig=").append(idConfigStr);
+            }
+            // Le scelte SKU viaggiano come query params: il doGet le rileverà con priorità 1
+            for (Map.Entry<Integer, Integer> entry : mappaScelte.entrySet()) {
+                url.append("&sku_").append(entry.getKey()).append("=").append(entry.getValue());
+            }
+            // Il nome configurazione inserito sopravvive al redirect
+            String nomeConfigurazione = request.getParameter("nomeConfigurazione");
+            if (nomeConfigurazione != null && !nomeConfigurazione.isEmpty()) {
+                url.append("&nomeConfigurazione=").append(
+                    java.net.URLEncoder.encode(nomeConfigurazione, java.nio.charset.StandardCharsets.UTF_8));
             }
             response.sendRedirect(url.toString());
 
