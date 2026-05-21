@@ -50,7 +50,7 @@ public class ProdottoDAO {
     }
 
     public int contaProdottiComposti() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM prodotto WHERE tipo = 'COMPOSTO' AND id_padre IS NULL";
+        String sql = "SELECT COUNT(*) FROM prodotto WHERE tipo = 'COMPOSTO' ";
         try (PreparedStatement stmt = connection.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {
             return rs.next() ? rs.getInt(1) : 0;
@@ -61,7 +61,7 @@ public class ProdottoDAO {
         String sql = """
                 SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
                 FROM prodotto
-                WHERE tipo = 'COMPOSTO' AND id_padre IS NULL
+                WHERE tipo = 'COMPOSTO'
                 ORDER BY nome DESC
                 LIMIT ? OFFSET ?
                 """;
@@ -82,13 +82,13 @@ public class ProdottoDAO {
     // Usato per popolare le checkboxes nel form "Crea Prodotto Composto".
     public List<Prodotto> findAll() throws SQLException {
         String sql = """
-            SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
-            FROM prodotto
-            ORDER BY nome DESC
-            """;
+                SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
+                FROM prodotto
+                ORDER BY nome DESC
+                """;
         List<Prodotto> risultati = new ArrayList<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 risultati.add(mapRow(rs));
             }
@@ -96,17 +96,18 @@ public class ProdottoDAO {
         return risultati;
     }
 
-    // Tutti i prodotti senza padre (orfani), usati come candidati figli nel form "Crea Prodotto Composto".
+    // Tutti i prodotti senza padre (orfani), usati come candidati figli nel form
+    // "Crea Prodotto Composto".
     public List<Prodotto> findAllOrfani() throws SQLException {
         String sql = """
-            SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
-            FROM prodotto
-            WHERE id_padre IS NULL
-            ORDER BY nome DESC
-            """;
+                SELECT id, codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre
+                FROM prodotto
+                WHERE id_padre IS NULL
+                ORDER BY nome DESC
+                """;
         List<Prodotto> risultati = new ArrayList<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 risultati.add(mapRow(rs));
             }
