@@ -1,7 +1,9 @@
 package it.polimi.tiw.dao;
 
 import it.polimi.tiw.dto.DettaglioDTO;
+import it.polimi.tiw.dto.VoceConfigurazioneDTO;
 import it.polimi.tiw.model.Configurazione;
+import it.polimi.tiw.model.SKU;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -252,6 +254,32 @@ public class ConfigurazioneDAO {
      * @return lista di Configurazione ordinate per data_modifica DESC, vuota se nessuna trovata
      * @throws SQLException se la query SELECT fallisce
      */
+    public Map<Integer, VoceConfigurazioneDTO> getVociDettaglio(int idConfig) throws SQLException {
+        String sql = "SELECT cd.id_prodotto, cd.prezzo_unitario_congelato, "
+                   + "s.id, s.codice, s.nome, s.fotografia, s.descrizione_tecnica, s.prezzo "
+                   + "FROM configurazione_dettaglio cd "
+                   + "JOIN sku s ON cd.id_sku = s.id "
+                   + "WHERE cd.id_configurazione = ?";
+        Map<Integer, VoceConfigurazioneDTO> mappa = new HashMap<>();
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, idConfig);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    SKU sku = new SKU();
+                    sku.setId(rs.getInt("id"));
+                    sku.setCodice(rs.getInt("codice"));
+                    sku.setNome(rs.getString("nome"));
+                    sku.setFotografia(rs.getString("fotografia"));
+                    sku.setDescrizioneTecnica(rs.getString("descrizione_tecnica"));
+                    sku.setPrezzo(rs.getBigDecimal("prezzo"));
+                    mappa.put(rs.getInt("id_prodotto"),
+                              new VoceConfigurazioneDTO(sku, rs.getBigDecimal("prezzo_unitario_congelato")));
+                }
+            }
+        }
+        return mappa;
+    }
+
     public List<Configurazione> getConfigurazioniByUtente(String username) throws SQLException {
         String sql = "SELECT c.id, c.cliente_username, c.prodotto_radice_id, c.nome, "
                    + "c.data_creazione, c.data_modifica, c.prezzo_totale, p.nome AS nome_prodotto, p.codice AS codice_prodotto "

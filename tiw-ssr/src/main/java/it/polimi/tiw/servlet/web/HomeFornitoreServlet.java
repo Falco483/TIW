@@ -84,16 +84,22 @@ public class HomeFornitoreServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
         List<String> errori = null;
         Map<String, String> valoriForm = null;
+        String messaggioSuccesso = null;
+        String erroreEliminazione = null;
 
         if (session != null) {
             errori        = (List<String>) session.getAttribute(SESSION_ERRORI);
             valoriForm    = (Map<String, String>) session.getAttribute(SESSION_VALORI_FORM);
+            messaggioSuccesso = (String) session.getAttribute("messaggioSuccesso");
+            erroreEliminazione = (String) session.getAttribute("erroreEliminazione");
 
             session.removeAttribute(SESSION_ERRORI);
             session.removeAttribute(SESSION_VALORI_FORM);
+            session.removeAttribute("messaggioSuccesso");
+            session.removeAttribute("erroreEliminazione");
         }
 
-        renderHome(request, response, errori, valoriForm);
+        renderHome(request, response, errori, valoriForm, messaggioSuccesso, erroreEliminazione);
     }
 
     @Override
@@ -206,6 +212,13 @@ public class HomeFornitoreServlet extends HttpServlet {
 
         try {
             SKUDAO skuDAO = new SKUDAO(connection);
+            
+            if (skuDAO.findByCodice(codice) != null) {
+                errori.add("Esiste già una SKU con il codice " + codice + ".");
+                redirectConErrore(request, response, errori, valoriForm);
+                return;
+            }
+
             int id = skuDAO.insert(codice, nomeRaw != null ? nomeRaw.trim() : "", percorsoImmagine,
                                    descrizioneTecRaw != null ? descrizioneTecRaw.trim() : "", prezzo);
             SKU skuCreata = skuDAO.findById(id);
@@ -244,6 +257,15 @@ public class HomeFornitoreServlet extends HttpServlet {
             }
         }
 
+        int codice = 0;
+        if (!isBlank(codiceRaw)) {
+            try {
+                codice = Integer.parseInt(codiceRaw.trim());
+            } catch (NumberFormatException e) {
+                errori.add("Il codice del prodotto semplice deve essere un numero intero.");
+            }
+        }
+
         if (!errori.isEmpty()) {
             redirectConErrore(request, response, errori, valoriForm);
             return;
@@ -251,6 +273,13 @@ public class HomeFornitoreServlet extends HttpServlet {
 
         try {
             ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
+            
+            if (prodottoDAO.findByCodice(codice) != null) {
+                errori.add("Esiste già un prodotto con il codice " + codice + ".");
+                redirectConErrore(request, response, errori, valoriForm);
+                return;
+            }
+
             int id = prodottoDAO.insertSemplice(codiceRaw.trim(), nomeRaw.trim());
             for (int idSku : idSkuList) {
                 prodottoDAO.addSku(id, idSku);
@@ -323,6 +352,15 @@ public class HomeFornitoreServlet extends HttpServlet {
             }
         }
 
+        int codice = 0;
+        if (!isBlank(codiceRaw)) {
+            try {
+                codice = Integer.parseInt(codiceRaw.trim());
+            } catch (NumberFormatException e) {
+                errori.add("Il codice del prodotto composto deve essere un numero intero.");
+            }
+        }
+
         if (!errori.isEmpty()) {
             redirectConErrore(request, response, errori, valoriForm);
             return;
@@ -330,10 +368,17 @@ public class HomeFornitoreServlet extends HttpServlet {
 
         boolean autoCommitOriginale = true;
         try {
+            ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
+            
+            if (prodottoDAO.findByCodice(codice) != null) {
+                errori.add("Esiste già un prodotto con il codice " + codice + ".");
+                redirectConErrore(request, response, errori, valoriForm);
+                return;
+            }
+
             autoCommitOriginale = connection.getAutoCommit();
             connection.setAutoCommit(false);
 
-            ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
             int id = prodottoDAO.insertComposto(codiceRaw.trim(), nomeRaw.trim(),
                                                 descrizioneRaw.trim(), prezzoMin, prezzoMax);
 
@@ -372,7 +417,8 @@ public class HomeFornitoreServlet extends HttpServlet {
     // -------------------------------------------------------------------------
 
     private void renderHome(HttpServletRequest request, HttpServletResponse response,
-                            List<String> errori, Map<String, String> valoriForm) throws IOException {
+                            List<String> errori, Map<String, String> valoriForm,
+                            String messaggioSuccesso, String erroreEliminazione) throws IOException {
         try {
             SKUDAO skuDAO = new SKUDAO(connection);
             ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
@@ -385,6 +431,8 @@ public class HomeFornitoreServlet extends HttpServlet {
             ctx.setVariable("tuttiIProdotti", tuttiIProdotti);
             if (errori != null && !errori.isEmpty()) ctx.setVariable("errori", errori);
             if (valoriForm != null)                  ctx.setVariable("valoriForm", valoriForm);
+            if (messaggioSuccesso != null)           ctx.setVariable("messaggioSuccesso", messaggioSuccesso);
+            if (erroreEliminazione != null)          ctx.setVariable("erroreEliminazione", erroreEliminazione);
 
             response.setContentType("text/html;charset=UTF-8");
             templateEngine.process("fornitore/home", ctx, response.getWriter());

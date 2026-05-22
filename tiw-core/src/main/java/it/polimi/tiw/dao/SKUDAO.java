@@ -41,6 +41,16 @@ public class SKUDAO {
         }
     }
 
+    public SKU findByCodice(int codice) throws SQLException {
+        String sql = "SELECT id, codice, nome, fotografia, descrizione_tecnica, prezzo FROM sku WHERE codice = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, codice);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapRow(rs) : null;
+            }
+        }
+    }
+
     // Ritorna l'id generato dal DB
     public int insert(int codice, String nome, String fotografia, String descrizioneTecnica, BigDecimal prezzo)
             throws SQLException {
