@@ -219,9 +219,14 @@ public class HomeFornitoreServlet extends HttpServlet {
                 return;
             }
 
-            int id = skuDAO.insert(codice, nomeRaw != null ? nomeRaw.trim() : "", percorsoImmagine,
-                                   descrizioneTecRaw != null ? descrizioneTecRaw.trim() : "", prezzo);
-            SKU skuCreata = skuDAO.findById(id);
+            SKU nuovaSku = new SKU();
+            nuovaSku.setCodice(codice);
+            nuovaSku.setNome(nomeRaw != null ? nomeRaw.trim() : "");
+            nuovaSku.setFotografia(percorsoImmagine);
+            nuovaSku.setDescrizioneTecnica(descrizioneTecRaw != null ? descrizioneTecRaw.trim() : "");
+            nuovaSku.setPrezzo(prezzo);
+            
+            SKU skuCreata = skuDAO.insert(nuovaSku);
             redirectConSuccesso(request, response, skuCreata, "sku");
         } catch (SQLException e) {
             redirectConErrore(request, response,

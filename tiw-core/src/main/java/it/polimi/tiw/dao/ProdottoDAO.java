@@ -215,6 +215,42 @@ public class ProdottoDAO {
         }
     }
 
+    /**
+     * Calcola la profondità massima del sotto-albero radicato nel prodotto dato
+     * (navigazione verso il basso). Ritorna 1 se il nodo è una foglia.
+     */
+    public int calcolaProfondita(int idProdotto) throws SQLException {
+        String sql = """
+                WITH RECURSIVE discendenti AS (
+                    SELECT id, 1 AS livello FROM prodotto WHERE id = ?
+                    UNION ALL
+                    SELECT p.id, d.livello + 1
+                    FROM prodotto p JOIN discendenti d ON p.id_padre = d.id
+                )
+                SELECT MAX(livello) FROM discendenti
+                """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, idProdotto);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 1;
+            }
+        }
+    }
+
+    /**
+     * Conta il numero di SKU associate a un prodotto semplice.
+     * Utile per validare che un prodotto semplice abbia almeno una SKU.
+     */
+    public int contaSkuAssociate(int idProdotto) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM prodotto_sku WHERE id_prodotto = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, idProdotto);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Insert
     // -------------------------------------------------------------------------
@@ -259,7 +295,9 @@ public class ProdottoDAO {
     // -------------------------------------------------------------------------
 
     public void addSku(int idProdotto, int idSku) throws SQLException {
-        String sql = "INSERT INTO prodotto_sku (id_prodotto, id_sku) VALUES (?, ?)";
+        // INSERT IGNORE: se la coppia (id_prodotto, id_sku) esiste già (PK composita),
+        // l'operazione viene ignorata silenziosamente senza lanciare una duplicate-key exception.
+        String sql = "INSERT IGNORE INTO prodotto_sku (id_prodotto, id_sku) VALUES (?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idProdotto);
             stmt.setInt(2, idSku);
@@ -421,11 +459,147 @@ public class ProdottoDAO {
         }
     }
 
+    /**
+     * Elimina definitivamente un prodotto e tutta la sua sotto-gerarchia.
+     * Prima rimuove le configurazioni i cui dettagli referenziano
+     * questo prodotto o suoi discendenti (per evitare violazione
+     * del vincolo RESTRICT su configurazione_dettaglio).
+     */
     public void eliminaDefinitivamente(int id) throws SQLException {
-        String sql = "DELETE FROM prodotto WHERE id = ?";
+        boolean autoCommitOriginale = connection.getAutoCommit();
+        try {
+            connection.setAutoCommit(false);
+
+            // 1) Trova le configurazioni il cui dettaglio referenzia
+            //    questo prodotto o un suo discendente, e cancellale.
+            String findConfigSql = """
+                    WITH RECURSIVE discendenti AS (
+                        SELECT id FROM prodotto WHERE id = ?
+                        UNION ALL
+                        SELECT p.id FROM prodotto p JOIN discendenti d ON p.id_padre = d.id
+                    )
+                    SELECT DISTINCT cd.id_configurazione
+                    FROM configurazione_dettaglio cd
+                    WHERE cd.id_prodotto IN (SELECT id FROM discendenti)
+                    """;
+            try (PreparedStatement stmt = connection.prepareStatement(findConfigSql)) {
+                stmt.setInt(1, id);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        int idConfig = rs.getInt(1);
+                        try (PreparedStatement del = connection.prepareStatement(
+                                "DELETE FROM configurazione WHERE id = ?")) {
+                            del.setInt(1, idConfig);
+                            del.executeUpdate();
+                        }
+                    }
+                }
+            }
+
+            // 2) Ora cancella il prodotto (i figli cascadano via ON DELETE CASCADE)
+            String sql = "DELETE FROM prodotto WHERE id = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setInt(1, id);
+                stmt.executeUpdate();
+            }
+
+            connection.commit();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(autoCommitOriginale);
+        }
+    }
+
+    public void updateProdotto(Prodotto p) throws SQLException {
+        String sql = "UPDATE prodotto SET nome = ?, descrizione = ?, prezzo_min = ?, prezzo_max = ? WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
+            stmt.setString(1, p.getNome());
+            stmt.setString(2, p.getDescrizione());
+            stmt.setBigDecimal(3, p.getPrezzoMin());
+            stmt.setBigDecimal(4, p.getPrezzoMax());
+            stmt.setInt(5, p.getId());
             stmt.executeUpdate();
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Inserimento Ricorsivo Transazionale (SPA)
+    // -------------------------------------------------------------------------
+
+    public int insertTree(ProdottoComposto radice) throws SQLException {
+        boolean autoCommitOriginale = connection.getAutoCommit();
+        try {
+            connection.setAutoCommit(false);
+            
+            int rootId = insertNode(radice, null);
+            
+            connection.commit();
+            return rootId;
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(autoCommitOriginale);
+        }
+    }
+
+    private int insertNode(Prodotto nodo, Integer idPadre) throws SQLException {
+        String sql = "INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        
+        int idGenerato;
+        
+        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setInt(1, nodo.getCodice());
+            stmt.setString(2, nodo.getNome());
+            
+            if (nodo instanceof ProdottoComposto) {
+                stmt.setString(3, "COMPOSTO");
+                stmt.setString(4, nodo.getDescrizione());
+                stmt.setBigDecimal(5, nodo.getPrezzoMin());
+                stmt.setBigDecimal(6, nodo.getPrezzoMax());
+            } else if (nodo instanceof ProdottoSemplice) {
+                stmt.setString(3, "SEMPLICE");
+                stmt.setNull(4, java.sql.Types.VARCHAR);
+                stmt.setNull(5, java.sql.Types.DECIMAL);
+                stmt.setNull(6, java.sql.Types.DECIMAL);
+            } else {
+                throw new SQLException("Tipo di prodotto sconosciuto.");
+            }
+            
+            if (idPadre == null) {
+                stmt.setNull(7, java.sql.Types.INTEGER);
+            } else {
+                stmt.setInt(7, idPadre);
+            }
+            
+            stmt.executeUpdate();
+            
+            try (ResultSet keys = stmt.getGeneratedKeys()) {
+                if (keys.next()) {
+                    idGenerato = keys.getInt(1);
+                    nodo.setId(idGenerato);
+                } else {
+                    throw new SQLException("Nessun ID generato per il nodo.");
+                }
+            }
+        }
+        
+        if (nodo instanceof ProdottoComposto pc) {
+            if (pc.getFigli() != null) {
+                for (Prodotto figlio : pc.getFigli()) {
+                    insertNode(figlio, idGenerato);
+                }
+            }
+        } else if (nodo instanceof ProdottoSemplice ps) {
+            if (ps.getSKUs() != null) {
+                for (SKU sku : ps.getSKUs()) {
+                    addSku(idGenerato, sku.getId());
+                }
+            }
+        }
+        
+        return idGenerato;
     }
 }

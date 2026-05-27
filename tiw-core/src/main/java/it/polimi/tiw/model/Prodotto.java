@@ -2,10 +2,18 @@ package it.polimi.tiw.model;
 
 import java.math.BigDecimal;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+
 /**
  * Rappresenta un prodotto generico nel sistema.
  * Classe base astratta per ProdottoComposto e ProdottoSemplice.
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "tipo")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = ProdottoComposto.class, name = "COMPOSTO"),
+    @JsonSubTypes.Type(value = ProdottoSemplice.class, name = "SEMPLICE")
+})
 public abstract class Prodotto {
 
     private int id;
