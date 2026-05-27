@@ -1,7 +1,9 @@
 package it.polimi.tiw.servlet.web;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -9,12 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.nio.file.Paths;
-import java.io.File;
-
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.Part;
-import jakarta.servlet.annotation.MultipartConfig;
 
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.WebContext;
@@ -31,10 +27,13 @@ import it.polimi.tiw.model.SKU;
 import it.polimi.tiw.utils.ConnectionFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.UnavailableException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
 
 @WebServlet("/fornitore/home")
 @MultipartConfig(maxFileSize = 1024 * 1024 * 5, maxRequestSize = 1024 * 1024 * 10)
@@ -43,10 +42,13 @@ public class HomeFornitoreServlet extends HttpServlet {
 
     private static final String UPLOAD_DIR = "C:\\Users\\Antonio\\Desktop\\progetto TIW\\foto\\";
 
-    private static final String SESSION_ERRORI         = "home.errori";
-    private static final String SESSION_VALORI_FORM    = "home.valoriForm";
-    private static final String SESSION_RISULTATO      = "home.risultato";
-    private static final String SESSION_TIPO_RISULTATO = "home.tipoRisultato";
+    private static final String REQ_ERRORI                  = "errori";
+    private static final String REQ_VALORI_FORM             = "valoriForm";
+    private static final String SESSION_RISULTATO           = "home.risultato";
+    private static final String SESSION_TIPO_RISULTATO      = "home.tipoRisultato";
+    private static final String SESSION_PREZZO_MIN_CALC     = "home.prezzoMinCalcolato";
+    private static final String SESSION_PREZZO_MAX_CALC     = "home.prezzoMaxCalcolato";
+    private static final String SESSION_ID_FIGLI_SELEZIONATI = "home.idFigliSelezionati";
 
     private Connection connection = null;
     private JakartaServletWebApplication webApp;
@@ -82,24 +84,33 @@ public class HomeFornitoreServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         HttpSession session = request.getSession(false);
-        List<String> errori = null;
-        Map<String, String> valoriForm = null;
-        String messaggioSuccesso = null;
-        String erroreEliminazione = null;
 
         if (session != null) {
-            errori        = (List<String>) session.getAttribute(SESSION_ERRORI);
-            valoriForm    = (Map<String, String>) session.getAttribute(SESSION_VALORI_FORM);
-            messaggioSuccesso = (String) session.getAttribute("messaggioSuccesso");
-            erroreEliminazione = (String) session.getAttribute("erroreEliminazione");
+            // Da AzioneCatalogoServlet (altre servlet)
+            String messaggioSuccesso  = (String) session.getAttribute("messaggioSuccesso");
+            String erroreEliminazione = (String) session.getAttribute("erroreEliminazione");
+            // Da handleRicalcolaComposto (PRG ricalcola)
+            BigDecimal prezzoMinCalcolato    = (BigDecimal) session.getAttribute(SESSION_PREZZO_MIN_CALC);
+            BigDecimal prezzoMaxCalcolato    = (BigDecimal) session.getAttribute(SESSION_PREZZO_MAX_CALC);
+            List<Integer> idFigliSelezionati = (List<Integer>) session.getAttribute(SESSION_ID_FIGLI_SELEZIONATI);
+            Map<String, String> valoriForm   = (Map<String, String>) session.getAttribute(REQ_VALORI_FORM);
 
-            session.removeAttribute(SESSION_ERRORI);
-            session.removeAttribute(SESSION_VALORI_FORM);
             session.removeAttribute("messaggioSuccesso");
             session.removeAttribute("erroreEliminazione");
+            session.removeAttribute(SESSION_PREZZO_MIN_CALC);
+            session.removeAttribute(SESSION_PREZZO_MAX_CALC);
+            session.removeAttribute(SESSION_ID_FIGLI_SELEZIONATI);
+            session.removeAttribute(REQ_VALORI_FORM);
+
+            if (messaggioSuccesso != null)        request.setAttribute("messaggioSuccesso", messaggioSuccesso);
+            if (erroreEliminazione != null)       request.setAttribute("erroreEliminazione", erroreEliminazione);
+            if (prezzoMinCalcolato != null)       request.setAttribute("prezzoMinCalcolato", prezzoMinCalcolato);
+            if (prezzoMaxCalcolato != null)       request.setAttribute("prezzoMaxCalcolato", prezzoMaxCalcolato);
+            if (idFigliSelezionati != null)       request.setAttribute("idFigliSelezionati", idFigliSelezionati);
+            if (valoriForm != null)               request.setAttribute(REQ_VALORI_FORM, valoriForm);
         }
 
-        renderHome(request, response, errori, valoriForm, messaggioSuccesso, erroreEliminazione);
+        renderHome(request, response);
     }
 
     @Override
@@ -113,8 +124,15 @@ public class HomeFornitoreServlet extends HttpServlet {
         switch (tipoForm) {
             case "sku"      -> handleCreaSku(request, response);
             case "semplice" -> handleCreaSemplice(request, response);
-            case "composto" -> handleCreaComposto(request, response);
-            default         -> response.sendError(HttpServletResponse.SC_BAD_REQUEST, "tipoForm non valido");
+            case "composto" -> {
+                String azione = request.getParameter("azione");
+                if ("ricalcola".equals(azione)) {
+                    handleRicalcolaComposto(request, response);
+                } else {
+                    handleCreaComposto(request, response);
+                }
+            }
+            default -> response.sendError(HttpServletResponse.SC_BAD_REQUEST, "tipoForm non valido");
         }
     }
 
@@ -122,13 +140,12 @@ public class HomeFornitoreServlet extends HttpServlet {
     // Helper PRG
     // -------------------------------------------------------------------------
 
-    private void redirectConErrore(HttpServletRequest req, HttpServletResponse res,
-                                    List<String> errori, Map<String, String> valoriForm)
-            throws IOException {
-        HttpSession session = req.getSession(true);
-        session.setAttribute(SESSION_ERRORI, errori);
-        session.setAttribute(SESSION_VALORI_FORM, valoriForm);
-        res.sendRedirect(req.getContextPath() + "/fornitore/home");
+    private void forwardConErrore(HttpServletRequest req, HttpServletResponse res,
+                                   List<String> errori, Map<String, String> valoriForm)
+            throws IOException, ServletException {
+        req.setAttribute(REQ_ERRORI, errori);
+        req.setAttribute(REQ_VALORI_FORM, valoriForm);
+        renderHome(req, res);
     }
 
     private void redirectConSuccesso(HttpServletRequest req, HttpServletResponse res,
@@ -206,7 +223,7 @@ public class HomeFornitoreServlet extends HttpServlet {
         }
 
         if (!errori.isEmpty()) {
-            redirectConErrore(request, response, errori, valoriForm);
+            forwardConErrore(request, response, errori, valoriForm);
             return;
         }
 
@@ -215,7 +232,7 @@ public class HomeFornitoreServlet extends HttpServlet {
             
             if (skuDAO.findByCodice(codice) != null) {
                 errori.add("Esiste già una SKU con il codice " + codice + ".");
-                redirectConErrore(request, response, errori, valoriForm);
+                forwardConErrore(request, response, errori, valoriForm);
                 return;
             }
 
@@ -224,14 +241,14 @@ public class HomeFornitoreServlet extends HttpServlet {
             SKU skuCreata = skuDAO.findById(id);
             redirectConSuccesso(request, response, skuCreata, "sku");
         } catch (SQLException e) {
-            redirectConErrore(request, response,
+            forwardConErrore(request, response,
                 List.of("Errore nel salvataggio della SKU: " + e.getMessage()),
                 valoriForm);
         }
     }
 
     private void handleCreaSemplice(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+            throws IOException, ServletException {
         String codiceRaw = request.getParameter("codiceSemplice");
         String nomeRaw   = request.getParameter("nomeSemplice");
         String[] idSkuSelezionateRaw = request.getParameterValues("idSkuSelezionate");
@@ -267,34 +284,50 @@ public class HomeFornitoreServlet extends HttpServlet {
         }
 
         if (!errori.isEmpty()) {
-            redirectConErrore(request, response, errori, valoriForm);
+            forwardConErrore(request, response, errori, valoriForm);
             return;
         }
 
         try {
+            SKUDAO skuDAO = new SKUDAO(connection);
             ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
-            
+
             if (prodottoDAO.findByCodice(codice) != null) {
                 errori.add("Esiste già un prodotto con il codice " + codice + ".");
-                redirectConErrore(request, response, errori, valoriForm);
+                forwardConErrore(request, response, errori, valoriForm);
                 return;
             }
 
-            int id = prodottoDAO.insertSemplice(codiceRaw.trim(), nomeRaw.trim());
+            // Calcola prezzo min e max come MIN/MAX dei prezzi delle SKU selezionate
+            BigDecimal prezzoMin = null;
+            BigDecimal prezzoMax = null;
+            for (int idSku : idSkuList) {
+                SKU sku = skuDAO.findById(idSku);
+                if (sku == null) {
+                    errori.add("SKU con id " + idSku + " non trovata.");
+                    forwardConErrore(request, response, errori, valoriForm);
+                    return;
+                }
+                BigDecimal p = sku.getPrezzo();
+                if (prezzoMin == null || p.compareTo(prezzoMin) < 0) prezzoMin = p;
+                if (prezzoMax == null || p.compareTo(prezzoMax) > 0) prezzoMax = p;
+            }
+
+            int id = prodottoDAO.insertSemplice(codiceRaw.trim(), nomeRaw.trim(), prezzoMin, prezzoMax);
             for (int idSku : idSkuList) {
                 prodottoDAO.addSku(id, idSku);
             }
             ProdottoSemplice creato = (ProdottoSemplice) prodottoDAO.getAlberoProdotto(id);
             redirectConSuccesso(request, response, creato, "semplice");
         } catch (SQLException e) {
-            redirectConErrore(request, response,
+            forwardConErrore(request, response,
                 List.of("Errore nel salvataggio del prodotto semplice: " + e.getMessage()),
                 valoriForm);
         }
     }
 
     private void handleCreaComposto(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+            throws IOException, ServletException {
         String codiceRaw     = request.getParameter("codiceComposto");
         String nomeRaw       = request.getParameter("nomeComposto");
         String descrizioneRaw = request.getParameter("descrizioneComposto");
@@ -338,8 +371,8 @@ public class HomeFornitoreServlet extends HttpServlet {
                 errori.add("Il prezzo massimo non è un numero valido.");
             }
         }
-        if (prezzoMin != null && prezzoMax != null && prezzoMin.compareTo(prezzoMax) > 0)
-            errori.add("Il prezzo minimo non può essere maggiore del prezzo massimo.");
+        if (prezzoMin != null && prezzoMax != null && prezzoMax.compareTo(prezzoMin) <= 0)
+            errori.add("Il prezzo massimo deve essere maggiore del prezzo minimo.");
 
         List<Integer> idFigliList = new ArrayList<>();
         if (idFigliRaw != null) {
@@ -361,18 +394,37 @@ public class HomeFornitoreServlet extends HttpServlet {
             }
         }
 
+        // Sempre disponibile per il template (ripopola le checkbox in caso di errore)
+        request.setAttribute("idFigliSelezionati", idFigliList);
+
         if (!errori.isEmpty()) {
-            redirectConErrore(request, response, errori, valoriForm);
+            forwardConErrore(request, response, errori, valoriForm);
             return;
         }
 
         boolean autoCommitOriginale = true;
         try {
             ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
-            
+
             if (prodottoDAO.findByCodice(codice) != null) {
                 errori.add("Esiste già un prodotto con il codice " + codice + ".");
-                redirectConErrore(request, response, errori, valoriForm);
+                forwardConErrore(request, response, errori, valoriForm);
+                return;
+            }
+
+            // Calcola la somma dei prezzoMin dei figli selezionati e valida il vincolo
+            BigDecimal sommaMinFigli = BigDecimal.ZERO;
+            BigDecimal sommaMaxFigli = BigDecimal.ZERO;
+            for (int idFiglio : idFigliList) {
+                Prodotto figlio = prodottoDAO.findById(idFiglio);
+                if (figlio != null && figlio.getPrezzoMin() != null) {
+                    sommaMinFigli = sommaMinFigli.add(figlio.getPrezzoMin());
+                    sommaMaxFigli = sommaMaxFigli.add(figlio.getPrezzoMax());
+                }
+            }
+            if (prezzoMin != null && prezzoMin.compareTo(sommaMinFigli) < 0) {
+                errori.add("Il prezzo minimo deve essere almeno " + sommaMinFigli + " € (somma dei prezzi minimi dei sotto-prodotti selezionati).");
+                forwardConErrore(request, response, errori, valoriForm);
                 return;
             }
 
@@ -386,7 +438,7 @@ public class HomeFornitoreServlet extends HttpServlet {
                 int livello = prodottoDAO.calcolaLivello(idFiglio);
                 if (livello >= 4) {
                     connection.rollback();
-                    redirectConErrore(request, response,
+                    forwardConErrore(request, response,
                         List.of("Il sottoprodotto selezionato supera la profondità massima di 4 livelli."),
                         valoriForm);
                     return;
@@ -399,12 +451,12 @@ public class HomeFornitoreServlet extends HttpServlet {
             redirectConSuccesso(request, response, creato, "composto");
         } catch (IllegalStateException e) {
             try { connection.rollback(); } catch (SQLException ignored) {}
-            redirectConErrore(request, response,
+            forwardConErrore(request, response,
                 List.of("Un sottoprodotto appartiene già a un altro prodotto padre."),
                 valoriForm);
         } catch (SQLException e) {
             try { connection.rollback(); } catch (SQLException ignored) {}
-            redirectConErrore(request, response,
+            forwardConErrore(request, response,
                 List.of("Errore nel salvataggio del prodotto composto: " + e.getMessage()),
                 valoriForm);
         } finally {
@@ -412,13 +464,57 @@ public class HomeFornitoreServlet extends HttpServlet {
         }
     }
 
+    private void handleRicalcolaComposto(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String[] idFigliRaw = request.getParameterValues("idFigli");
+        List<Integer> idFigliList = new ArrayList<>();
+        if (idFigliRaw != null) {
+            for (String raw : idFigliRaw) {
+                try { idFigliList.add(Integer.parseInt(raw)); }
+                catch (NumberFormatException ignored) {}
+            }
+        }
+
+        BigDecimal sommaMin = BigDecimal.ZERO;
+        BigDecimal sommaMax = BigDecimal.ZERO;
+        try {
+            ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
+            for (int idFiglio : idFigliList) {
+                Prodotto figlio = prodottoDAO.findById(idFiglio);
+                if (figlio != null && figlio.getPrezzoMin() != null) {
+                    sommaMin = sommaMin.add(figlio.getPrezzoMin());
+                    sommaMax = sommaMax.add(figlio.getPrezzoMax());
+                }
+            }
+        } catch (SQLException e) {
+            sommaMin = BigDecimal.ZERO;
+            sommaMax = BigDecimal.ZERO;
+        }
+
+        // Salva in session i valori calcolati e le selezioni, poi redirect (pattern PRG)
+        HttpSession session = request.getSession(true);
+        session.setAttribute(SESSION_PREZZO_MIN_CALC, sommaMin);
+        session.setAttribute(SESSION_PREZZO_MAX_CALC, sommaMax);
+        session.setAttribute(SESSION_ID_FIGLI_SELEZIONATI, idFigliList);
+
+        // Ripropaga anche i valori testuali del form (codice, nome, descrizione, prezzi inseriti)
+        Map<String, String> valoriForm = new HashMap<>();
+        valoriForm.put("codiceComposto",     request.getParameter("codiceComposto"));
+        valoriForm.put("nomeComposto",       request.getParameter("nomeComposto"));
+        valoriForm.put("descrizioneComposto", request.getParameter("descrizioneComposto"));
+        valoriForm.put("prezzoMinComposto",  request.getParameter("prezzoMinComposto"));
+        valoriForm.put("prezzoMaxComposto",  request.getParameter("prezzoMaxComposto"));
+        session.setAttribute(REQ_VALORI_FORM, valoriForm);
+
+        response.sendRedirect(request.getContextPath() + "/fornitore/home");
+    }
+
     // -------------------------------------------------------------------------
     // Rendering
     // -------------------------------------------------------------------------
 
-    private void renderHome(HttpServletRequest request, HttpServletResponse response,
-                            List<String> errori, Map<String, String> valoriForm,
-                            String messaggioSuccesso, String erroreEliminazione) throws IOException {
+    private void renderHome(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
         try {
             SKUDAO skuDAO = new SKUDAO(connection);
             ProdottoDAO prodottoDAO = new ProdottoDAO(connection);
@@ -429,10 +525,22 @@ public class HomeFornitoreServlet extends HttpServlet {
             WebContext ctx = new WebContext(webExchange, request.getLocale());
             ctx.setVariable("tutteLeSku", tutteLeSku);
             ctx.setVariable("tuttiIProdotti", tuttiIProdotti);
+
+            List<String> errori              = (List<String>) request.getAttribute(REQ_ERRORI);
+            Map<String, String> valoriForm   = (Map<String, String>) request.getAttribute(REQ_VALORI_FORM);
+            String messaggioSuccesso         = (String) request.getAttribute("messaggioSuccesso");
+            String erroreEliminazione        = (String) request.getAttribute("erroreEliminazione");
+            BigDecimal prezzoMinCalcolato    = (BigDecimal) request.getAttribute("prezzoMinCalcolato");
+            BigDecimal prezzoMaxCalcolato    = (BigDecimal) request.getAttribute("prezzoMaxCalcolato");
+            List<Integer> idFigliSelezionati = (List<Integer>) request.getAttribute("idFigliSelezionati");
+
             if (errori != null && !errori.isEmpty()) ctx.setVariable("errori", errori);
             if (valoriForm != null)                  ctx.setVariable("valoriForm", valoriForm);
             if (messaggioSuccesso != null)           ctx.setVariable("messaggioSuccesso", messaggioSuccesso);
             if (erroreEliminazione != null)          ctx.setVariable("erroreEliminazione", erroreEliminazione);
+            if (prezzoMinCalcolato != null)          ctx.setVariable("prezzoMinCalcolato", prezzoMinCalcolato);
+            if (prezzoMaxCalcolato != null)          ctx.setVariable("prezzoMaxCalcolato", prezzoMaxCalcolato);
+            if (idFigliSelezionati != null)          ctx.setVariable("idFigliSelezionati", idFigliSelezionati);
 
             response.setContentType("text/html;charset=UTF-8");
             templateEngine.process("fornitore/home", ctx, response.getWriter());

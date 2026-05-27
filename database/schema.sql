@@ -77,7 +77,10 @@ CREATE TABLE prodotto (
     nome        VARCHAR(200)    NOT NULL,
     tipo        ENUM('SEMPLICE', 'COMPOSTO') NOT NULL,
 
-    -- Campi esclusivi COMPOSTO (NULL per SEMPLICE)
+    -- descrizione: esclusiva COMPOSTO (NULL per SEMPLICE)
+    -- prezzo_min/prezzo_max:
+    --   SEMPLICE → calcolati automaticamente come MIN/MAX dei prezzi degli SKU associati
+    --   COMPOSTO → inseriti dal fornitore; vincolo: prezzo_min >= SUM(prezzo_min dei figli)
     descrizione TEXT            NULL,
     prezzo_min  DECIMAL(10, 2)  NULL,
     prezzo_max  DECIMAL(10, 2)  NULL,
