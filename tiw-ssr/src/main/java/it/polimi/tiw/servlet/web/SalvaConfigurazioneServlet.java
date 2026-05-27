@@ -202,6 +202,24 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                 return;
             }
 
+            // Vincolo prezzo: il totale deve rientrare nel range [prezzoMin, prezzoMax] della radice
+            BigDecimal prezzoMinRad = radice.getPrezzoMin();
+            BigDecimal prezzoMaxRad = radice.getPrezzoMax();
+            if (prezzoMinRad != null && prezzoTotale.compareTo(prezzoMinRad) < 0) {
+                conn.rollback();
+                ritornaAllaFormConErrore(request, response,
+                    "Il prezzo totale (" + prezzoTotale + " €) è inferiore al minimo consentito (" + prezzoMinRad + " €).",
+                    codiceRadice, apertoSet);
+                return;
+            }
+            if (prezzoMaxRad != null && prezzoTotale.compareTo(prezzoMaxRad) > 0) {
+                conn.rollback();
+                ritornaAllaFormConErrore(request, response,
+                    "Il prezzo totale (" + prezzoTotale + " €) supera il massimo consentito (" + prezzoMaxRad + " €).",
+                    codiceRadice, apertoSet);
+                return;
+            }
+
             int idRedir;
             if (isModifica) {
                 // --- MODIFICA: aggiorna testata, cancella vecchi dettagli, inserisce nuovi ---
