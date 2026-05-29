@@ -22,8 +22,10 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @WebServlet("/api/sync")
 public class ApiSyncController extends HttpServlet {
@@ -83,6 +85,7 @@ public class ApiSyncController extends HttpServlet {
             
             Map<String, Integer> tempToRealIds = new HashMap<>(); // per i Prodotti
             Map<String, Integer> tempToRealSkuIds = new HashMap<>(); // per le SKU
+            Set<Integer> sempliciCreati = new java.util.HashSet<>(); // ID reali dei SEMPLICE creati
 
             ProdottoDAO prodDao = new ProdottoDAO(connection);
             SKUDAO skuDao = new SKUDAO(connection);
@@ -113,7 +116,8 @@ public class ApiSyncController extends HttpServlet {
                             BigDecimal pMax = getBigDecimal(actionObj.get("prezzoMax"));
                             newId = prodDao.insertComposto(codice, nome, desc, pMin, pMax);
                         } else {
-                            newId = prodDao.insertSemplice(codice, nome);
+                            newId = prodDao.insertSemplice(codice, nome, BigDecimal.ZERO, BigDecimal.ZERO);
+                            sempliciCreati.add(newId);
                         }
                         tempToRealIds.put(tempId, newId);
                         
@@ -211,6 +215,11 @@ public class ApiSyncController extends HttpServlet {
                 }
             }
             
+            // Ricalcola prezzoMin/prezzoMax solo per i SEMPLICE creati in questa transazione
+            for (int idSemplice : sempliciCreati) {
+                prodDao.calcolaPrezziDaSku(idSemplice);
+            }
+
             connection.commit();
 
             response.setStatus(HttpServletResponse.SC_OK);

@@ -450,6 +450,21 @@ public class ProdottoDAO {
         return risultati;
     }
 
+    public void calcolaPrezziDaSku(int idProdotto) throws SQLException {
+        String sql = """
+                UPDATE prodotto
+                SET prezzo_min = (SELECT MIN(s.prezzo) FROM sku s JOIN prodotto_sku ps ON s.id = ps.id_sku WHERE ps.id_prodotto = ?),
+                    prezzo_max = (SELECT MAX(s.prezzo) FROM sku s JOIN prodotto_sku ps ON s.id = ps.id_sku WHERE ps.id_prodotto = ?)
+                WHERE id = ?
+                """;
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, idProdotto);
+            stmt.setInt(2, idProdotto);
+            stmt.setInt(3, idProdotto);
+            stmt.executeUpdate();
+        }
+    }
+
     public void rimuoviAssociazioneSku(int idProdotto, int idSku) throws SQLException {
         String sql = "DELETE FROM prodotto_sku WHERE id_prodotto = ? AND id_sku = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {

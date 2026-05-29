@@ -142,14 +142,45 @@ public class ApiProdottoTreeController extends HttpServlet {
             int idGenerato = 0;
 
             if (prodottoInviato instanceof it.polimi.tiw.model.ProdottoSemplice pSemplice) {
-                idGenerato = dao.insertSemplice(String.valueOf(pSemplice.getCodice()), pSemplice.getNome());
+                idGenerato = dao.insertSemplice(String.valueOf(pSemplice.getCodice()), pSemplice.getNome(),
+                        java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
 
                 for (it.polimi.tiw.model.SKU sku : pSemplice.getSKUs()) {
                     dao.addSku(idGenerato, sku.getId());
                 }
+                // Calcola prezzoMin/prezzoMax dal MIN/MAX dei prezzi delle SKU associate
+                dao.calcolaPrezziDaSku(idGenerato);
             } else if (prodottoInviato instanceof ProdottoComposto pComposto) {
+                // Validazione V1: prezzoMin >= somma dei prezzoMin dei figli
+                // Validazione V2: prezzoMax > prezzoMin
+                java.math.BigDecimal pMin = pComposto.getPrezzoMin();
+                java.math.BigDecimal pMax = pComposto.getPrezzoMax();
+                if (pMin == null) pMin = java.math.BigDecimal.ZERO;
+                if (pMax == null) pMax = java.math.BigDecimal.ZERO;
+
+                if (pMax.compareTo(pMin) <= 0) {
+                    sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                            "Il prezzo massimo deve essere strettamente maggiore del prezzo minimo");
+                    return;
+                }
+
+                if (pComposto.getFigli() != null && !pComposto.getFigli().isEmpty()) {
+                    java.math.BigDecimal sommaMin = java.math.BigDecimal.ZERO;
+                    for (Prodotto figlio : pComposto.getFigli()) {
+                        Prodotto figlioDb = dao.findById(figlio.getId());
+                        if (figlioDb != null && figlioDb.getPrezzoMin() != null) {
+                            sommaMin = sommaMin.add(figlioDb.getPrezzoMin());
+                        }
+                    }
+                    if (pMin.compareTo(sommaMin) < 0) {
+                        sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                                "Il prezzo minimo deve essere almeno " + sommaMin.setScale(2, java.math.RoundingMode.HALF_UP) + " € (somma dei prezzi min dei sottoprodotti)");
+                        return;
+                    }
+                }
+
                 idGenerato = dao.insertComposto(String.valueOf(pComposto.getCodice()), pComposto.getNome(),
-                        pComposto.getDescrizione(), pComposto.getPrezzoMin(), pComposto.getPrezzoMax());
+                        pComposto.getDescrizione(), pMin, pMax);
 
                 if (pComposto.getFigli() != null) {
                     for (Prodotto figlio : pComposto.getFigli()) {
