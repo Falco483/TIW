@@ -255,11 +255,17 @@ public class ProdottoDAO {
     // Insert
     // -------------------------------------------------------------------------
 
-    public int insertSemplice(String codice, String nome) throws SQLException {
-        String sql = "INSERT INTO prodotto (codice, nome, tipo) VALUES (?, ?, 'SEMPLICE')";
+    /**
+     * Inserisce un prodotto semplice con i prezzi min e max calcolati dalla servlet
+     * a partire dalle SKU selezionate nel form (MIN e MAX dei prezzi delle SKU scelte).
+     */
+    public int insertSemplice(String codice, String nome, BigDecimal prezzoMin, BigDecimal prezzoMax) throws SQLException {
+        String sql = "INSERT INTO prodotto (codice, nome, tipo, prezzo_min, prezzo_max) VALUES (?, ?, 'SEMPLICE', ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, codice);
             stmt.setString(2, nome);
+            stmt.setBigDecimal(3, prezzoMin);
+            stmt.setBigDecimal(4, prezzoMax);
             stmt.executeUpdate();
             try (ResultSet keys = stmt.getGeneratedKeys()) {
                 if (keys.next())
@@ -394,8 +400,6 @@ public class ProdottoDAO {
         if ("COMPOSTO".equals(rs.getString("tipo"))) {
             ProdottoComposto pc = new ProdottoComposto();
             pc.setDescrizione(rs.getString("descrizione"));
-            pc.setPrezzoMin(rs.getBigDecimal("prezzo_min"));
-            pc.setPrezzoMax(rs.getBigDecimal("prezzo_max"));
             p = pc;
         } else {
             p = new ProdottoSemplice();
@@ -404,6 +408,10 @@ public class ProdottoDAO {
         p.setCodice(rs.getInt("codice"));
         p.setNome(rs.getString("nome"));
         p.setTipo(rs.getString("tipo"));
+        // prezzoMin e prezzoMax letti per entrambi i tipi (SEMPLICE: calcolati dalle SKU al momento della creazione;
+        // COMPOSTO: scelti dal fornitore come somma dei prezzi dei sotto-prodotti)
+        p.setPrezzoMin(rs.getBigDecimal("prezzo_min"));
+        p.setPrezzoMax(rs.getBigDecimal("prezzo_max"));
         int idPadre = rs.getInt("id_padre");
         p.setIdPadre(rs.wasNull() ? null : idPadre);
         return p;

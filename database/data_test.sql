@@ -39,11 +39,16 @@ INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, i
 (1000, 'PC Desktop', 'COMPOSTO', 'Configurazione base per PC Desktop', 500.00, 3000.00, NULL);
 
 -- Figli diretti della radice (SEMPLICE)
+-- prezzo_min/prezzo_max calcolati come MIN/MAX dei prezzi degli SKU associati:
+--   CPU:          min=150.00 (Ryzen 5 5600),   max=250.00 (Ryzen 7 5800X)
+--   RAM:          min= 35.00 (8 GB DDR4),       max=110.00 (32 GB DDR4)
+--   Disco:        min= 30.00 (SSD 256 GB),      max= 90.00 (SSD 1 TB)
+--   Scheda Video: min=160.00 (GTX 1650),        max=550.00 (RTX 4070)
 INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre) VALUES
-(1001, 'CPU',          'SEMPLICE', NULL, NULL, NULL, 1),
-(1002, 'RAM',          'SEMPLICE', NULL, NULL, NULL, 1),
-(1003, 'Disco',        'SEMPLICE', NULL, NULL, NULL, 1),
-(1004, 'Scheda Video', 'SEMPLICE', NULL, NULL, NULL, 1);
+(1001, 'CPU',          'SEMPLICE', NULL, 150.00, 250.00, 1),
+(1002, 'RAM',          'SEMPLICE', NULL,  35.00, 110.00, 1),
+(1003, 'Disco',        'SEMPLICE', NULL,  30.00,  90.00, 1),
+(1004, 'Scheda Video', 'SEMPLICE', NULL, 160.00, 550.00, 1);
 
 -- =============================================================================
 -- 2. SKU — Varianti concrete per ogni prodotto semplice
