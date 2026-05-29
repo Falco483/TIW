@@ -8,9 +8,8 @@
 <body>
 
 <header>
-    <a th:href="@{/fornitore/home}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
+    <div th:replace="~{fragments/navbar :: navBar(null)}"></div>
     <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span></h1>
-    <a href="/logout">Logout</a>
     <div style="margin-top: 15px;">
         <a th:href="@{/fornitore/cerca}" style="display: inline-block; padding: 8px 16px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Cerca nel Catalogo (SKU / Prodotti)</a>
     </div>
