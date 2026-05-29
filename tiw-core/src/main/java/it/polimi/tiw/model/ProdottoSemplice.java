@@ -1,5 +1,6 @@
 package it.polimi.tiw.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,10 +13,12 @@ public class ProdottoSemplice extends Prodotto {
 
     public ProdottoSemplice() {}
 
+    @JsonProperty("skus")
     public List<SKU> getSKUs() {
         return skus;
     }
 
+    @JsonProperty("skus")
     public void setSKUs(List<SKU> skus) {
         this.skus = skus;
     }

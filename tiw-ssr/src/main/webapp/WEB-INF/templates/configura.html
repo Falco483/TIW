@@ -13,6 +13,13 @@
     </header>
     <h2 th:text="${idConfig != null ? 'Modifica: ' : 'Configura: '} + ${radice.nome}"></h2>
 
+    <p th:if="${radice.prezzoMin != null}">
+        Questa configurazione deve avere un costo compreso tra
+        <strong th:text="${#numbers.formatDecimal(radice.prezzoMin, 1, 'COMMA', 2, 'POINT')} + ' €'"></strong>
+        e
+        <strong th:text="${#numbers.formatDecimal(radice.prezzoMax, 1, 'COMMA', 2, 'POINT')} + ' €'"></strong>.
+    </p>
+
     <form method="POST" th:action="@{/cliente/configura}">
         <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
         <input type="hidden" name="codiceRadice" th:value="${radice.codice}" />

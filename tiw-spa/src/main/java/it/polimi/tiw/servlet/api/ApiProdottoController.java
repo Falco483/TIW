@@ -31,6 +31,10 @@ public class ApiProdottoController extends HttpServlet {
 
     private Connection connection = null;
 
+    /**
+     * Inizializza la servlet stabilendo la connessione al database tramite ConnectionFactory.
+     * @throws jakarta.servlet.ServletException se la connessione al database fallisce.
+     */
     @Override
     public void init() throws jakarta.servlet.ServletException {
         try {
@@ -40,6 +44,9 @@ public class ApiProdottoController extends HttpServlet {
         }
     }
 
+    /**
+     * Termina il ciclo di vita della servlet chiudendo in modo sicuro la connessione al database.
+     */
     @Override
     public void destroy() {
         try {
@@ -48,6 +55,13 @@ public class ApiProdottoController extends HttpServlet {
         } catch (SQLException e) {}
     }
 
+    /**
+     * Gestisce le richieste HTTP GET per recuperare la lista dei prodotti radice.
+     * Interroga il database tramite il ProdottoDAO e restituisce un JSON contenente l'elenco.
+     * @param request La richiesta HTTP ricevuta dal client.
+     * @param response La risposta HTTP da inviare al client.
+     * @throws IOException Se si verifica un errore durante la scrittura della risposta.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
@@ -73,6 +87,13 @@ public class ApiProdottoController extends HttpServlet {
         }
     }
 
+    /**
+     * Invia un messaggio di errore formattato in JSON al client.
+     * @param response L'oggetto HttpServletResponse per inviare la risposta.
+     * @param status Il codice di stato HTTP da impostare (es. 500, 400).
+     * @param messaggio La descrizione dell'errore.
+     * @throws IOException Se si verifica un errore durante la serializzazione JSON.
+     */
     private void sendError(HttpServletResponse response, int status, String messaggio)
             throws IOException {
         response.setStatus(status);

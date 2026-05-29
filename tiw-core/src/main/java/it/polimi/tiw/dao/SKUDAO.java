@@ -51,19 +51,22 @@ public class SKUDAO {
         }
     }
 
-    // Ritorna l'id generato dal DB
-    public int insert(int codice, String nome, String fotografia, String descrizioneTecnica, BigDecimal prezzo)
-            throws SQLException {
+    public SKU insert(SKU sku) throws SQLException {
         String sql = "INSERT INTO sku (codice, nome, fotografia, descrizione_tecnica, prezzo) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, codice);
-            ps.setString(2, nome);
-            ps.setString(3, fotografia);
-            ps.setString(4, descrizioneTecnica);
-            ps.setBigDecimal(5, prezzo);
+            ps.setInt(1, sku.getCodice());
+            ps.setString(2, sku.getNome());
+            ps.setString(3, sku.getFotografia());
+            ps.setString(4, sku.getDescrizioneTecnica());
+            ps.setBigDecimal(5, sku.getPrezzo());
+            
             ps.executeUpdate();
+            
             try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) return keys.getInt(1);
+                if (keys.next()) {
+                    sku.setId(keys.getInt(1));
+                    return sku;
+                }
                 throw new SQLException("Insert SKU non ha restituito un id generato");
             }
         }
@@ -126,10 +129,61 @@ public class SKUDAO {
     }
 
     public void eliminaDefinitivamente(int id) throws SQLException {
-        String sql = "DELETE FROM sku WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+        boolean autoCommitOriginale = connection.getAutoCommit();
+        try {
+            connection.setAutoCommit(false);
+            
+            // Trova e cancella tutte le configurazioni che usano questa SKU
+            String findConfigSql = "SELECT DISTINCT id_configurazione FROM configurazione_dettaglio WHERE id_sku = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(findConfigSql)) {
+                stmt.setInt(1, id);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        int idConfigurazione = rs.getInt(1);
+                        String delConfigSql = "DELETE FROM configurazione WHERE id = ?";
+                        try (PreparedStatement delStmt = connection.prepareStatement(delConfigSql)) {
+                            delStmt.setInt(1, idConfigurazione);
+                            delStmt.executeUpdate();
+                        }
+                    }
+                }
+            }
+            
+            // Cancella la SKU (le associazioni in prodotto_sku vengono rimosse in automatico via CASCADE)
+            String sql = "DELETE FROM sku WHERE id = ?";
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setInt(1, id);
+                stmt.executeUpdate();
+            }
+            
+            connection.commit();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(autoCommitOriginale);
+        }
+    }
+
+    public void update(SKU sku) throws SQLException {
+        String sql = "UPDATE sku SET nome = ?, fotografia = ?, descrizione_tecnica = ?, prezzo = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, sku.getNome());
+            ps.setString(2, sku.getFotografia());
+            ps.setString(3, sku.getDescrizioneTecnica());
+            ps.setBigDecimal(4, sku.getPrezzo());
+            ps.setInt(5, sku.getId());
+            ps.executeUpdate();
+        }
+    }
+
+    public int countUsage(int idSku) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM prodotto_sku WHERE id_sku = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, idSku);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
         }
     }
 }

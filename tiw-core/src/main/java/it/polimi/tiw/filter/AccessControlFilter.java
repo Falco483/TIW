@@ -17,7 +17,7 @@ import jakarta.servlet.http.HttpSession;
 // Mappare il filter a tutti gli URL dell'applicazione
 public class AccessControlFilter implements Filter {
 
-    private static final Set<String> PUBLIC_PATHS = Set.of("/login", "/api/login");
+    private static final Set<String> PUBLIC_PATHS = Set.of("/login", "/api/login", "/login.html");
     private static final String STATIC_PREFIX = "/static/";
 
     @Override
