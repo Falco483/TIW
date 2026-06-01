@@ -1,90 +1,102 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-
 <head>
     <meta charset="UTF-8">
-    <title th:text="${idConfig != null ? 'Modifica Configurazione' : 'Configura Prodotto'}">Configura Prodotto
-    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${idConfig != null ? 'Modifica Configurazione (SSR)' : 'Configura Prodotto (SSR)'}">Configura Prodotto</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+<body style="flex-direction: column;">
+    <div th:replace="~{fragments/navbar :: navBar(@{/cliente/home})}"></div>
+    <main class="content">
+        <section class="app-section active">
+            <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+                <a th:href="@{/cliente/home}" class="btn btn-ghost">
+                    <i class="fa-solid fa-arrow-left"></i> Catalogo
+                </a>
+                <div>
+                    <h2 th:text="${idConfig != null ? 'Modifica: ' : 'Configura: '} + ${radice.nome}"></h2>
+                    <p th:if="${radice.prezzoMin != null}" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                        Fascia consentita: €<strong th:text="${#numbers.formatDecimal(radice.prezzoMin, 1, 'COMMA', 2, 'POINT')}"></strong> – €<strong th:text="${#numbers.formatDecimal(radice.prezzoMax, 1, 'COMMA', 2, 'POINT')}"></strong>
+                    </p>
+                </div>
+            </div>
 
-<body>
-    <header>
-        <div th:replace="~{fragments/navbar :: navBar(@{/cliente/home})}"></div>
-    </header>
-    <h2 th:text="${idConfig != null ? 'Modifica: ' : 'Configura: '} + ${radice.nome}"></h2>
+            <div class="form-card">
+                <form method="POST" th:action="@{/cliente/configura}">
+                    <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
+                    <input type="hidden" name="codiceRadice" th:value="${radice.codice}" />
+                    <input type="hidden" name="idConfig" th:value="${idConfig}" />
+                    <input th:each="id : ${apertoSet}" type="hidden" name="aperto" th:value="${id}" />
 
-    <p th:if="${radice.prezzoMin != null}">
-        Questa configurazione deve avere un costo compreso tra
-        <strong th:text="${#numbers.formatDecimal(radice.prezzoMin, 1, 'COMMA', 2, 'POINT')} + ' €'"></strong>
-        e
-        <strong th:text="${#numbers.formatDecimal(radice.prezzoMax, 1, 'COMMA', 2, 'POINT')} + ' €'"></strong>.
-    </p>
+                    <!-- Hidden fields per scelte SKU di prodotti NON visibili (nodi non espansi) -->
+                    <th:block th:if="${mappaScelte != null}">
+                        <th:block th:each="entry : ${mappaScelte.entrySet()}">
+                            <input th:if="${!prodottiVisibili.contains(entry.key)}" type="hidden" th:name="'sku_' + ${entry.key}" th:value="${entry.value}" />
+                        </th:block>
+                    </th:block>
 
-    <form method="POST" th:action="@{/cliente/configura}">
-        <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
-        <input type="hidden" name="codiceRadice" th:value="${radice.codice}" />
-        <input type="hidden" name="idConfig" th:value="${idConfig}" />
-        <input th:each="id : ${apertoSet}" type="hidden" name="aperto" th:value="${id}" />
+                    <div class="form-group" style="max-width: 400px;">
+                        <label for="nomeConfigurazione">Nome Configurazione</label>
+                        <input type="text" id="nomeConfigurazione" name="nomeConfigurazione" required
+                               th:value="${nomeInserito != null ? nomeInserito : nomeConfigurazione}" placeholder="Es. PC Gaming Setup" maxlength="100" />
+                    </div>
 
-        <!--
-            Hidden fields per le scelte SKU di prodotti NON visibili nel form corrente
-            (nodi non espansi). Così le scelte sopravvivono a espansioni successive
-            senza bisogno di sessione.
-        -->
-        <th:block th:if="${mappaScelte != null}">
-            <th:block th:each="entry : ${mappaScelte.entrySet()}">
-                <input th:if="${!prodottiVisibili.contains(entry.key)}"
-                       type="hidden"
-                       th:name="'sku_' + ${entry.key}"
-                       th:value="${entry.value}" />
-            </th:block>
-        </th:block>
+                    <div th:if="${errore != null}" th:text="${errore}" style="color: var(--error); background: var(--error-bg); border: 1px solid var(--error); border-radius: var(--radius-sm); padding: 0.65rem 1rem; margin-bottom: 1rem; font-size: 0.85rem;"></div>
 
-        <div th:if="${errore != null}" th:text="${errore}" style="color:red; margin-bottom: 10px;"></div>
+                    <div id="albero-container" style="margin-top: 1rem;">
+                        <ul class="node-children">
+                            <li th:replace="~{::albero(${radice}, true)}"></li>
+                        </ul>
+                    </div>
 
-        <label for="nomeConfigurazione">Nome Configurazione:</label>
-        <input type="text" id="nomeConfigurazione" name="nomeConfigurazione" required
-            th:value="${nomeInserito != null ? nomeInserito : nomeConfigurazione}" />
-        <br /><br />
-
-        <h3>Seleziona Componenti</h3>
-        <ul>
-            <li th:replace="~{::albero(${radice}, true)}"></li>
-        </ul>
-
-        <button type="submit"
-            th:text="${idConfig != null ? 'Aggiorna Configurazione' : 'Salva Configurazione'}">Salva
-            Configurazione</button>
-    </form>
+                    <div style="display:flex; gap:0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--card-border);">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span th:text="${idConfig != null ? 'Aggiorna Configurazione' : 'Salva Configurazione'}">Salva Configurazione</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
 
     <th:block th:fragment="albero(nodo, isRadice)" th:if="${nodo != null}">
-        <span th:text="${nodo.nome}"></span>
-
         <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
-            <select th:name="'sku_' + ${nodo.id}">
-                <option value="" disabled th:selected="${mappaScelte == null || mappaScelte.get(nodo.id) == null}">
-                    Scegli un'opzione...</option>
-                <option th:each="sku : ${nodo.skus}" th:value="${sku.id}"
-                    th:text="${sku.nome + ' - ' + sku.prezzo + ' €'}"
-                    th:selected="${mappaScelte != null && mappaScelte.get(nodo.id) == sku.id}">
-                </option>
-            </select>
+            <div class="config-node config-node-semplice">
+                <div class="config-node-header">
+                    <span class="badge badge-semplice">Semplice</span>
+                    <span class="node-label" th:text="${nodo.nome}"></span>
+                    
+                    <select th:name="'sku_' + ${nodo.id}" class="node-sku-select" required>
+                        <option value="" disabled th:selected="${mappaScelte == null || mappaScelte.get(nodo.id) == null}">Scegli un'opzione...</option>
+                        <option th:each="sku : ${nodo.skus}" th:value="${sku.id}" th:text="${'[' + sku.codice + '] ' + sku.nome + ' — €' + sku.prezzo}" th:selected="${mappaScelte != null && mappaScelte.get(nodo.id) == sku.id}"></option>
+                    </select>
+                </div>
+            </div>
         </th:block>
 
         <th:block th:if="${nodo.tipo == 'COMPOSTO'}">
-            <th:block th:if="${isRadice || apertoSet.contains(nodo.codice)}">
-                <ul>
-                    <li th:each="figlio : ${nodo.figli}">
-                        <th:block th:replace="~{::albero(${figlio}, false)}"></th:block>
-                    </li>
-                </ul>
-            </th:block>
-            <th:block th:unless="${isRadice || apertoSet.contains(nodo.codice)}">
-                <button type="submit" name="espandi" th:value="${nodo.codice}" formnovalidate>Espandi ▶</button>
-            </th:block>
+            <div th:class="${isRadice ? 'config-node-composto-root' : 'config-node config-node-composto'}">
+                <div class="config-node-header">
+                    <span class="badge badge-composto">Composto</span>
+                    <span class="node-label" style="flex:1;" th:text="${nodo.nome}"></span>
+                    
+                    <th:block th:unless="${isRadice || apertoSet.contains(nodo.codice)}">
+                        <button type="submit" name="espandi" th:value="${nodo.codice}" formnovalidate class="btn btn-ghost btn-espandi">Espandi <i class="fa-solid fa-chevron-right" style="font-size:0.7rem;"></i></button>
+                    </th:block>
+                </div>
+                
+                <th:block th:if="${isRadice || apertoSet.contains(nodo.codice)}">
+                    <ul class="node-children" style="margin-top: 0.5rem;">
+                        <li th:each="figlio : ${nodo.figli}">
+                            <th:block th:replace="~{::albero(${figlio}, false)}"></th:block>
+                        </li>
+                    </ul>
+                </th:block>
+            </div>
         </th:block>
     </th:block>
-
 </body>
-
 </html>

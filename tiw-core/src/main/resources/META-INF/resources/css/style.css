@@ -52,6 +52,7 @@
     --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
 
     --transition: 0.2s ease;
+}
 
 html { font-size: 14px; }
 
@@ -913,4 +914,235 @@ body {
 
 .sidebar-overlay.visible {
     display: block;
+}
+
+/* --- CONFIGURATION TREE --- */
+
+.tree-root, .tree-root ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.tree-root ul {
+    padding-left: 1.25rem;
+    margin-top: 0.4rem;
+    border-left: 2px solid var(--card-border);
+    margin-bottom: 0.4rem;
+}
+
+.node-children {
+    list-style: none;
+    padding-left: 0;
+}
+
+.config-node {
+    margin: 0.5rem 0 0.5rem 1.5rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: var(--card-bg);
+}
+
+.config-node-semplice {
+    border-left: 2px solid var(--success);
+}
+
+.config-node-composto {
+    border-left: 2px solid var(--accent);
+}
+
+.config-node-composto-root {
+    margin: 0;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    padding: 0.65rem 0.75rem;
+}
+
+.config-node-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.node-label {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.node-sku-select {
+    margin-left: auto;
+    min-width: 200px;
+    max-width: 320px;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.82rem;
+    background: #fafbfc;
+}
+
+.btn-espandi {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+}
+
+/* --- SKU DETAIL CARD --- */
+
+.sku-detail-card {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 0.75rem;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: #fafbfc;
+    margin-top: 0.4rem;
+    margin-bottom: 0.8rem;
+}
+
+.sku-foto {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+    display: block;
+    flex-shrink: 0;
+}
+
+.sku-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sku-nome {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.sku-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.15rem;
+}
+
+.sku-prezzo {
+    font-size: 0.85rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+/* --- CONFIGURATION ROW (LIST) --- */
+
+.config-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    cursor: default;
+    align-items: stretch;
+    margin-bottom: 0.5rem;
+}
+
+.config-row-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.config-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.conf-nome {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.conf-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+}
+
+.conf-prezzo {
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.config-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
+}
+
+.config-actions .btn {
+    padding: 0.4rem 0.6rem;
+}
+
+/* --- FORNITORE TEMPLATE CLASSES --- */
+
+.result-card {
+    width: 100%;
+    border: 1px solid var(--card-border);
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+}
+
+.result-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 0.5rem;
+}
+
+.result-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.search-item-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    cursor: default;
+    align-items: stretch;
+}
+
+.catalogo-item {
+    cursor: pointer;
+}
+
+.result-icon {
+    color: var(--text-muted);
+    margin-left: 0.75rem;
+}
+
+.tree-node {
+    margin-left: 20px;
+    padding-left: 10px;
+    margin-top: 10px;
+    padding-bottom: 5px;
+}
+
+.tree-composto {
+    border-left: 2px solid var(--accent);
+}
+
+.tree-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }

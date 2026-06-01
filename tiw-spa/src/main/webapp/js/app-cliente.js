@@ -45,28 +45,20 @@ const AppCliente = {
     // -------------------------------------------------------------------------
 
     bindGlobalEvents: function () {
-        // Sidebar: navigazione tra sezioni
-        document.getElementById('sidebar').addEventListener('click', (e) => {
-            const link = e.target.closest('a[data-section]');
-            if (link) {
-                e.preventDefault();
-                const sez = link.dataset.section;
-                this.switchSection(sez);
-                if (sez === 'configurazioni') this.caricaConfigurazioni();
-                document.getElementById('sidebar').classList.remove('open');
-                document.getElementById('sidebarOverlay').classList.remove('visible');
-            }
-        });
-
-        // Hamburger mobile
-        document.getElementById('btnHamburger').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.add('open');
-            document.getElementById('sidebarOverlay').classList.add('visible');
-        });
-        document.getElementById('sidebarOverlay').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('open');
-            document.getElementById('sidebarOverlay').classList.remove('visible');
-        });
+        // Toggle navbar (mobile/desktop single button navigation)
+        const btnNavToggle = document.getElementById('btn-nav-toggle');
+        if (btnNavToggle) {
+            btnNavToggle.addEventListener('click', () => {
+                if (this.stato.sezioneAttiva === 'catalogo' || this.stato.sezioneAttiva === 'configura') {
+                    this.switchSection('configurazioni');
+                    this.caricaConfigurazioni();
+                    btnNavToggle.innerHTML = '<i class="fa-solid fa-store"></i> Catalogo';
+                } else {
+                    this.switchSection('catalogo');
+                    btnNavToggle.innerHTML = '<i class="fa-solid fa-list-check"></i> Le mie Configurazioni';
+                }
+            });
+        }
 
         // Catalogo: click su un prodotto → apre sezione configura
         document.getElementById('catalogo-container').addEventListener('click', (e) => {
@@ -127,11 +119,19 @@ const AppCliente = {
     // -------------------------------------------------------------------------
 
     switchSection: function (sectionId) {
-        document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
-        document.querySelector(`a[data-section="${sectionId}"]`)?.classList.add('active');
         document.querySelectorAll('.app-section').forEach(sec => sec.classList.remove('active'));
         document.getElementById(`section-${sectionId}`).classList.add('active');
         this.stato.sezioneAttiva = sectionId;
+
+        // Sync toggle button text
+        const btnNavToggle = document.getElementById('btn-nav-toggle');
+        if (btnNavToggle) {
+            if (sectionId === 'catalogo' || sectionId === 'configura') {
+                btnNavToggle.innerHTML = '<i class="fa-solid fa-list-check"></i> Le mie Configurazioni';
+            } else {
+                btnNavToggle.innerHTML = '<i class="fa-solid fa-store"></i> Catalogo';
+            }
+        }
     },
 
     // -------------------------------------------------------------------------
@@ -424,10 +424,13 @@ const AppCliente = {
      */
     buildNodoDettaglio: function (nodo, voci) {
         const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'margin: 0.4rem 0 0.4rem 1.25rem; padding-left: 0.75rem; border-left: 2px solid var(--card-border);';
+        if (nodo.tipo === 'COMPOSTO' || nodo.tipo === 'SEMPLICE') {
+            wrapper.style.cssText = 'margin: 0.4rem 0 0.4rem 1.25rem; padding-left: 0.75rem; border-left: 2px solid var(--card-border);';
+        }
 
         const label = document.createElement('div');
-        label.style.cssText = 'font-weight: 600; font-size: 0.875rem; margin-bottom: 0.3rem;';
+        label.className = 'node-label';
+        label.style.cssText = 'margin-bottom: 0.3rem;';
         label.textContent = nodo.nome;
         wrapper.appendChild(label);
 

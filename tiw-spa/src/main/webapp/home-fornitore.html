@@ -209,24 +209,56 @@
     
     <!-- Template Risultato Creazione Prodotto -->
     <template id="tpl-prodotto-display">
-        <div class="prodotto-created-card" style="width: 100%; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <div class="prodotto-created-card result-card">
+            <div class="result-card-header">
                 <strong>Prodotto <span class="prod-tipo-val"></span> (ID: <span class="prod-id-val"></span>)</strong>
                 <button type="button" class="btn btn-danger btn-elimina-prodotto" title="Elimina Prodotto">
                     <i class="fa-solid fa-trash"></i>
                 </button>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="result-card-grid">
                 <div class="sku-field"><span class="field-label">Codice:</span> <span class="prod-view-codice"></span></div>
                 <div class="sku-field"><span class="field-label">Nome:</span> <span class="prod-view-nome"></span></div>
                 <div class="sku-field prod-composto-only"><span class="field-label">Fascia Prezzo:</span> €<span class="prod-view-pmin"></span> - €<span class="prod-view-pmax"></span></div>
-                <div class="sku-field prod-composto-only" style="grid-column: 1 / -1;"><span class="field-label">Descrizione:</span> <span class="prod-view-desc"></span></div>
+                <div class="sku-field prod-composto-only full-width"><span class="field-label">Descrizione:</span> <span class="prod-view-desc"></span></div>
             </div>
         </div>
     </template>
 
+    <!-- Template: riga di ricerca generica SKU -->
+    <template id="tpl-search-sku-item">
+        <div class="search-result-item search-item-row">
+            <div class="config-row-header">
+                <div class="config-info">
+                    <div class="sku-nome result-name"></div>
+                    <div class="sku-desc result-desc"></div>
+                </div>
+                <span class="sku-prezzo result-prezzo"></span>
+            </div>
+        </div>
+    </template>
 
+    <!-- Template: riga di ricerca prodotto semplice -->
+    <template id="tpl-search-semplice-item">
+        <div class="search-result-item search-item-row">
+            <div class="config-row-header">
+                <div class="config-info">
+                    <div class="prod-nome result-name"></div>
+                    <div class="prod-desc result-desc"></div>
+                </div>
+                <span class="prod-prezzo result-prezzo"></span>
+                <div class="config-actions">
+                    <button type="button" class="btn btn-ghost btn-dettaglio" title="Vedi dettaglio e SKU">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-elimina" title="Elimina Prodotto">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
 
     <!-- Template Contenitore per Risultato Ricerca -->
     <template id="tpl-search-result">
@@ -239,15 +271,26 @@
         </div>
     </template>
 
+    <!-- Template: riga prodotto radice nel catalogo -->
+    <template id="tpl-catalogo-item">
+        <div class="search-result-item catalogo-item">
+            <div class="config-row-header">
+                <span class="badge badge-composto"></span>
+                <span class="result-name"></span>
+                <span class="result-desc"></span>
+                <span class="result-prezzo"></span>
+            </div>
+            <i class="fa-solid fa-chevron-right result-icon"></i>
+        </div>
+    </template>
+
     <!-- Template per Nodo Albero Composto -->
     <template id="tpl-tree-composto">
-        <div class="tree-node tree-composto" style="margin-left: 20px; border-left: 2px solid #3b82f6; padding-left: 10px; margin-top: 10px; padding-bottom: 5px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="tree-node tree-composto">
+            <div class="tree-header">
                 <div>
                     <span class="badge badge-composto">Composto</span>
                     <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong> 
-                    <span class="tree-nome" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1; cursor: pointer;" title="Clicca per modificare"></span>
-                    <span style="font-size: 0.9em; color: #64748b; margin-left: 10px;">
                         (€<span class="tree-pmin" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span> - 
                         €<span class="tree-pmax" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span>)
                     </span>

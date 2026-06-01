@@ -2,14 +2,49 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<div th:fragment="navBar(homeUrl)">
-    <a th:if="${homeUrl != null}" th:href="${homeUrl}"
-       style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
-    <form th:action="@{/logout}" method="post" style="display:inline">
-        <input type="hidden" name="_csrf" th:value="${session.csrfToken}"/>
-        <button type="submit">Logout</button>
-    </form>
-</div>
+<header class="top-navbar" th:fragment="navBar(homeUrl)">
+    <div class="top-navbar-content" style="display:flex; justify-content:space-between; align-items:center;">
+        
+        <!-- Sinistra: Logout -->
+        <div class="top-navbar-left">
+            <form th:action="@{/logout}" method="post" style="display:inline; margin: 0;">
+                <input type="hidden" name="_csrf" th:value="${session.csrfToken}"/>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                </button>
+            </form>
+        </div>
+
+        <!-- Centro: Benvenuto -->
+        <div style="text-align: center; flex: 1;">
+            <h2 style="margin: 0; font-size: 1.25rem;">Ciao <span th:text="${session.utente != null ? (session.utente.nome + ' ' + session.utente.cognome) : 'Ospite'}">Nome Cognome</span></h2>
+        </div>
+
+        <!-- Destra: Navigazione (Home, Ricerca, Mie Conf) -->
+        <div class="top-navbar-right" style="display: flex; gap: 0.5rem;">
+            
+            <!-- Tasto Home -->
+            <th:block th:if="${session.utente != null and session.utente.ruolo.name() == 'FORNITORE'}">
+                <a th:href="@{/fornitore/home}" class="btn btn-primary" style="text-decoration: none;">
+                    <i class="fa-solid fa-house"></i> Home
+                </a>
+                <a th:href="@{/fornitore/cerca}" class="btn btn-ghost" style="text-decoration: none;">
+                    <i class="fa-solid fa-magnifying-glass"></i> Cerca
+                </a>
+            </th:block>
+
+            <th:block th:if="${session.utente != null and session.utente.ruolo.name() == 'CLIENTE'}">
+                <a th:href="@{/cliente/home}" class="btn btn-primary" style="text-decoration: none;">
+                    <i class="fa-solid fa-house"></i> Home
+                </a>
+                <a th:href="@{/cliente/configurazioni}" class="btn btn-ghost" style="text-decoration: none;">
+                    <i class="fa-solid fa-list-check"></i> Le mie Configurazioni
+                </a>
+            </th:block>
+
+        </div>
+    </div>
+</header>
 
 </body>
 </html>

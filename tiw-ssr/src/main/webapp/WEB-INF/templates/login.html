@@ -4,41 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Configuratore di Prodotto</title>
+<style>
+    body { font-family: 'Inter', Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; margin: 0; }
+    .login-box { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 350px; text-align: center; border: 1px solid #e2e8f0; }
+    .login-box h2 { margin-top: 0; margin-bottom: 1.5rem; color: #1e293b; font-size: 1.5rem; }
+    input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
+    input:focus { outline: none; border-color: #4361ee; box-shadow: 0 0 0 2px #eef0ff; }
+    button { background: #4361ee; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 1rem; margin-top: 10px; transition: background 0.2s; }
+    button:hover { background: #3a56d4; }
+    .error { color: #ef4444; margin-bottom: 15px; background: #fef2f2; padding: 10px; border-radius: 6px; border: 1px solid #ef4444; font-size: 0.9rem; }
+</style>
 </head>
 <body>
 
-<h1>Configuratore di Prodotto</h1>
-<h2>Accesso</h2>
+<div class="login-box">
+    <h2>Login (SSR)</h2>
+    
+    <div th:if="${errore}" class="error">
+        <span th:text="${errore}"></span>
+    </div>
 
-<div th:if="${errore}" role="alert">
-    <p th:text="${errore}"></p>
-</div>
-
-<form method="post" action="login" novalidate>
-
-    <div>
-        <label for="username">Username</label>
+    <form method="post" action="login" novalidate>
         <input type="text"
                id="username"
                name="username"
+               placeholder="Username"
                required
                autocomplete="username"
                autofocus
                th:value="${usernameInserito}">
-    </div>
-
-    <div>
-        <label for="password">Password</label>
+        
         <input type="password"
                id="password"
                name="password"
+               placeholder="Password"
                required
                autocomplete="current-password">
-    </div>
-
-    <button type="submit">Accedi</button>
-
-</form>
-
-</body>
+        
+        <button type="submit">Accedi</button>
+    </form>
+</div>
 </html>

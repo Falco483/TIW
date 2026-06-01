@@ -7,49 +7,30 @@
     <!-- CSRF Token iniettato lato server (Thymeleaf) -->
     <meta name="_csrf" th:content="${csrfToken}" content="" />
     <!-- Stile condiviso -->
-    <link rel="stylesheet" th:href="@{/css/style.css}" href="css/style.css">
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}" href="css/style.css?v=2">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <!-- Overlay mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- Pulsante Hamburger (mobile) -->
-    <button class="hamburger" id="btnHamburger">
-        <i class="fa-solid fa-bars"></i>
-    </button>
-
-    <!-- ==========================================
-         SIDEBAR
-         ========================================== -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <h1>TIW Configurator</h1>
-            <span>Area Cliente</span>
-        </div>
-        <nav class="sidebar-nav">
-            <a href="#" data-section="catalogo" class="active">
-                <i class="fa-solid fa-store nav-icon"></i> Catalogo Prodotti
-            </a>
-            <a href="#" data-section="configurazioni">
-                <i class="fa-solid fa-list-check nav-icon"></i> Le mie Configurazioni
-            </a>
-        </nav>
-        <div class="sidebar-user">
-            <div class="user-name" id="sidebarUserName">Caricamento...</div>
-            <div class="user-role">Cliente</div>
-            <a href="logout" class="logout-link">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
-            </a>
-        </div>
-    </aside>
-
-    <!-- ==========================================
-         MAIN CONTENT
-         ========================================== -->
+    <!-- MAIN CONTENT -->
     <main class="content">
+        <!-- TOP NAVBAR -->
+        <header class="top-navbar">
+            <div class="top-navbar-content">
+                <div class="top-navbar-left">
+                    <h2>Ciao <span id="sidebarUserName">Caricamento...</span></h2>
+                    <button type="button" class="btn btn-primary" id="btn-nav-toggle" style="width: fit-content; padding: 0.3rem 0.8rem; font-size: 0.85rem; margin-top: 0.5rem;">
+                        <i class="fa-solid fa-list-check"></i> Le mie Configurazioni
+                    </button>
+                </div>
+                <div class="top-navbar-right">
+                    <a href="logout" class="btn btn-danger">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </header>
 
         <!-- ──────────────────────────────────────
              SEZIONE 1: CATALOGO PRODOTTI
@@ -205,7 +186,7 @@
     <!-- Template: riga prodotto nel catalogo -->
     <template id="tpl-catalogo-item">
         <div class="search-result-item" style="cursor:pointer;">
-            <div class="result-info" style="display:flex; align-items:center; gap:0.75rem; flex:1;">
+            <div class="config-row-header">
                 <span class="badge badge-composto"></span>
                 <span class="result-name" style="font-weight:500; flex:1;"></span>
                 <span class="result-desc" style="color: var(--text-muted); font-size:0.8rem;"></span>
@@ -217,17 +198,11 @@
 
     <!-- Template: nodo semplice nell'albero di configurazione -->
     <template id="tpl-config-nodo-semplice">
-        <div class="config-node config-node-semplice"
-             style="margin: 0.5rem 0 0.5rem 1.5rem; padding: 0.65rem 0.75rem;
-                    border-left: 2px solid var(--success); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-                    background: var(--card-bg);">
-            <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+        <div class="config-node config-node-semplice">
+            <div class="config-node-header">
                 <span class="badge badge-semplice">Semplice</span>
-                <span class="node-label" style="font-weight:500; font-size:0.875rem;"></span>
-                <select class="node-sku-select" style="margin-left:auto; min-width:200px; max-width:320px;
-                               padding:0.4rem 0.6rem; border:1px solid var(--card-border);
-                               border-radius:var(--radius-sm); font-family:inherit; font-size:0.82rem;
-                               background:#fafbfc;">
+                <span class="node-label"></span>
+                <select class="node-sku-select">
                     <option value="">Scegli un'opzione...</option>
                     <!-- Opzioni SKU iniettate da JS -->
                 </select>
@@ -237,52 +212,42 @@
 
     <!-- Template: nodo composto nell'albero di configurazione (con pulsante Espandi) -->
     <template id="tpl-config-nodo-composto">
-        <div class="config-node config-node-composto"
-             style="margin: 0.5rem 0 0.5rem 1.5rem; padding: 0.65rem 0.75rem;
-                    border-left: 2px solid var(--accent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-                    background: var(--card-bg);">
-            <div style="display:flex; align-items:center; gap:0.6rem;">
+        <div class="config-node config-node-composto">
+            <div class="config-node-header">
                 <span class="badge badge-composto">Composto</span>
-                <span class="node-label" style="font-weight:500; font-size:0.875rem; flex:1;"></span>
+                <span class="node-label" style="flex:1;"></span>
                 <!-- Mostrato solo se il nodo non è ancora espanso -->
-                <button type="button" class="btn-espandi btn btn-ghost" style="font-size:0.8rem; padding:0.3rem 0.75rem;">
+                <button type="button" class="btn-espandi btn btn-ghost">
                     Espandi <i class="fa-solid fa-chevron-right" style="font-size:0.7rem;"></i>
                 </button>
             </div>
             <!-- I figli vengono iniettati qui quando il nodo viene espanso -->
-            <div class="node-children" style="margin-top:0.25rem;"></div>
+            <ul class="node-children" style="margin-top:0.5rem;"></ul>
         </div>
     </template>
 
     <!-- Template: card SKU nel dettaglio (read-only) -->
     <template id="tpl-dettaglio-sku">
-        <div class="sku-detail-card"
-             style="display:flex; gap:1rem; align-items:flex-start; padding:0.75rem;
-                    border:1px solid var(--card-border); border-radius:var(--radius-sm);
-                    background:#fafbfc; margin-top:0.4rem;">
-            <img class="sku-foto" src="" alt="Foto SKU"
-                 style="width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm);
-                        border:1px solid var(--card-border); display:none; flex-shrink:0;">
-            <div style="flex:1; min-width:0;">
-                <div style="font-weight:600; font-size:0.875rem;" class="sku-nome"></div>
-                <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.15rem;" class="sku-desc"></div>
-                <div style="font-size:0.85rem; color:var(--accent); font-weight:600; margin-top:0.25rem;"
-                     class="sku-prezzo"></div>
+        <div class="sku-detail-card">
+            <img class="sku-foto" src="" alt="Foto SKU" style="display:none;">
+            <div class="sku-info">
+                <div class="sku-nome"></div>
+                <div class="sku-desc"></div>
+                <div class="sku-prezzo"></div>
             </div>
         </div>
     </template>
 
     <!-- Template: riga configurazione nella lista "Le mie Configurazioni" -->
     <template id="tpl-config-row">
-        <div class="search-result-item" style="display:flex; flex-direction:column; gap:0.5rem; cursor:default;
-                    align-items:stretch;">
-            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
-                <div style="flex:1; min-width:0;">
-                    <div class="conf-nome" style="font-weight:600; font-size:0.9rem;"></div>
-                    <div class="conf-meta" style="font-size:0.75rem; color:var(--text-muted); margin-top:0.1rem;"></div>
+        <div class="search-result-item config-row">
+            <div class="config-row-header">
+                <div class="config-info">
+                    <div class="conf-nome"></div>
+                    <div class="conf-meta"></div>
                 </div>
-                <span class="conf-prezzo" style="font-weight:600; color:var(--accent); white-space:nowrap;"></span>
-                <div style="display:flex; gap:0.4rem; flex-shrink:0;">
+                <span class="conf-prezzo"></span>
+                <div class="config-actions">
                     <button type="button" class="btn btn-ghost btn-dettaglio" title="Vedi dettaglio">
                         <i class="fa-solid fa-eye"></i>
                     </button>

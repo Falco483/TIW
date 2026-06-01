@@ -2,62 +2,68 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Le mie Configurazioni</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuratore TIW - Le mie Configurazioni (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <header>
-        <div th:replace="~{fragments/navbar :: navBar(@{/cliente/home})}"></div>
-    </header>
-    <h1>Le mie Configurazioni</h1>
+<body style="flex-direction: column;">
+    <div th:replace="~{fragments/navbar :: navBar(@{/cliente/home})}"></div>
+    <main class="content">
+        <section class="app-section active">
+            <div class="content-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Le mie Configurazioni</h2>
+                <a th:href="@{/cliente/home}" class="btn btn-primary">
+                    <i class="fa-solid fa-plus"></i> Nuova Configurazione
+                </a>
+            </div>
 
-    <a th:href="@{/cliente/home}">&larr; Torna ai prodotti</a>
+            <div th:if="${#lists.isEmpty(configurazioni)}" class="empty-state">
+                <i class="fa-solid fa-list-check empty-icon"></i>
+                <p>Non hai ancora salvato nessuna configurazione.</p>
+            </div>
 
-    <div th:if="${#lists.isEmpty(configurazioni)}" style="margin-top: 20px;">
-        <p>Non hai ancora salvato nessuna configurazione.</p>
-    </div>
-
-    <table border="1" th:unless="${#lists.isEmpty(configurazioni)}" style="margin-top: 20px;">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>Prodotto</th>
-                <th>Prezzo Totale</th>
-                <th>Data Creazione</th>
-                <th>Data Modifica</th>
-                <th>Azioni</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr th:each="conf : ${configurazioni}">
-                <td th:text="${conf.nome}"></td>
-                <td th:text="${conf.nomeProdottoRadice}"></td>
-                <td th:text="${conf.prezzoTotale + ' €'}"></td>
-                <td th:text="${#temporals.format(conf.dataCreazione, 'dd/MM/yyyy HH:mm')}"></td>
-                <td th:text="${#temporals.format(conf.dataModifica, 'dd/MM/yyyy HH:mm')}"></td>
-                <td>
-                    <!-- Modifica -->
-                    <a th:href="@{/cliente/configura(codice=${conf.codiceProdottoRadice}, idConfig=${conf.id})}">Modifica</a>
-
-                    <!-- Clona (POST con CSRF) -->
-                    <form method="POST" th:action="@{/cliente/azione}" style="display: inline;">
-                        <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
-                        <input type="hidden" name="azione" value="clona" />
-                        <input type="hidden" name="id" th:value="${conf.id}" />
-                        <button type="submit">Clona</button>
-                    </form>
-
-                    <!-- Elimina (POST con CSRF) -->
-                    <form method="POST" th:action="@{/cliente/azione}" style="display: inline;"
-                          onsubmit="return confirm('Sei sicuro di voler eliminare questa configurazione?');">
-                        <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
-                        <input type="hidden" name="azione" value="elimina" />
-                        <input type="hidden" name="id" th:value="${conf.id}" />
-                        <button type="submit">Elimina</button>
-                    </form>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
+            <div th:unless="${#lists.isEmpty(configurazioni)}" class="search-results">
+                <div class="search-result-item config-row" th:each="conf : ${configurazioni}">
+                    <div class="config-row-header">
+                        <div class="config-info">
+                            <div class="conf-nome" th:text="${conf.nome}">Nome Configurazione</div>
+                            <div class="conf-meta">
+                                Prodotto: <span th:text="${conf.nomeProdottoRadice}"></span>
+                                | Creata il <span th:text="${#temporals.format(conf.dataCreazione, 'dd/MM/yyyy')}"></span>
+                                <span th:if="${conf.dataModifica != null}">| Modificata il <span th:text="${#temporals.format(conf.dataModifica, 'dd/MM/yyyy')}"></span></span>
+                            </div>
+                        </div>
+                        <span class="conf-prezzo" th:text="'€' + ${conf.prezzoTotale}"></span>
+                        
+                        <div class="config-actions">
+                            <a th:href="@{/cliente/dettaglio(idConfig=${conf.id})}" class="btn btn-ghost" title="Vedi dettaglio">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
+                            <a th:href="@{/cliente/configura(codice=${conf.codiceProdottoRadice}, idConfig=${conf.id})}" class="btn btn-ghost" title="Modifica">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <form method="POST" th:action="@{/cliente/azione}" style="display: inline; margin: 0;">
+                                <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
+                                <input type="hidden" name="azione" value="clona" />
+                                <input type="hidden" name="id" th:value="${conf.id}" />
+                                <button type="submit" class="btn btn-ghost" title="Clona">
+                                    <i class="fa-solid fa-copy"></i>
+                                </button>
+                            </form>
+                            <form method="POST" th:action="@{/cliente/azione}" style="display: inline; margin: 0;" onsubmit="return confirm('Sei sicuro di voler eliminare questa configurazione?');">
+                                <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
+                                <input type="hidden" name="azione" value="elimina" />
+                                <input type="hidden" name="id" th:value="${conf.id}" />
+                                <button type="submit" class="btn btn-danger" title="Elimina">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 </body>
 </html>
