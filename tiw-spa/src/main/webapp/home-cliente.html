@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuratore TIW - Cliente</title>
+    <!-- CSRF Token iniettato lato server (Thymeleaf) -->
+    <meta name="_csrf" th:content="${csrfToken}" content="" />
+    <!-- Stile condiviso -->
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="css/style.css">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Overlay mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Pulsante Hamburger (mobile) -->
+    <button class="hamburger" id="btnHamburger">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <!-- ==========================================
+         SIDEBAR
+         ========================================== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <h1>TIW Configurator</h1>
+            <span>Area Cliente</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" data-section="catalogo" class="active">
+                <i class="fa-solid fa-store nav-icon"></i> Catalogo Prodotti
+            </a>
+            <a href="#" data-section="configurazioni">
+                <i class="fa-solid fa-list-check nav-icon"></i> Le mie Configurazioni
+            </a>
+        </nav>
+        <div class="sidebar-user">
+            <div class="user-name" id="sidebarUserName">Caricamento...</div>
+            <div class="user-role">Cliente</div>
+            <a href="logout" class="logout-link">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- ==========================================
+         MAIN CONTENT
+         ========================================== -->
+    <main class="content">
+
+        <!-- ──────────────────────────────────────
+             SEZIONE 1: CATALOGO PRODOTTI
+             Mostra i prodotti radice configurabili.
+             Click su un prodotto → apre section-configura.
+             ────────────────────────────────────── -->
+        <section id="section-catalogo" class="app-section active">
+            <div class="content-header">
+                <h2>Catalogo Prodotti</h2>
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;">
+                    Seleziona un prodotto per avviare una nuova configurazione.
+                </p>
+            </div>
+
+            <!-- Lista prodotti radice (popolata via JS) -->
+            <div id="catalogo-container" class="search-results">
+                <div class="empty-state">
+                    <span class="spinner" style="border-color: rgba(0,0,0,0.15); border-top-color: var(--accent);"></span>
+                    <p style="margin-top: 0.75rem;">Caricamento prodotti...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ──────────────────────────────────────
+             SEZIONE 2: CONFIGURAZIONE PRODOTTO
+             Form dinamico: nome + albero prodotto con
+             select SKU per nodi semplici e pulsante
+             "Espandi" per nodi composti non ancora aperti.
+             Gestisce sia creazione che modifica.
+             ────────────────────────────────────── -->
+        <section id="section-configura" class="app-section">
+            <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+                <button type="button" class="btn btn-ghost" id="btn-torna-catalogo">
+                    <i class="fa-solid fa-arrow-left"></i> Catalogo
+                </button>
+                <div>
+                    <h2 id="configura-titolo">Configura Prodotto</h2>
+                    <p id="configura-fascia-prezzo" style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.2rem;"></p>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <form id="form-configura" novalidate>
+                    <!-- Nome configurazione -->
+                    <div class="form-group" style="max-width: 400px;">
+                        <label for="input-nome-config">Nome Configurazione</label>
+                        <input type="text" id="input-nome-config" name="nomeConfigurazione"
+                               placeholder="Es. PC Gaming Setup" required maxlength="100">
+                        <div class="field-error" id="error-nome-config" style="display:none;">
+                            Il nome è obbligatorio.
+                        </div>
+                    </div>
+
+                    <!-- Errore generico configurazione -->
+                    <div id="configura-errore" style="display:none; color: var(--error); background: var(--error-bg);
+                         border: 1px solid var(--error); border-radius: var(--radius-sm); padding: 0.65rem 1rem;
+                         margin-bottom: 1rem; font-size: 0.85rem;">
+                    </div>
+
+                    <!-- Albero prodotto (popolato via JS) -->
+                    <div id="albero-container" style="margin-top: 1rem;">
+                        <!-- I nodi vengono iniettati da app-cliente.js.
+                             Struttura per nodo SEMPLICE:
+                               <div class="config-node" data-id="...">
+                                 <span>NomeProdotto</span>
+                                 <select name="sku_ID"> ... </select>
+                               </div>
+                             Struttura per nodo COMPOSTO non espanso:
+                               <div class="config-node" data-id="..." data-codice="...">
+                                 <span>NomeProdotto</span>
+                                 <button type="button" class="btn-espandi">Espandi ▶</button>
+                               </div>
+                             Struttura per nodo COMPOSTO espanso:
+                               <div class="config-node" data-id="...">
+                                 <span>NomeProdotto</span>
+                                 <div class="config-children"> ... figli ... </div>
+                               </div>
+                        -->
+                    </div>
+
+                    <!-- Azioni -->
+                    <div style="display:flex; gap:0.75rem; margin-top: 1.5rem; padding-top: 1rem;
+                                border-top: 1px solid var(--card-border);">
+                        <button type="submit" class="btn btn-primary" id="btn-salva-config">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span id="btn-salva-config-label">Salva Configurazione</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost" id="btn-annulla-config">
+                            Annulla
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ──────────────────────────────────────
+             SEZIONE 3: DETTAGLIO CONFIGURAZIONE
+             Vista read-only: riepilogo nome, prezzo,
+             albero ricorsivo con SKU scelte e foto.
+             Aperta da "Le mie Configurazioni".
+             ────────────────────────────────────── -->
+        <section id="section-dettaglio" class="app-section">
+            <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+                <button type="button" class="btn btn-ghost" id="btn-torna-configurazioni">
+                    <i class="fa-solid fa-arrow-left"></i> Le mie Configurazioni
+                </button>
+                <div>
+                    <h2 id="dettaglio-nome">Dettaglio Configurazione</h2>
+                    <p id="dettaglio-prezzo" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;"></p>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <!-- Albero riepilogo (read-only, popolato via JS) -->
+                <div id="dettaglio-albero-container">
+                    <!-- Struttura generata da JS:
+                         - nodo COMPOSTO: label con nome + ul figli ricorsivi
+                         - nodo SEMPLICE: label + card SKU scelta (nome, desc, prezzo congelato, foto)
+                    -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ──────────────────────────────────────
+             SEZIONE 4: LE MIE CONFIGURAZIONI
+             Tabella configurazioni salvate con azioni:
+             Modifica, Clona, Elimina, Dettaglio.
+             ────────────────────────────────────── -->
+        <section id="section-configurazioni" class="app-section">
+            <div class="content-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Le mie Configurazioni</h2>
+                <button type="button" class="btn btn-primary" id="btn-nuova-config">
+                    <i class="fa-solid fa-plus"></i> Nuova Configurazione
+                </button>
+            </div>
+
+            <!-- Lista configurazioni (popolata via JS) -->
+            <div id="configurazioni-container">
+                <div class="empty-state">
+                    <span class="spinner" style="border-color: rgba(0,0,0,0.15); border-top-color: var(--accent);"></span>
+                    <p style="margin-top: 0.75rem;">Caricamento...</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==========================================
+         TEMPLATES HTML
+         (clonati via JS con template.content.cloneNode)
+         ========================================== -->
+
+    <!-- Template: riga prodotto nel catalogo -->
+    <template id="tpl-catalogo-item">
+        <div class="search-result-item" style="cursor:pointer;">
+            <div class="result-info" style="display:flex; align-items:center; gap:0.75rem; flex:1;">
+                <span class="badge badge-composto"></span>
+                <span class="result-name" style="font-weight:500; flex:1;"></span>
+                <span class="result-desc" style="color: var(--text-muted); font-size:0.8rem;"></span>
+                <span class="result-prezzo" style="color: var(--text-secondary); font-size:0.85rem; white-space:nowrap;"></span>
+            </div>
+            <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); margin-left:0.75rem;"></i>
+        </div>
+    </template>
+
+    <!-- Template: nodo semplice nell'albero di configurazione -->
+    <template id="tpl-config-nodo-semplice">
+        <div class="config-node config-node-semplice"
+             style="margin: 0.5rem 0 0.5rem 1.5rem; padding: 0.65rem 0.75rem;
+                    border-left: 2px solid var(--success); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+                    background: var(--card-bg);">
+            <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                <span class="badge badge-semplice">Semplice</span>
+                <span class="node-label" style="font-weight:500; font-size:0.875rem;"></span>
+                <select class="node-sku-select" style="margin-left:auto; min-width:200px; max-width:320px;
+                               padding:0.4rem 0.6rem; border:1px solid var(--card-border);
+                               border-radius:var(--radius-sm); font-family:inherit; font-size:0.82rem;
+                               background:#fafbfc;">
+                    <option value="">Scegli un'opzione...</option>
+                    <!-- Opzioni SKU iniettate da JS -->
+                </select>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: nodo composto nell'albero di configurazione (con pulsante Espandi) -->
+    <template id="tpl-config-nodo-composto">
+        <div class="config-node config-node-composto"
+             style="margin: 0.5rem 0 0.5rem 1.5rem; padding: 0.65rem 0.75rem;
+                    border-left: 2px solid var(--accent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+                    background: var(--card-bg);">
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+                <span class="badge badge-composto">Composto</span>
+                <span class="node-label" style="font-weight:500; font-size:0.875rem; flex:1;"></span>
+                <!-- Mostrato solo se il nodo non è ancora espanso -->
+                <button type="button" class="btn-espandi btn btn-ghost" style="font-size:0.8rem; padding:0.3rem 0.75rem;">
+                    Espandi <i class="fa-solid fa-chevron-right" style="font-size:0.7rem;"></i>
+                </button>
+            </div>
+            <!-- I figli vengono iniettati qui quando il nodo viene espanso -->
+            <div class="node-children" style="margin-top:0.25rem;"></div>
+        </div>
+    </template>
+
+    <!-- Template: card SKU nel dettaglio (read-only) -->
+    <template id="tpl-dettaglio-sku">
+        <div class="sku-detail-card"
+             style="display:flex; gap:1rem; align-items:flex-start; padding:0.75rem;
+                    border:1px solid var(--card-border); border-radius:var(--radius-sm);
+                    background:#fafbfc; margin-top:0.4rem;">
+            <img class="sku-foto" src="" alt="Foto SKU"
+                 style="width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm);
+                        border:1px solid var(--card-border); display:none; flex-shrink:0;">
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; font-size:0.875rem;" class="sku-nome"></div>
+                <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.15rem;" class="sku-desc"></div>
+                <div style="font-size:0.85rem; color:var(--accent); font-weight:600; margin-top:0.25rem;"
+                     class="sku-prezzo"></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template: riga configurazione nella lista "Le mie Configurazioni" -->
+    <template id="tpl-config-row">
+        <div class="search-result-item" style="display:flex; flex-direction:column; gap:0.5rem; cursor:default;
+                    align-items:stretch;">
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                <div style="flex:1; min-width:0;">
+                    <div class="conf-nome" style="font-weight:600; font-size:0.9rem;"></div>
+                    <div class="conf-meta" style="font-size:0.75rem; color:var(--text-muted); margin-top:0.1rem;"></div>
+                </div>
+                <span class="conf-prezzo" style="font-weight:600; color:var(--accent); white-space:nowrap;"></span>
+                <div style="display:flex; gap:0.4rem; flex-shrink:0;">
+                    <button type="button" class="btn btn-ghost btn-dettaglio" title="Vedi dettaglio">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-modifica" title="Modifica">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-clona" title="Clona">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                    <button type="button" class="btn btn-danger btn-elimina" title="Elimina">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ==========================================
+         TOAST MESSAGES (popolato via JS)
+         ========================================== -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ==========================================
+         SCRIPTS
+         ========================================== -->
+    <script src="js/api.js"></script>
+    <script src="js/app-cliente.js"></script>
+</body>
+</html>

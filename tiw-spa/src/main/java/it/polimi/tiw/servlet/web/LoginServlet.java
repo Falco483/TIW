@@ -83,8 +83,7 @@ public class LoginServlet extends HttpServlet {
         if (utente.ruolo() == UserRole.FORNITORE) {
             response.sendRedirect(request.getContextPath() + "/home-fornitore");
         } else {
-            // Se è cliente, ma la SPA per cliente non esiste ancora in questo modulo
-            response.getWriter().write("SPA per Cliente non implementata.");
+            response.sendRedirect(request.getContextPath() + "/home-cliente");
         }
     }
 

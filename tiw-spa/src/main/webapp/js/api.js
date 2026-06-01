@@ -199,5 +199,41 @@ const api = {
      */
     search: function(query) {
         return this.fetchJson(`api/ricerca?q=${encodeURIComponent(query)}`);
+    },
+
+    // -------------------------------------------------------------------------
+    // Cliente
+    // -------------------------------------------------------------------------
+
+    getConfigurazioni: function() {
+        return this.fetchJson('api/cliente/configurazioni');
+    },
+
+    getConfigurazioneById: function(id) {
+        return this.fetchJson(`api/cliente/configurazioni/${id}`);
+    },
+
+    getAlberoPerConfigurazione: function(codice) {
+        return this.fetchJson(`api/cliente/configurazioni?codice=${codice}`);
+    },
+
+    salvaConfigurazione: function(payload) {
+        return this.fetchJson('api/cliente/configurazioni', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    },
+
+    aggiornaConfigurazione: function(id, payload) {
+        return this.fetchJson(`api/cliente/configurazioni/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        });
+    },
+
+    eliminaConfigurazione: function(id) {
+        return this.fetchJson(`api/cliente/configurazioni/${id}`, {
+            method: 'DELETE'
+        });
     }
 };
