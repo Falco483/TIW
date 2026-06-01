@@ -123,9 +123,9 @@ public class ApiSyncController extends HttpServlet {
                             int realParentId = resolveId(parentObj, tempToRealIds);
                             // Vincolo profondità: max 4 livelli
                             int livelloPadre = prodDao.calcolaLivello(realParentId);
-                            if (livelloPadre + 1 > 4) {
+                            if (livelloPadre + 1 > 3) {
                                 throw new IllegalArgumentException(
-                                        "Impossibile aggiungere il nodo: profondità massima (4 livelli) superata");
+                                        "Impossibile aggiungere il nodo: profondità massima (3 livelli) superata");
                             }
                             prodDao.addFiglio(realParentId, newId);
                         }
@@ -147,9 +147,9 @@ public class ApiSyncController extends HttpServlet {
                         // Vincolo profondità: livello padre + profondità sottoalbero figlio <= 4
                         int livelloPadre = prodDao.calcolaLivello(parentId);
                         int profonditaFiglio = prodDao.calcolaProfondita(childId);
-                        if (livelloPadre + profonditaFiglio > 4) {
+                        if (livelloPadre + profonditaFiglio > 3) {
                             throw new IllegalArgumentException(
-                                    "Impossibile collegare il nodo: profondità massima (4 livelli) superata");
+                                    "Impossibile collegare il nodo: profondità massima (3 livelli) superata");
                         }
                         // Vincolo aciclicità
                         if (!prodDao.verificaAciclicita(parentId, childId)) {
@@ -169,6 +169,12 @@ public class ApiSyncController extends HttpServlet {
                     case "CREATE_SKU" -> {
                         String tempId = (String) actionObj.get("tempId");
                         int codiceInt = Integer.parseInt(actionObj.get("codice").toString());
+
+                        // Vincolo: codice massimo 4 cifre
+                        if (codiceInt <= 0 || codiceInt > 9999) {
+                            throw new IllegalArgumentException(
+                                    "Il codice SKU deve essere un intero positivo di massimo 4 cifre (1-9999)");
+                        }
 
                         // Vincolo 9: verifica unicità codice SKU
                         if (skuDao.findByCodice(codiceInt) != null) {

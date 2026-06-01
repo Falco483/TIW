@@ -388,11 +388,11 @@ public class HomeFornitoreServlet extends HttpServlet {
                                                 descrizioneRaw.trim(), prezzoMin, prezzoMax);
 
             for (int idFiglio : idFigliList) {
-                int livello = prodottoDAO.calcolaLivello(idFiglio);
-                if (livello >= 4) {
+                int profonditaFiglio = prodottoDAO.calcolaProfondita(idFiglio);
+                if (profonditaFiglio >= 3) {
                     connection.rollback();
                     redirectConErrore(request, response,
-                        List.of("Il sottoprodotto selezionato supera la profondità massima di 4 livelli."),
+                        List.of("Il sottoprodotto selezionato supera la profondità massima consentita per formare un albero di 3 livelli."),
                         valoriForm);
                     return;
                 }

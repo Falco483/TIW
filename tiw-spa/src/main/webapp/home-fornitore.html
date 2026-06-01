@@ -7,45 +7,30 @@
     <!-- CSRF Token -->
     <meta name="_csrf" th:content="${csrfToken}" content="" />
     <!-- Stile -->
-    <link rel="stylesheet" th:href="@{/css/style.css}" href="css/style.css">
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}" href="css/style.css?v=2">
     <!-- FontAwesome per le icone (opzionale, ma raccomandato dal design) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-    <!-- Overlay mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- Pulsante Hamburger (mobile) -->
-    <button class="hamburger" id="btnHamburger">
-        <i class="fa-solid fa-bars"></i>
-    </button>
-
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-logo">
-            <h1>TIW Configurator</h1>
-            <span>Gestione Fornitore</span>
-        </div>
-        <nav class="sidebar-nav">
-            <a href="#" data-section="home" class="active">
-                <i class="fa-solid fa-house nav-icon"></i> Home fornitore
-            </a>
-            <a href="#" data-section="ricerca">
-                <i class="fa-solid fa-magnifying-glass nav-icon"></i> Ricerca prodotti
-            </a>
-        </nav>
-        <div class="sidebar-user">
-            <div class="user-name" id="sidebarUserName">Caricamento...</div>
-            <div class="user-role">Fornitore</div>
-            <a href="login?logout=true" class="logout-link" id="btnLogout">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
-            </a>
-        </div>
-    </aside>
-
     <!-- MAIN CONTENT -->
     <main class="content">
+        <!-- TOP NAVBAR -->
+        <header class="top-navbar">
+            <div class="top-navbar-content">
+                <div class="top-navbar-left">
+                    <h2>Ciao <span id="topUserName">Caricamento...</span></h2>
+                    <button type="button" class="btn btn-primary" id="btn-nav-toggle" style="width: fit-content; padding: 0.3rem 0.8rem; font-size: 0.85rem; margin-top: 0.5rem;">
+                        Ricerca prodotto
+                    </button>
+                </div>
+                <div class="top-navbar-right">
+                    <a href="login?logout=true" class="btn btn-danger" id="btnLogout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </header>
 
         <!-- SEZIONE: HOME FORNITORE -->
         <section id="section-home" class="app-section active">

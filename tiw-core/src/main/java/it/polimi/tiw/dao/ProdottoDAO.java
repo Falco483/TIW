@@ -109,7 +109,10 @@ public class ProdottoDAO {
         try (PreparedStatement stmt = connection.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                risultati.add(mapRow(rs));
+                Prodotto p = mapRow(rs);
+                if (calcolaProfondita(p.getId()) <= 2) {
+                    risultati.add(p);
+                }
             }
         }
         return risultati;

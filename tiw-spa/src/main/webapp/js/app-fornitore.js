@@ -32,7 +32,7 @@ const AppFornitore = {
             }
             
             const nomeStr = userRes.nome ? `${userRes.nome} ${userRes.cognome}` : userRes.username;
-            document.getElementById('sidebarUserName').textContent = nomeStr;
+            document.getElementById('topUserName').textContent = nomeStr;
 
             if (skuRes.data) {
                 this.stato.skusDisponibili = skuRes.data;
@@ -50,27 +50,21 @@ const AppFornitore = {
 
     /**
      * Associa tutti i listener per gli eventi globali (click, submit) agli elementi del DOM.
-     * Gestisce la navigazione della sidebar e la "event delegation" sui contenitori dinamici.
+     * Gestisce la "event delegation" sui contenitori dinamici e la top navbar.
      */
     bindGlobalEvents: function() {
-        document.getElementById('sidebar').addEventListener('click', (e) => {
-            const link = e.target.closest('a[data-section]');
-            if (link) {
-                e.preventDefault();
-                this.switchSection(link.dataset.section);
-                document.getElementById('sidebar').classList.remove('open');
-                document.getElementById('sidebarOverlay').classList.remove('visible');
-            }
-        });
-
-        document.getElementById('btnHamburger').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.add('open');
-            document.getElementById('sidebarOverlay').classList.add('visible');
-        });
-        document.getElementById('sidebarOverlay').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('open');
-            document.getElementById('sidebarOverlay').classList.remove('visible');
-        });
+        const btnNavToggle = document.getElementById('btn-nav-toggle');
+        if (btnNavToggle) {
+            btnNavToggle.addEventListener('click', () => {
+                if (this.stato.sezioneAttiva === 'home') {
+                    this.switchSection('ricerca');
+                    btnNavToggle.innerHTML = '<i class="fa-solid fa-house"></i> Home';
+                } else {
+                    this.switchSection('home');
+                    btnNavToggle.innerHTML = 'Ricerca prodotto';
+                }
+            });
+        }
 
         document.getElementById('form-sku').addEventListener('submit', (e) => this.handleSubmitSku(e));
         document.getElementById('form-semplice').addEventListener('submit', (e) => this.handleSubmitSemplice(e));
@@ -124,12 +118,10 @@ const AppFornitore = {
     },
 
     /**
-     * Cambia la sezione attiva dell'interfaccia (es. da "home" a "crea SKU"), aggiornando la visualizzazione.
+     * Cambia la sezione attiva dell'interfaccia (es. da "home" a "ricerca"), aggiornando la visualizzazione.
      * @param {string} sectionId - L'ID della sezione da attivare.
      */
     switchSection: function(sectionId) {
-        document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
-        document.querySelector(`a[data-section="${sectionId}"]`)?.classList.add('active');
         document.querySelectorAll('.app-section').forEach(sec => sec.classList.remove('active'));
         document.getElementById(`section-${sectionId}`).classList.add('active');
         this.stato.sezioneAttiva = sectionId;
@@ -492,11 +484,36 @@ const AppFornitore = {
     },
 
     /**
+     * Calcola il livello (profondità) di un nodo nell'albero DOM del Tree Editor.
+     * La radice è al livello 1, i suoi figli al livello 2, ecc.
+     * @param {HTMLElement} nodeDiv - L'elemento DOM .tree-node di cui calcolare il livello.
+     * @returns {number} Il livello del nodo nell'albero (1 = radice).
+     */
+    getNodeLevel: function(nodeDiv) {
+        let level = 0;
+        let el = nodeDiv;
+        while (el) {
+            if (el.classList && el.classList.contains('tree-node') && !el.classList.contains('tree-sku')) {
+                level++;
+            }
+            el = el.parentElement;
+        }
+        return level;
+    },
+
+    /**
      * Prepara il form modale per l'aggiunta di un nodo figlio a un nodo COMPOSTO.
-     * Resetta il form e imposta l'ID del nodo padre.
+     * Controlla che il livello del padre non superi la profondità massima consentita (3 livelli strutturali).
      * @param {HTMLElement} parentDiv - L'elemento DOM che rappresenta il nodo padre.
      */
     handleTreeAddChild: function(parentDiv) {
+        // Controlla la profondità: se il padre è al livello 3, non si può aggiungere un figlio
+        const parentLevel = this.getNodeLevel(parentDiv);
+        if (parentLevel >= 3) {
+            this.mostraMessaggio("Impossibile aggiungere: la profondità massima dell'albero (3 livelli strutturali) è stata raggiunta.", "error");
+            return;
+        }
+
         const parentId = parentDiv.dataset.id;
         document.getElementById('add-child-parent-id').value = parentId;
         document.getElementById('form-add-child').reset();
@@ -506,6 +523,7 @@ const AppFornitore = {
     /**
      * Gestisce l'invio del form per aggiungere un nuovo nodo figlio all'albero.
      * Genera un ID temporaneo e accoda l'azione (CREATE_NODE) prima di aggiornare visivamente il DOM.
+     * Verifica che la profondità massima (3 livelli) non venga superata.
      * @param {Event} e - L'evento originato dal submit del form.
      */
     submitTreeAddChild: function(e) {
@@ -514,6 +532,17 @@ const AppFornitore = {
         const type = document.getElementById('add-child-tipo').value;
         const codice = document.getElementById('add-child-codice').value;
         const nome = document.getElementById('add-child-nome').value;
+
+        // Doppio check profondità prima di accodare l'azione
+        const parentDiv = document.querySelector(`.tree-node[data-id="${parentId}"]`);
+        if (parentDiv) {
+            const parentLevel = this.getNodeLevel(parentDiv);
+            if (parentLevel >= 3) {
+                this.mostraMessaggio("Impossibile aggiungere: la profondità massima dell'albero (3 livelli strutturali) è stata raggiunta.", "error");
+                document.getElementById('modal-add-child').style.display = 'none';
+                return;
+            }
+        }
         
         const tempId = 'temp_' + Date.now();
         let action = { action: 'CREATE_NODE', tempId: tempId, parentId: parentId, codice: codice, nome: nome };
@@ -530,7 +559,6 @@ const AppFornitore = {
         this.enqueueAction(action);
         
         // Trova il div padre corretto e aggiungi
-        const parentDiv = document.querySelector(`.tree-node[data-id="${parentId}"]`);
         if (parentDiv) {
             const childrenContainer = parentDiv.querySelector('.tree-children');
             childrenContainer.appendChild(this.buildNodeUI(newNode, false));

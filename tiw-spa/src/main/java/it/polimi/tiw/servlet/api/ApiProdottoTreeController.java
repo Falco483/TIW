@@ -156,9 +156,9 @@ public class ApiProdottoTreeController extends HttpServlet {
                         // Vincolo profondità: il padre appena creato è al livello 1 (radice),
                         // il figlio e il suo sotto-albero non devono superare il livello 4.
                         int profonditaFiglio = dao.calcolaProfondita(figlio.getId());
-                        if (1 + profonditaFiglio > 4) {
+                        if (1 + profonditaFiglio > 3) {
                             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                                    "Impossibile aggiungere il figlio: la profondità massima dell'albero (4 livelli) verrebbe superata");
+                                    "Impossibile aggiungere il figlio: la profondità massima dell'albero (3 livelli) verrebbe superata");
                             return;
                         }
                         // Vincolo aciclicità
@@ -216,6 +216,9 @@ public class ApiProdottoTreeController extends HttpServlet {
 
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+        response.setDateHeader("Expires", 0);
 
         try {
             ProdottoDAO dao = new ProdottoDAO(connection);
@@ -231,7 +234,13 @@ public class ApiProdottoTreeController extends HttpServlet {
                 MAPPER.writeValue(response.getOutputStream(), Map.of("data", albero));
             } else if ("true".equals(request.getParameter("orfani"))) {
                 List<Prodotto> orfani = dao.findAllOrfani();
-                MAPPER.writeValue(response.getOutputStream(), Map.of("data", orfani));
+                List<Prodotto> orfaniFiltrati = new java.util.ArrayList<>();
+                for (Prodotto o : orfani) {
+                    if (dao.calcolaProfondita(o.getId()) <= 2) {
+                        orfaniFiltrati.add(o);
+                    }
+                }
+                MAPPER.writeValue(response.getOutputStream(), Map.of("data", orfaniFiltrati));
             } else {
                 List<Prodotto> radici = dao.getProdottiRadice();
                 MAPPER.writeValue(response.getOutputStream(), Map.of("data", radici));

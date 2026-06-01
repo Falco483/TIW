@@ -90,45 +90,92 @@ public class ApiSkuController extends HttpServlet {
             String descrizioneTecnica = request.getParameter("descrizioneTecnica");
             String prezzoStr = request.getParameter("prezzo");
 
-            if (codiceStr == null || nome == null || prezzoStr == null) {
-                sendError(response, HttpServletResponse.SC_BAD_REQUEST, "Dati mancanti");
+            if (codiceStr == null || codiceStr.isBlank() || nome == null || nome.isBlank()
+                    || prezzoStr == null || prezzoStr.isBlank()) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Campi obbligatori mancanti: codice, nome e prezzo sono richiesti.");
+                return;
+            }
+
+            int codice;
+            try {
+                codice = Integer.parseInt(codiceStr.trim());
+            } catch (NumberFormatException ex) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il codice deve essere un numero intero valido.");
+                return;
+            }
+            if (codice <= 0 || codice > 9999) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il codice deve essere un intero positivo di massimo 4 cifre (1-9999).");
+                return;
+            }
+
+            BigDecimal prezzo;
+            try {
+                prezzo = new BigDecimal(prezzoStr.trim());
+            } catch (NumberFormatException ex) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il prezzo non è un valore numerico valido.");
+                return;
+            }
+            if (prezzo.compareTo(BigDecimal.ZERO) < 0) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il prezzo non può essere negativo.");
+                return;
+            }
+
+            if (nome.length() > 200) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il nome supera la lunghezza massima consentita (200 caratteri).");
+                return;
+            }
+
+            SKUDAO dao = new SKUDAO(conn);
+
+            // Verifica unicità codice PRIMA dell'insert
+            if (dao.findByCodice(codice) != null) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il codice " + codice + " è già in uso da un'altra SKU. Inserisci un codice univoco.");
                 return;
             }
 
             SKU nuovaSku = new SKU();
-            nuovaSku.setCodice(Integer.parseInt(codiceStr));
+            nuovaSku.setCodice(codice);
             nuovaSku.setNome(nome);
             nuovaSku.setDescrizioneTecnica(descrizioneTecnica);
-            nuovaSku.setPrezzo(new BigDecimal(prezzoStr));
+            nuovaSku.setPrezzo(prezzo);
 
-            // Gestione Upload File
+            // Gestione Upload File (obbligatorio)
             String fotografiaUrl = "";
             Part filePart = request.getPart("fotografia_file");
-            if (filePart != null && filePart.getSize() > 0) {
-                String fileName = UUID.randomUUID().toString() + "_" + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-                String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
-                File uploadDir = new File(uploadPath);
-                if (!uploadDir.exists()) uploadDir.mkdir();
-                
-                File file = new File(uploadPath + File.separator + fileName);
-                try (InputStream input = filePart.getInputStream()) {
-                    Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                }
-                fotografiaUrl = "uploads/" + fileName;
+            if (filePart == null || filePart.getSize() == 0) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "La fotografia è obbligatoria. Seleziona un'immagine.");
+                return;
             }
+            String fileName = UUID.randomUUID().toString() + "_" + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+            String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
+            File uploadDir = new File(uploadPath);
+            if (!uploadDir.exists()) uploadDir.mkdir();
+
+            File file = new File(uploadPath + File.separator + fileName);
+            try (InputStream input = filePart.getInputStream()) {
+                Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            fotografiaUrl = "uploads/" + fileName;
             nuovaSku.setFotografia(fotografiaUrl);
-            
-            SKUDAO dao = new SKUDAO(conn);
+
             SKU skuCreata = dao.insert(nuovaSku);
-            
+
             response.setStatus(HttpServletResponse.SC_CREATED);
             MAPPER.writeValue(response.getOutputStream(), Map.of("data", skuCreata));
         } catch (SQLException e) {
             sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Errore nel salvataggio della SKU nel database");
+                    "Errore nel salvataggio della SKU: " + e.getMessage());
         } catch (Exception e) {
             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Dati di input malformati o non validi");
+                    "Dati di input malformati o non validi: " + e.getMessage());
         }
     }
 
@@ -182,32 +229,56 @@ public class ApiSkuController extends HttpServlet {
                 sku.setPrezzo(new BigDecimal(request.getParameter("prezzo")));
                 sku.setFotografia(request.getParameter("fotografiaUrlOriginale")); // Default al vecchio
 
-                Part filePart = request.getPart("fotografia_file");
-                if (filePart != null && filePart.getSize() > 0) {
-                    String fileName = UUID.randomUUID().toString() + "_" + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-                    String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
-                    File uploadDir = new File(uploadPath);
-                    if (!uploadDir.exists()) uploadDir.mkdir();
-                    File file = new File(uploadPath + File.separator + fileName);
-                    try (InputStream input = filePart.getInputStream()) {
-                        Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                try {
+                    Part filePart = request.getPart("fotografia_file");
+                    if (filePart != null && filePart.getSize() > 0) {
+                        String fileName = UUID.randomUUID().toString() + "_" + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+                        String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
+                        File uploadDir = new File(uploadPath);
+                        if (!uploadDir.exists()) uploadDir.mkdir();
+                        File file = new File(uploadPath + File.separator + fileName);
+                        try (InputStream input = filePart.getInputStream()) {
+                            Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                        sku.setFotografia("uploads/" + fileName);
                     }
-                    sku.setFotografia("uploads/" + fileName);
+                } catch (jakarta.servlet.ServletException se) {
+                    // La foto è opzionale: se il parsing multipart fallisce, si mantiene la foto originale
                 }
             } else {
                 sku = MAPPER.readValue(request.getInputStream(), SKU.class);
             }
 
+            if (sku.getNome() == null || sku.getNome().isBlank()) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il nome è obbligatorio.");
+                return;
+            }
+            if (sku.getNome().length() > 200) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il nome supera la lunghezza massima consentita (200 caratteri).");
+                return;
+            }
+
             SKUDAO dao = new SKUDAO(connection);
+
+            // Verifica unicità codice (se cambiato rispetto alla SKU corrente)
+            SKU esistente = dao.findByCodice(sku.getCodice());
+            if (esistente != null && esistente.getId() != sku.getId()) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il codice " + sku.getCodice() + " è già in uso da un'altra SKU.");
+                return;
+            }
+
             dao.update(sku);
             SKU updated = dao.findById(sku.getId());
             MAPPER.writeValue(response.getOutputStream(), Map.of("data", updated));
         } catch (SQLException e) {
             sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Errore nell'aggiornamento della SKU");
+                    "Errore nell'aggiornamento della SKU: " + e.getMessage());
         } catch (Exception e) {
             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Dati di input malformati o non validi");
+                    "Dati di input malformati o non validi: " + e.getMessage());
         }
     }
 
