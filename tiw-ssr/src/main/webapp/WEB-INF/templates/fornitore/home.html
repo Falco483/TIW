@@ -8,9 +8,8 @@
 <body>
 
 <header>
-    <a th:href="@{/fornitore/home}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 10px;">HOME</a>
+    <div th:replace="~{fragments/navbar :: navBar(null)}"></div>
     <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span></h1>
-    <a href="/logout">Logout</a>
     <div style="margin-top: 15px;">
         <a th:href="@{/fornitore/cerca}" style="display: inline-block; padding: 8px 16px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Cerca nel Catalogo (SKU / Prodotti)</a>
     </div>
@@ -122,17 +121,6 @@
             <textarea id="descrizioneComposto" name="descrizioneComposto" required
                       th:text="${valoriForm != null ? valoriForm['descrizioneComposto'] : ''}"></textarea>
         </div>
-        <div>
-            <label for="prezzoMinComposto">Prezzo minimo (€)</label>
-            <input type="number" id="prezzoMinComposto" name="prezzoMinComposto" required min="0" step="0.01"
-                   th:value="${valoriForm != null ? valoriForm['prezzoMinComposto'] : ''}">
-        </div>
-        <div>
-            <label for="prezzoMaxComposto">Prezzo massimo (€)</label>
-            <input type="number" id="prezzoMaxComposto" name="prezzoMaxComposto" required min="0" step="0.01"
-                   th:value="${valoriForm != null ? valoriForm['prezzoMaxComposto'] : ''}">
-        </div>
-
         <fieldset>
             <legend>Sottoprodotti disponibili (seleziona almeno uno)</legend>
             <div th:if="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}">
@@ -140,13 +128,33 @@
             </div>
             <div th:each="p : ${tuttiIProdotti}">
                 <label>
-                    <input type="checkbox" name="idFigli" th:value="${p.id}">
-                    <span th:text="${p.nome} + ' [' + ${p.tipo} + ']'"></span>
+                    <input type="checkbox" name="idFigli" th:value="${p.id}"
+                           th:checked="${idFigliSelezionati != null and idFigliSelezionati.contains(p.id)}">
+                    <span th:text="${p.nome} + ' [' + ${p.tipo} + '] — min: ' + ${p.prezzoMin} + ' €, max: ' + ${p.prezzoMax} + ' €'"></span>
                 </label>
             </div>
         </fieldset>
 
-        <button type="submit">SALVA PRODOTTO COMPOSTO</button>
+        <!-- Prezzi calcolati (visibili dopo il ricalcolo) -->
+        <div th:if="${prezzoMinCalcolato != null}">
+            <p>Prezzo min calcolato (somma minimi figli): <strong th:text="${#numbers.formatDecimal(prezzoMinCalcolato, 1, 'COMMA', 2, 'POINT')} + ' €'">0,00 €</strong></p>
+            <p>Prezzo max calcolato (somma massimi figli): <strong th:text="${#numbers.formatDecimal(prezzoMaxCalcolato, 1, 'COMMA', 2, 'POINT')} + ' €'">0,00 €</strong></p>
+        </div>
+
+        <div>
+            <label for="prezzoMinComposto">Prezzo minimo scelto (€)</label>
+            <input type="number" id="prezzoMinComposto" name="prezzoMinComposto" required step="0.01"
+                   th:min="${prezzoMinCalcolato != null ? prezzoMinCalcolato : 0}"
+                   th:value="${valoriForm != null ? valoriForm['prezzoMinComposto'] : ''}">
+        </div>
+        <div>
+            <label for="prezzoMaxComposto">Prezzo massimo scelto (€)</label>
+            <input type="number" id="prezzoMaxComposto" name="prezzoMaxComposto" required min="0" step="0.01"
+                   th:value="${valoriForm != null ? valoriForm['prezzoMaxComposto'] : ''}">
+        </div>
+
+        <button type="submit" name="azione" value="ricalcola">🔄 Ricalcola prezzi</button>
+        <button type="submit" name="azione" value="salva">💾 Salva prodotto composto</button>
     </form>
 </section>
 

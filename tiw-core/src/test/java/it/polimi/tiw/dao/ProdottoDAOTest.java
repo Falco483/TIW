@@ -77,7 +77,7 @@ class ProdottoDAOTest {
     @Test
     void testContaSkuAssociate() throws SQLException {
         // Creiamo un prodotto semplice e due SKU
-        int idSemplice = dao.insertSemplice("30001", "Semplice Test");
+        int idSemplice = dao.insertSemplice("30001", "Semplice Test", java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
         
         SKUDAO skuDao = new SKUDAO(connection);
         it.polimi.tiw.model.SKU s1 = new it.polimi.tiw.model.SKU();

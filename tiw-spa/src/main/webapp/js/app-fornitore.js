@@ -161,14 +161,44 @@ const AppFornitore = {
             return;
         }
         this.stato.orfaniDisponibili.forEach(p => {
+            const pMin = p.prezzoMin ?? 0;
+            const pMax = p.prezzoMax ?? 0;
             const div = document.createElement('div');
             div.className = 'checkbox-item';
             div.innerHTML = `
-                <input type="checkbox" name="orfani_selezionati" value="${p.id}" id="chk_orf_${p.id}">
-                <label for="chk_orf_${p.id}">${this.escapeHtml(p.nome)} (Cod: ${p.codice}) - [${p.tipo}]</label>
+                <input type="checkbox" name="orfani_selezionati" value="${p.id}" id="chk_orf_${p.id}"
+                       data-prezzo-min="${pMin}" data-prezzo-max="${pMax}">
+                <label for="chk_orf_${p.id}">
+                    ${this.escapeHtml(p.nome)} (Cod: ${p.codice}) [${p.tipo}]
+                    — €${parseFloat(pMin).toFixed(2)} / €${parseFloat(pMax).toFixed(2)}
+                </label>
             `;
             container.appendChild(div);
         });
+
+        if (!container.dataset.listenerAttached) {
+            container.addEventListener('change', () => this.ricalcolaRiepilogoPrezzi());
+            container.dataset.listenerAttached = 'true';
+        }
+    },
+
+    ricalcolaRiepilogoPrezzi: function() {
+        const checkboxes = document.querySelectorAll('#lista-orfani-checkbox input[name="orfani_selezionati"]:checked');
+        let sumMin = 0;
+        let sumMax = 0;
+        checkboxes.forEach(chk => {
+            sumMin += parseFloat(chk.dataset.prezzoMin || 0);
+            sumMax += parseFloat(chk.dataset.prezzoMax || 0);
+        });
+
+        document.getElementById('sum-prezzo-min').textContent = sumMin.toFixed(2);
+        document.getElementById('sum-prezzo-max').textContent = sumMax.toFixed(2);
+
+        const riepilogo = document.getElementById('prezzo-riepilogo');
+        riepilogo.style.display = checkboxes.length > 0 ? 'block' : 'none';
+
+        const inputMin = document.querySelector('#form-composto input[name="prezzo_min"]');
+        if (inputMin) inputMin.min = sumMin.toFixed(2);
     },
 
     /**
@@ -822,13 +852,33 @@ const AppFornitore = {
         e.preventDefault();
         const form = e.target;
         const checkboxes = form.querySelectorAll('input[name="orfani_selezionati"]:checked');
-        
+
+        const prezzoMin = parseFloat(form.elements['prezzo_min'].value) || 0;
+        const prezzoMax = parseFloat(form.elements['prezzo_max'].value) || 0;
+
+        // Validazione V2: prezzoMax > prezzoMin
+        if (prezzoMax <= prezzoMin) {
+            this.mostraMessaggio('Il prezzo massimo deve essere strettamente maggiore del prezzo minimo', 'error');
+            return;
+        }
+
+        // Validazione V1: prezzoMin >= somma prezzoMin dei figli selezionati
+        let sumMin = 0;
+        checkboxes.forEach(chk => { sumMin += parseFloat(chk.dataset.prezzoMin || 0); });
+        if (prezzoMin < sumMin) {
+            this.mostraMessaggio(
+                `Il prezzo minimo deve essere almeno ${sumMin.toFixed(2)} € (somma dei prezzi min dei sottoprodotti)`,
+                'error'
+            );
+            return;
+        }
+
         const payload = {
             codice: parseInt(form.elements['codice'].value),
             nome: form.elements['nome'].value,
             descrizione: form.elements['descrizione'].value,
-            prezzoMin: parseFloat(form.elements['prezzo_min'].value) || 0,
-            prezzoMax: parseFloat(form.elements['prezzo_max'].value) || 0,
+            prezzoMin: prezzoMin,
+            prezzoMax: prezzoMax,
             tipo: 'COMPOSTO',
             figli: Array.from(checkboxes).map(chk => {
                 const orfano = this.stato.orfaniDisponibili.find(o => o.id == chk.value);
@@ -844,6 +894,9 @@ const AppFornitore = {
             if (res.success) {
                 this.mostraMessaggio("Prodotto Composto salvato con successo", "success");
                 form.reset();
+                document.getElementById('prezzo-riepilogo').style.display = 'none';
+                document.getElementById('sum-prezzo-min').textContent = '0.00';
+                document.getElementById('sum-prezzo-max').textContent = '0.00';
                 this.aggiornaOrfani();
                 const savedProd = res.data || { 
                     id: res.id_prodotto || '?', tipo: 'COMPOSTO', codice: payload.codice, nome: payload.nome,
