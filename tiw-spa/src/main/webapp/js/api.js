@@ -205,18 +205,37 @@ const api = {
     // Cliente
     // -------------------------------------------------------------------------
 
+    /**
+     * Recupera tutte le configurazioni salvate dal cliente loggato.
+     * @returns {Promise<Object>} Una Promise con l'elenco delle configurazioni.
+     */
     getConfigurazioni: function() {
         return this.fetchJson('api/cliente/configurazioni');
     },
 
+    /**
+     * Recupera il dettaglio completo di una configurazione specifica tramite il suo ID.
+     * @param {number|string} id - L'ID della configurazione da recuperare.
+     * @returns {Promise<Object>} Una Promise contenente la configurazione, l'albero e le voci salvate.
+     */
     getConfigurazioneById: function(id) {
         return this.fetchJson(`api/cliente/configurazioni/${id}`);
     },
 
+    /**
+     * Recupera l'albero del prodotto per poter iniziare una nuova configurazione dato il codice del prodotto.
+     * @param {number|string} codice - Il codice del prodotto radice.
+     * @returns {Promise<Object>} Una Promise contenente l'albero del prodotto.
+     */
     getAlberoPerConfigurazione: function(codice) {
         return this.fetchJson(`api/cliente/configurazioni?codice=${codice}`);
     },
 
+    /**
+     * Salva una nuova configurazione per l'utente cliente.
+     * @param {Object} payload - I dati della configurazione (nome, codice radice e mappa scelte SKU).
+     * @returns {Promise<Object>} Una Promise con l'esito del salvataggio.
+     */
     salvaConfigurazione: function(payload) {
         return this.fetchJson('api/cliente/configurazioni', {
             method: 'POST',
@@ -224,6 +243,12 @@ const api = {
         });
     },
 
+    /**
+     * Aggiorna una configurazione esistente.
+     * @param {number|string} id - L'ID della configurazione da aggiornare.
+     * @param {Object} payload - I dati aggiornati (nuovo nome e/o nuove scelte SKU).
+     * @returns {Promise<Object>} Una Promise con l'esito dell'aggiornamento.
+     */
     aggiornaConfigurazione: function(id, payload) {
         return this.fetchJson(`api/cliente/configurazioni/${id}`, {
             method: 'PUT',
@@ -231,6 +256,11 @@ const api = {
         });
     },
 
+    /**
+     * Elimina una configurazione salvata.
+     * @param {number|string} id - L'ID della configurazione da eliminare.
+     * @returns {Promise<Object>} Una Promise con l'esito dell'eliminazione.
+     */
     eliminaConfigurazione: function(id) {
         return this.fetchJson(`api/cliente/configurazioni/${id}`, {
             method: 'DELETE'

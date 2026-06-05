@@ -40,8 +40,11 @@ public class ApiSkuController extends HttpServlet {
     private Connection connection = null;
 
     /**
-     * Inizializza la servlet e ottiene la connessione al database tramite la ConnectionFactory.
-     * @throws jakarta.servlet.ServletException se la connessione al database fallisce.
+     * Inizializza la servlet e ottiene la connessione al database tramite la
+     * ConnectionFactory.
+     * 
+     * @throws jakarta.servlet.ServletException se la connessione al database
+     *                                          fallisce.
      */
     @Override
     public void init() throws jakarta.servlet.ServletException {
@@ -53,22 +56,28 @@ public class ApiSkuController extends HttpServlet {
     }
 
     /**
-     * Termina il ciclo di vita della servlet chiudendo in modo sicuro la connessione al database.
+     * Termina il ciclo di vita della servlet chiudendo in modo sicuro la
+     * connessione al database.
      */
     @Override
     public void destroy() {
         try {
             if (connection != null && !connection.isClosed())
                 connection.close();
-        } catch (SQLException e) {}
+        } catch (SQLException e) {
+        }
     }
 
     /**
-     * Gestisce la creazione di una nuova SKU, permettendo l'upload opzionale di un'immagine.
-     * I dati arrivano nel formato multipart/form-data. L'immagine viene salvata nella cartella 'uploads/'.
-     * @param request La richiesta HTTP POST.
+     * Gestisce la creazione di una nuova SKU, permettendo l'upload opzionale di
+     * un'immagine.
+     * I dati arrivano nel formato multipart/form-data. L'immagine viene salvata
+     * nella cartella 'uploads/'.
+     * 
+     * @param request  La richiesta HTTP POST.
      * @param response La risposta HTTP.
-     * @throws IOException Se si verifica un errore durante l'upload del file o la scrittura della risposta.
+     * @throws IOException Se si verifica un errore durante l'upload del file o la
+     *                     scrittura della risposta.
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -105,9 +114,9 @@ public class ApiSkuController extends HttpServlet {
                         "Il codice deve essere un numero intero valido.");
                 return;
             }
-            if (codice <= 0 || codice > 9999) {
+            if (codice < 1000 || codice > 9999) {
                 sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Il codice deve essere un intero positivo di massimo 4 cifre (1-9999).");
+                        "Il codice deve essere un numero di esattamente 4 cifre (1000-9999).");
                 return;
             }
 
@@ -154,10 +163,17 @@ public class ApiSkuController extends HttpServlet {
                         "La fotografia è obbligatoria. Seleziona un'immagine.");
                 return;
             }
-            String fileName = UUID.randomUUID().toString() + "_" + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+            if (filePart.getContentType() == null || !filePart.getContentType().startsWith("image/")) {
+                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Il file caricato non è un'immagine valida. Sono ammessi solo file di tipo immagine (JPEG, PNG, ecc.).");
+                return;
+            }
+            String fileName = UUID.randomUUID().toString() + "_"
+                    + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
             String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
             File uploadDir = new File(uploadPath);
-            if (!uploadDir.exists()) uploadDir.mkdir();
+            if (!uploadDir.exists())
+                uploadDir.mkdir();
 
             File file = new File(uploadPath + File.separator + fileName);
             try (InputStream input = filePart.getInputStream()) {
@@ -180,8 +196,10 @@ public class ApiSkuController extends HttpServlet {
     }
 
     /**
-     * Recupera la lista di tutte le SKU presenti a catalogo e le restituisce in formato JSON.
-     * @param request La richiesta HTTP GET.
+     * Recupera la lista di tutte le SKU presenti a catalogo e le restituisce in
+     * formato JSON.
+     * 
+     * @param request  La richiesta HTTP GET.
      * @param response La risposta HTTP.
      * @throws IOException Se si verifica un errore durante la serializzazione JSON.
      */
@@ -204,11 +222,15 @@ public class ApiSkuController extends HttpServlet {
 
     /**
      * Aggiorna una SKU esistente. Supporta due formati di richiesta:
-     * - `application/json` per gli aggiornamenti base (ad esempio le modifiche "inline" del testo).
-     * - `multipart/form-data` per l'aggiornamento che include anche una nuova fotografia.
-     * @param request La richiesta HTTP PUT.
+     * - `application/json` per gli aggiornamenti base (ad esempio le modifiche
+     * "inline" del testo).
+     * - `multipart/form-data` per l'aggiornamento che include anche una nuova
+     * fotografia.
+     * 
+     * @param request  La richiesta HTTP PUT.
      * @param response La risposta HTTP.
-     * @throws IOException Se si verifica un errore durante il salvataggio del file o la manipolazione dei dati.
+     * @throws IOException Se si verifica un errore durante il salvataggio del file
+     *                     o la manipolazione dei dati.
      */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
@@ -232,18 +254,21 @@ public class ApiSkuController extends HttpServlet {
                 try {
                     Part filePart = request.getPart("fotografia_file");
                     if (filePart != null && filePart.getSize() > 0) {
-                        String fileName = UUID.randomUUID().toString() + "_" + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-                        String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
+                        String fileName = UUID.randomUUID().toString() + "_"
+                                + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+                        String uploadPath = "C:\\Users\\Antonio\\Desktop\\progetto TIW\\foto\\";
                         File uploadDir = new File(uploadPath);
-                        if (!uploadDir.exists()) uploadDir.mkdir();
-                        File file = new File(uploadPath + File.separator + fileName);
+                        if (!uploadDir.exists())
+                            uploadDir.mkdirs();
+                        File file = new File(uploadPath + fileName);
                         try (InputStream input = filePart.getInputStream()) {
                             Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                         }
-                        sku.setFotografia("uploads/" + fileName);
+                        sku.setFotografia("/foto/" + fileName);
                     }
                 } catch (jakarta.servlet.ServletException se) {
-                    // La foto è opzionale: se il parsing multipart fallisce, si mantiene la foto originale
+                    // La foto è opzionale: se il parsing multipart fallisce, si mantiene la foto
+                    // originale
                 }
             } else {
                 sku = MAPPER.readValue(request.getInputStream(), SKU.class);
@@ -283,9 +308,11 @@ public class ApiSkuController extends HttpServlet {
     }
 
     /**
-     * Elimina in modo definitivo una SKU dal database e tutte le sue associazioni ai prodotti semplici.
+     * Elimina in modo definitivo una SKU dal database e tutte le sue associazioni
+     * ai prodotti semplici.
      * L'operazione è distruttiva ed è protetta da un controllo logico in `SKUDAO`.
-     * @param request La richiesta HTTP DELETE contenente il parametro `id`.
+     * 
+     * @param request  La richiesta HTTP DELETE contenente il parametro `id`.
      * @param response La risposta HTTP.
      * @throws IOException Se si verifica un errore nella restituzione dell'esito.
      */
@@ -318,8 +345,9 @@ public class ApiSkuController extends HttpServlet {
 
     /**
      * Invia un messaggio di errore strutturato al client in formato JSON.
-     * @param response L'oggetto HttpServletResponse per l'invio.
-     * @param status Il codice di stato HTTP d'errore (es. 400, 500).
+     * 
+     * @param response  L'oggetto HttpServletResponse per l'invio.
+     * @param status    Il codice di stato HTTP d'errore (es. 400, 500).
      * @param messaggio Il dettaglio dell'errore.
      * @throws IOException Se si verifica un problema di comunicazione col client.
      */
@@ -331,4 +359,3 @@ public class ApiSkuController extends HttpServlet {
         MAPPER.writeValue(response.getOutputStream(), Map.of("errore", messaggio));
     }
 }
-

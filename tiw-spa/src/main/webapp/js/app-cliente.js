@@ -18,6 +18,10 @@ const AppCliente = {
     // Init
     // -------------------------------------------------------------------------
 
+    /**
+     * Inizializza l'applicazione SPA Cliente: aggancia gli eventi, recupera le
+     * info dell'utente corrente e carica il catalogo iniziale.
+     */
     init: async function () {
         this.bindGlobalEvents();
 
@@ -44,6 +48,10 @@ const AppCliente = {
     // Event binding
     // -------------------------------------------------------------------------
 
+    /**
+     * Configura i listener per gli eventi DOM (click e submit) dell'applicazione.
+     * Gestisce la navigazione tra le sezioni e le azioni dell'utente.
+     */
     bindGlobalEvents: function () {
         // Toggle navbar (mobile/desktop single button navigation)
         const btnNavToggle = document.getElementById('btn-nav-toggle');
@@ -118,6 +126,10 @@ const AppCliente = {
     // Routing sezioni
     // -------------------------------------------------------------------------
 
+    /**
+     * Naviga verso la sezione specificata dell'applicazione nascondendo le altre.
+     * @param {string} sectionId - L'ID della sezione da attivare (es. 'catalogo', 'configura', 'configurazioni', 'dettaglio').
+     */
     switchSection: function (sectionId) {
         document.querySelectorAll('.app-section').forEach(sec => sec.classList.remove('active'));
         document.getElementById(`section-${sectionId}`).classList.add('active');
@@ -138,6 +150,12 @@ const AppCliente = {
     // Sezione 1: Catalogo
     // -------------------------------------------------------------------------
 
+    /**
+     * Recupera l'elenco dei prodotti radice (composti) disponibili dal server
+     * e li visualizza nella griglia del catalogo con i rispettivi range di prezzo.
+     * Implementa paginazione lato client: ordine alfabetico decrescente (Z-A),
+     * massimo 10 prodotti per pagina, con bottoni Precedenti/Successivi.
+     */
     caricaCatalogo: async function () {
         const container = document.getElementById('catalogo-container');
         container.innerHTML = `
@@ -159,29 +177,90 @@ const AppCliente = {
                 return;
             }
 
-            container.innerHTML = '';
-            lista.forEach(p => {
-                const tpl = document.getElementById('tpl-catalogo-item').content.cloneNode(true);
-                const item = tpl.querySelector('.search-result-item');
-                item.dataset.codice = p.codice;
-                item.dataset.nome = p.nome;
+            // Ordina Z-A (decrescente) per nome
+            lista.sort((a, b) => (b.nome || '').localeCompare(a.nome || '', 'it'));
 
-                tpl.querySelector('.result-name').textContent = p.nome;
-                tpl.querySelector('.result-desc').textContent = p.descrizione || '';
-
-                const prezzoMin = p.prezzoMin != null ? parseFloat(p.prezzoMin).toFixed(2) : null;
-                const prezzoMax = p.prezzoMax != null ? parseFloat(p.prezzoMax).toFixed(2) : null;
-                if (prezzoMin != null && prezzoMax != null) {
-                    tpl.querySelector('.result-prezzo').textContent = `€${prezzoMin} – €${prezzoMax}`;
-                } else {
-                    tpl.querySelector('.result-prezzo').textContent = '';
-                }
-
-                container.appendChild(tpl);
-            });
+            // Salva la lista completa e inizializza la paginazione
+            this.stato.catalogoCompleto = lista;
+            this.stato.paginaCorrente = 0;
+            this.stato.prodottiPerPagina = 10;
+            this.renderPaginaCatalogo();
 
         } catch (err) {
             container.innerHTML = `<div class="field-error" style="padding:1rem;">Errore: ${this.escapeHtml(err.message)}</div>`;
+        }
+    },
+
+    /**
+     * Renderizza la pagina corrente del catalogo con i bottoni di navigazione.
+     */
+    renderPaginaCatalogo: function () {
+        const lista = this.stato.catalogoCompleto || [];
+        const pagina = this.stato.paginaCorrente || 0;
+        const perPagina = this.stato.prodottiPerPagina || 10;
+        const totalePagine = Math.ceil(lista.length / perPagina);
+        const inizio = pagina * perPagina;
+        const fine = Math.min(inizio + perPagina, lista.length);
+        const paginaCorrente = lista.slice(inizio, fine);
+
+        const container = document.getElementById('catalogo-container');
+        container.innerHTML = '';
+
+        paginaCorrente.forEach(p => {
+            const tpl = document.getElementById('tpl-catalogo-item').content.cloneNode(true);
+            const item = tpl.querySelector('.search-result-item');
+            item.dataset.codice = p.codice;
+            item.dataset.nome = p.nome;
+
+            tpl.querySelector('.result-name').textContent = p.nome;
+            tpl.querySelector('.result-desc').textContent = p.descrizione || '';
+
+            const prezzoMin = p.prezzoMin != null ? parseFloat(p.prezzoMin).toFixed(2) : null;
+            const prezzoMax = p.prezzoMax != null ? parseFloat(p.prezzoMax).toFixed(2) : null;
+            if (prezzoMin != null && prezzoMax != null) {
+                tpl.querySelector('.result-prezzo').textContent = `€${prezzoMin} – €${prezzoMax}`;
+            } else {
+                tpl.querySelector('.result-prezzo').textContent = '';
+            }
+
+            container.appendChild(tpl);
+        });
+
+        // Bottoni di navigazione
+        if (totalePagine > 1) {
+            const navDiv = document.createElement('div');
+            navDiv.style.cssText = 'display:flex; justify-content:center; align-items:center; gap:1rem; margin-top:1.5rem; padding:0.5rem;';
+
+            if (pagina > 0) {
+                const btnPrec = document.createElement('button');
+                btnPrec.className = 'btn btn-ghost';
+                btnPrec.style.cssText = 'border:1px solid var(--card-border); padding:0.4rem 1rem;';
+                btnPrec.innerHTML = '<i class="fa-solid fa-chevron-left" style="margin-right:0.3rem;"></i> Precedenti';
+                btnPrec.addEventListener('click', () => {
+                    this.stato.paginaCorrente--;
+                    this.renderPaginaCatalogo();
+                });
+                navDiv.appendChild(btnPrec);
+            }
+
+            const infoSpan = document.createElement('span');
+            infoSpan.style.cssText = 'color:var(--text-secondary); font-size:0.85rem;';
+            infoSpan.textContent = `Pagina ${pagina + 1} di ${totalePagine}`;
+            navDiv.appendChild(infoSpan);
+
+            if (pagina < totalePagine - 1) {
+                const btnSucc = document.createElement('button');
+                btnSucc.className = 'btn btn-ghost';
+                btnSucc.style.cssText = 'border:1px solid var(--card-border); padding:0.4rem 1rem;';
+                btnSucc.innerHTML = 'Successivi <i class="fa-solid fa-chevron-right" style="margin-left:0.3rem;"></i>';
+                btnSucc.addEventListener('click', () => {
+                    this.stato.paginaCorrente++;
+                    this.renderPaginaCatalogo();
+                });
+                navDiv.appendChild(btnSucc);
+            }
+
+            container.appendChild(navDiv);
         }
     },
 
@@ -322,6 +401,11 @@ const AppCliente = {
         return { valido: errore === null, scelte, errore };
     },
 
+    /**
+     * Gestisce il submit del form di salvataggio/aggiornamento di una configurazione.
+     * Raccoglie le scelte dell'utente, convalida i dati e invia la richiesta al server.
+     * @param {Event} e - L'evento di submit del form.
+     */
     handleSalvaConfigurazione: async function (e) {
         e.preventDefault();
 
@@ -357,23 +441,28 @@ const AppCliente = {
         btnSalva.disabled = true;
 
         try {
+            let idConfigToShow;
             if (this.stato.modalitaForm === 'modifica' && this.stato.idConfigInModifica != null) {
                 await api.fetchJson(`api/cliente/configurazioni/${this.stato.idConfigInModifica}`, {
                     method: 'PUT',
                     body: JSON.stringify(payload)
                 });
+                idConfigToShow = this.stato.idConfigInModifica;
                 this.mostraMessaggio('Configurazione aggiornata con successo!', 'success');
             } else {
-                await api.fetchJson('api/cliente/configurazioni', {
+                const res = await api.fetchJson('api/cliente/configurazioni', {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
+                idConfigToShow = res.id;
                 this.mostraMessaggio('Configurazione salvata con successo!', 'success');
             }
 
-            // Vai alla lista configurazioni e ricarica
-            this.switchSection('configurazioni');
-            await this.caricaConfigurazioni();
+            // Vai al dettaglio della configurazione appena salvata
+            this.apriDettaglio(idConfigToShow);
+
+            // Ricarica la lista in background
+            this.caricaConfigurazioni();
 
         } catch (err) {
             errorGenerico.textContent = err.message;
@@ -387,6 +476,10 @@ const AppCliente = {
     // Sezione 3: Dettaglio configurazione (read-only)
     // -------------------------------------------------------------------------
 
+    /**
+     * Carica e visualizza i dettagli congelati di una configurazione specifica salvata.
+     * @param {number|string} id - L'ID della configurazione da mostrare.
+     */
     apriDettaglio: async function (id) {
         this.switchSection('dettaglio');
         document.getElementById('dettaglio-nome').textContent = 'Caricamento...';
@@ -448,7 +541,13 @@ const AppCliente = {
 
                 const img = tpl.querySelector('.sku-foto');
                 if (sku.fotografia) {
-                    img.src = sku.fotografia.startsWith('uploads/') ? sku.fotografia : 'uploads/' + sku.fotografia;
+                    if (sku.fotografia.startsWith('uploads/')) {
+                        img.src = sku.fotografia;
+                    } else if (sku.fotografia.startsWith('/foto/')) {
+                        img.src = sku.fotografia;
+                    } else {
+                        img.src = 'uploads/' + sku.fotografia;
+                    }
                     img.style.display = 'block';
                 }
 
@@ -468,6 +567,10 @@ const AppCliente = {
     // Sezione 4: Le mie Configurazioni
     // -------------------------------------------------------------------------
 
+    /**
+     * Recupera l'elenco delle configurazioni salvate dal cliente e le visualizza
+     * in una tabella ordinata con i pulsanti per visualizzare, modificare, clonare o eliminare.
+     */
     caricaConfigurazioni: async function () {
         const container = document.getElementById('configurazioni-container');
         container.innerHTML = `
@@ -602,47 +705,52 @@ const AppCliente = {
     },
 
     /**
-     * Clona una configurazione: carica i dati e apre il form di creazione pre-compilato.
-     * Il nome viene prefissato con "Copia di " per distinguerla dall'originale.
+     * Clona una configurazione: effettua direttamente la copia sul backend
+     * e ricarica la lista.
      * @param {number} id
      */
     cloneConfigurazione: async function (id) {
         try {
+            this.mostraMessaggio('Clonazione in corso...', 'info');
             const res = await api.fetchJson(`api/cliente/configurazioni/${id}`);
             const { configurazione, albero, voci } = res;
 
-            this.stato.modalitaForm = 'crea';
-            this.stato.idConfigInModifica = null;
-            this.stato.alberoCorrente = albero;
-
-            document.getElementById('form-configura').reset();
-            document.getElementById('configura-errore').style.display = 'none';
-            document.getElementById('error-nome-config').style.display = 'none';
-            document.getElementById('input-nome-config').value = 'Copia di ' + configurazione.nome;
-            document.getElementById('configura-titolo').textContent = albero.nome;
-            document.getElementById('btn-salva-config-label').textContent = 'Salva Configurazione';
-
-            if (albero.prezzoMin != null && albero.prezzoMax != null) {
-                document.getElementById('configura-fascia-prezzo').textContent =
-                    `Fascia consentita: €${parseFloat(albero.prezzoMin).toFixed(2)} – €${parseFloat(albero.prezzoMax).toFixed(2)}`;
-            } else {
-                document.getElementById('configura-fascia-prezzo').textContent = '';
+            // Ricostruisci la mappa delle scelte (idProdottoSemplice -> idSku)
+            const scelte = {};
+            for (const [idProd, voce] of Object.entries(voci)) {
+                if (voce && voce.sku) {
+                    scelte[idProd] = voce.sku.id;
+                }
             }
 
-            const container = document.getElementById('albero-container');
-            container.innerHTML = '';
-            this.buildNodoModifica(albero, voci, container);
+            const payload = {
+                nome: 'Copia di ' + configurazione.nome,
+                codiceRadice: albero.codice,
+                scelte: scelte
+            };
 
-            this.switchSection('configura');
-            this.mostraMessaggio('Configurazione clonata. Modifica e salva per creare la copia.', 'info');
+            const cloneRes = await api.fetchJson('api/cliente/configurazioni', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            this.mostraMessaggio('Configurazione clonata con successo!', 'success');
+            this.apriDettaglio(cloneRes.id);
+            this.caricaConfigurazioni();
 
         } catch (err) {
             this.mostraMessaggio('Errore clonazione: ' + err.message, 'error');
         }
     },
 
+    /**
+     * Elimina una configurazione salvata sia sul server che dall'interfaccia utente (DOM).
+     * @param {number|string} id - L'ID della configurazione da cancellare.
+     * @param {HTMLElement} rowEl - L'elemento DOM della riga della tabella da rimuovere.
+     */
     eliminaConfigurazione: async function (id, rowEl) {
-        if (!confirm('Eliminare questa configurazione? L\'operazione è irreversibile.')) return;
+        const confermato = await this.confermaAzione('Eliminare questa configurazione? L\'operazione è irreversibile.');
+        if (!confermato) return;
 
         try {
             await api.fetchJson(`api/cliente/configurazioni/${id}`, { method: 'DELETE' });
@@ -667,6 +775,11 @@ const AppCliente = {
     // Utilities
     // -------------------------------------------------------------------------
 
+    /**
+     * Visualizza un messaggio toast temporaneo di notifica all'utente.
+     * @param {string} testo - Il messaggio da visualizzare.
+     * @param {string} [tipo='success'] - Il tipo di notifica ('success', 'error', 'warning', 'info').
+     */
     mostraMessaggio: function (testo, tipo = 'success') {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -679,6 +792,51 @@ const AppCliente = {
         toast.innerHTML = `<i class="fa-solid fa-${icon}" style="margin-right:0.5rem;"></i>${this.escapeHtml(testo)}`;
         container.appendChild(toast);
         setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+    },
+
+    /**
+     * Mostra una modale di conferma personalizzata al posto del window.confirm.
+     * Restituisce una Promise che si risolve con true se confermato, false altrimenti.
+     */
+    confermaAzione: function(messaggio) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;';
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background: var(--card-bg); padding: 1.5rem; border-radius: var(--radius-md); box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-width: 400px; width: 90%; transform: translateY(-20px); transition: transform 0.2s;';
+            
+            modal.innerHTML = `
+                <div style="display: flex; align-items: center; margin-bottom: 1rem; color: var(--text-primary); font-weight: 600;">
+                    <i class="fa-solid fa-circle-exclamation" style="color: var(--warning); margin-right: 0.5rem; font-size: 1.25rem;"></i>
+                    Conferma operazione
+                </div>
+                <p style="margin-bottom: 1.5rem; color: var(--text-secondary); font-size: 0.95rem;">${this.escapeHtml(messaggio)}</p>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                    <button class="btn btn-ghost" id="btn-modal-annulla">Annulla</button>
+                    <button class="btn btn-primary" id="btn-modal-conferma" style="background: var(--warning); border-color: var(--warning);">Conferma</button>
+                </div>
+            `;
+            
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // Animazione ingresso
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                modal.style.transform = 'translateY(0)';
+            });
+            
+            const close = (result) => {
+                overlay.style.opacity = '0';
+                modal.style.transform = 'translateY(-20px)';
+                setTimeout(() => overlay.remove(), 200);
+                resolve(result);
+            };
+            
+            modal.querySelector('#btn-modal-annulla').addEventListener('click', () => close(false));
+            modal.querySelector('#btn-modal-conferma').addEventListener('click', () => close(true));
+        });
     },
 
     escapeHtml: function (str) {

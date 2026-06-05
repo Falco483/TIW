@@ -53,6 +53,15 @@ public class CsrfFilter implements Filter {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    /**
+     * Esegue il filtraggio per la prevenzione degli attacchi CSRF (Cross-Site Request Forgery).
+     * Inieta un token univoco e sicuro nella sessione durante i metodi GET, e ne valida la corrispondenza
+     * per tutte le richieste mutanti (POST, PUT, DELETE, PATCH).
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @param chain il filter chain.
+     */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -119,12 +128,25 @@ public class CsrfFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+    /**
+     * Genera un CSRF token sicuro e casuale codificato in Base64 (URL-safe).
+     *
+     * @return una stringa casuale a 32 byte.
+     */
     private String generateToken() {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /**
+     * Rifiuta la richiesta client inviando un errore 403 Forbidden.
+     * Restituisce un JSON di errore se la richiesta è per le API (/api/*), altrimenti del testo in chiaro.
+     *
+     * @param req la servlet request.
+     * @param resp la servlet response.
+     * @param motivo il messaggio descrittivo del rifiuto.
+     */
     private void reject(HttpServletRequest req, HttpServletResponse resp, String motivo)
             throws IOException {
         resp.setStatus(HttpServletResponse.SC_FORBIDDEN);

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     <!-- FontAwesome per le icone (opzionale, ma raccomandato dal design) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
 
 
@@ -21,7 +23,8 @@
             <div class="top-navbar-content">
                 <div class="top-navbar-left">
                     <h2>Ciao <span id="topUserName">Caricamento...</span></h2>
-                    <button type="button" class="btn btn-primary" id="btn-nav-toggle" style="width: fit-content; padding: 0.3rem 0.8rem; font-size: 0.85rem; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-primary" id="btn-nav-toggle"
+                        style="width: fit-content; padding: 0.3rem 0.8rem; font-size: 0.85rem; margin-top: 0.5rem;">
                         Ricerca prodotto
                     </button>
                 </div>
@@ -41,14 +44,14 @@
 
             <!-- ZONA A: 3 form affiancate -->
             <div class="forms-row">
-                
+
                 <!-- 1. Crea SKU -->
                 <div class="form-card">
                     <h3><i class="fa-solid fa-tag form-icon"></i> Crea nuova SKU</h3>
-                    <form id="form-sku">
+                    <form id="form-sku" novalidate>
                         <div class="form-group">
                             <label>Codice identificativo</label>
-                            <input type="number" name="codice" required min="1">
+                            <input type="number" name="codice" required min="1000" max="9999">
                         </div>
                         <div class="form-group">
                             <label>Nome SKU</label>
@@ -60,7 +63,7 @@
                         </div>
                         <div class="form-group">
                             <label>Fotografia (carica file)</label>
-                            <input type="file" name="fotografia_file" accept="image/*">
+                            <input type="file" name="fotografia_file" accept="image/*" required>
                         </div>
                         <div class="form-group">
                             <label>Prezzo (€)</label>
@@ -75,10 +78,10 @@
                 <!-- 2. Crea Prodotto Semplice -->
                 <div class="form-card">
                     <h3><i class="fa-solid fa-cube form-icon"></i> Crea Prodotto Semplice</h3>
-                    <form id="form-semplice">
+                    <form id="form-semplice" novalidate>
                         <div class="form-group">
                             <label>Codice identificativo</label>
-                            <input type="number" name="codice" required min="1">
+                            <input type="number" name="codice" required min="1000" max="9999">
                         </div>
                         <div class="form-group">
                             <label>Nome Prodotto</label>
@@ -101,10 +104,10 @@
                 <!-- 3. Crea Prodotto Composto -->
                 <div class="form-card">
                     <h3><i class="fa-solid fa-cubes-stacked form-icon"></i> Crea Prodotto Composto</h3>
-                    <form id="form-composto">
+                    <form id="form-composto" novalidate>
                         <div class="form-group">
                             <label>Codice identificativo</label>
-                            <input type="number" name="codice" required min="1">
+                            <input type="number" name="codice" required min="1000" max="9999">
                         </div>
                         <div class="form-group">
                             <label>Nome Prodotto</label>
@@ -115,27 +118,41 @@
                             <textarea name="descrizione"></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Seleziona Sottoprodotti (Orfani)</label>
+                            <label>Seleziona Sottoprodotti</label>
                             <div class="checkbox-list" id="lista-orfani-checkbox">
                                 <!-- Popolato via JS -->
                                 <div class="empty-state" style="padding: 1rem;"><span class="spinner"></span></div>
                             </div>
                         </div>
-                        <div class="form-group" id="prezzo-riepilogo" style="display:none; background:#f1f5f9; border-radius:6px; padding:0.75rem;">
-                            <div style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.875rem; color:#374151;">
+                        <div class="form-group" id="prezzo-riepilogo"
+                            style="display:none; background:#f1f5f9; border-radius:6px; padding:0.75rem;">
+                            <div
+                                style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.875rem; color:#374151;">
                                 <span>Prezzo min calcolato: <strong id="sum-prezzo-min">0.00</strong> €</span>
                                 <span>Prezzo max calcolato: <strong id="sum-prezzo-max">0.00</strong> €</span>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label>Prezzo Min (€)</label>
-                            <input type="number" name="prezzo_min" min="0" step="0.01" required>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Prezzo Min (€)</label>
+                                <input type="number" name="prezzo_min" id="input-prezzo-min" min="0" step="0.01"
+                                    required>
+                            </div>
+                            <div class="form-group">
+                                <label>Prezzo Max (€)</label>
+                                <input type="number" name="prezzo_max" id="input-prezzo-max" min="0" step="0.01"
+                                    required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Prezzo Max (€)</label>
-                            <input type="number" name="prezzo_max" min="0" step="0.01" required>
+                        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                            <button type="button" id="btn-ricalcola-prezzo" class="btn btn-ghost"
+                                style="border: 1px solid var(--card-border); flex: 1;">
+                                <i class="fa-solid fa-calculator"></i> Ricalcola
+                            </button>
+                            <button type="submit" class="btn btn-primary" style="flex: 2;">
+                                <i class="fa-solid fa-floppy-disk"></i> Salva Prodotto Composto
+                            </button>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-full">Salva Prodotto Composto</button>
                     </form>
                 </div>
             </div>
@@ -162,10 +179,11 @@
             <div class="content-header">
                 <h2>Ricerca e Modifica</h2>
             </div>
-            
-            <form id="form-ricerca" class="search-bar">
-                <input type="text" name="q" placeholder="Cerca per nome o descrizione..." required>
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Cerca</button>
+
+            <form id="form-ricerca" class="search-bar" novalidate>
+                <input type="text" name="q" placeholder="Cerca per nome o descrizione...">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i>
+                    Cerca</button>
             </form>
 
             <div id="risultati-container" class="search-results">
@@ -184,8 +202,10 @@
 
     <!-- Template Risultato Creazione SKU -->
     <template id="tpl-sku-display">
-        <div class="sku-created-card" style="width: 100%; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <div class="sku-created-card"
+            style="width: 100%; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px;">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
                 <strong>SKU Creata (ID: <span class="sku-id-val"></span>)</strong>
                 <div>
                     <button type="button" class="btn btn-danger btn-elimina-sku" title="Elimina SKU">
@@ -193,20 +213,34 @@
                     </button>
                 </div>
             </div>
-            
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="sku-field"><span class="field-label">Codice:</span> <span class="sku-view-codice sku-inline-edit" data-field="codice" contenteditable="true" title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer;"></span></div>
-                <div class="sku-field"><span class="field-label">Nome:</span> <span class="sku-view-nome sku-inline-edit" data-field="nome" contenteditable="true" title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer;"></span></div>
-                <div class="sku-field"><span class="field-label">Prezzo:</span> €<span class="sku-view-prezzo sku-inline-edit" data-field="prezzo" contenteditable="true" title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer;"></span></div>
-                <div class="sku-field" style="grid-column: 1 / -1;"><span class="field-label">Descrizione Tecnica:</span> <span class="sku-view-desc sku-inline-edit" data-field="descrizioneTecnica" contenteditable="true" title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer; display:inline-block; width:100%; min-height: 1.5em;"></span></div>
+                <div class="sku-field"><span class="field-label">Codice:</span> <span
+                        class="sku-view-codice sku-inline-edit" data-field="codice" contenteditable="true"
+                        title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer;"></span>
+                </div>
+                <div class="sku-field"><span class="field-label">Nome:</span> <span
+                        class="sku-view-nome sku-inline-edit" data-field="nome" contenteditable="true"
+                        title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer;"></span>
+                </div>
+                <div class="sku-field"><span class="field-label">Prezzo:</span> €<span
+                        class="sku-view-prezzo sku-inline-edit" data-field="prezzo" contenteditable="true"
+                        title="Clicca per modificare" style="border-bottom:1px dashed #cbd5e1; cursor:pointer;"></span>
+                </div>
+                <div class="sku-field" style="grid-column: 1 / -1;"><span class="field-label">Descrizione
+                        Tecnica:</span> <span class="sku-view-desc sku-inline-edit" data-field="descrizioneTecnica"
+                        contenteditable="true" title="Clicca per modificare"
+                        style="border-bottom:1px dashed #cbd5e1; cursor:pointer; display:inline-block; width:100%; min-height: 1.5em;"></span>
+                </div>
             </div>
             <div style="margin-top: 1rem;">
                 <span class="field-label">Fotografia:</span><br>
-                <img class="sku-view-foto" src="" style="max-width: 200px; max-height: 200px; border: 1px solid #ccc; display: none; margin-top: 0.5rem;">
+                <img class="sku-view-foto" src=""
+                    style="max-width: 200px; max-height: 200px; border: 1px solid #ccc; display: none; margin-top: 0.5rem;">
             </div>
         </div>
     </template>
-    
+
     <!-- Template Risultato Creazione Prodotto -->
     <template id="tpl-prodotto-display">
         <div class="prodotto-created-card result-card">
@@ -216,12 +250,15 @@
                     <i class="fa-solid fa-trash"></i>
                 </button>
             </div>
-            
+
             <div class="result-card-grid">
-                <div class="sku-field"><span class="field-label">Codice:</span> <span class="prod-view-codice"></span></div>
+                <div class="sku-field"><span class="field-label">Codice:</span> <span class="prod-view-codice"></span>
+                </div>
                 <div class="sku-field"><span class="field-label">Nome:</span> <span class="prod-view-nome"></span></div>
-                <div class="sku-field prod-composto-only"><span class="field-label">Fascia Prezzo:</span> €<span class="prod-view-pmin"></span> - €<span class="prod-view-pmax"></span></div>
-                <div class="sku-field prod-composto-only full-width"><span class="field-label">Descrizione:</span> <span class="prod-view-desc"></span></div>
+                <div class="sku-field prod-composto-only"><span class="field-label">Fascia Prezzo:</span> €<span
+                        class="prod-view-pmin"></span> - €<span class="prod-view-pmax"></span></div>
+                <div class="sku-field prod-composto-only full-width"><span class="field-label">Descrizione:</span> <span
+                        class="prod-view-desc"></span></div>
             </div>
         </div>
     </template>
@@ -290,15 +327,21 @@
             <div class="tree-header">
                 <div>
                     <span class="badge badge-composto">Composto</span>
-                    <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong> 
-                        (€<span class="tree-pmin" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span> - 
-                        €<span class="tree-pmax" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span>)
-                    </span>
+                    <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong>
+                    <span class="tree-nome" contenteditable="true"
+                        style="border-bottom: 1px dashed #cbd5e1; cursor: pointer;"
+                        title="Clicca per modificare"></span>
+                    (€<span class="tree-pmin" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span>
+                    -
+                    €<span class="tree-pmax" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span>)
                 </div>
                 <div>
-                    <button type="button" class="btn btn-primary btn-add-child" title="Aggiungi Sottoprodotto"><i class="fa-solid fa-plus"></i></button>
-                    <button type="button" class="btn btn-warning btn-unlink" title="Scollega dal padre"><i class="fa-solid fa-minus"></i></button>
-                    <button type="button" class="btn btn-danger btn-delete-node" title="Elimina defnitivamente (ricorsivo)"><i class="fa-solid fa-trash"></i> -*</button>
+                    <button type="button" class="btn btn-primary btn-add-child" title="Aggiungi Sottoprodotto"><i
+                            class="fa-solid fa-plus"></i></button>
+                    <button type="button" class="btn btn-warning btn-unlink" title="Scollega dal padre"><i
+                            class="fa-solid fa-minus"></i></button>
+                    <button type="button" class="btn btn-danger btn-delete-node"
+                        title="Elimina defnitivamente (ricorsivo)"><i class="fa-solid fa-trash"></i> -*</button>
                 </div>
             </div>
             <div class="tree-children" style="margin-top: 5px;"></div>
@@ -307,17 +350,23 @@
 
     <!-- Template per Nodo Albero Semplice -->
     <template id="tpl-tree-semplice">
-        <div class="tree-node tree-semplice" style="margin-left: 20px; border-left: 2px solid #10b981; padding-left: 10px; margin-top: 10px; padding-bottom: 5px;">
+        <div class="tree-node tree-semplice"
+            style="margin-left: 20px; border-left: 2px solid #10b981; padding-left: 10px; margin-top: 10px; padding-bottom: 5px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <span class="badge badge-semplice">Semplice</span>
-                    <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong> 
-                    <span class="tree-nome" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1; cursor: pointer;" title="Clicca per modificare"></span>
+                    <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong>
+                    <span class="tree-nome" contenteditable="true"
+                        style="border-bottom: 1px dashed #cbd5e1; cursor: pointer;"
+                        title="Clicca per modificare"></span>
                 </div>
                 <div>
-                    <button type="button" class="btn btn-primary btn-add-sku" title="Aggiungi SKU"><i class="fa-solid fa-plus"></i></button>
-                    <button type="button" class="btn btn-warning btn-unlink" title="Scollega dal padre"><i class="fa-solid fa-minus"></i></button>
-                    <button type="button" class="btn btn-danger btn-delete-node" title="Elimina defnitivamente"><i class="fa-solid fa-trash"></i> -*</button>
+                    <button type="button" class="btn btn-primary btn-add-sku" title="Aggiungi SKU"><i
+                            class="fa-solid fa-plus"></i></button>
+                    <button type="button" class="btn btn-warning btn-unlink" title="Scollega dal padre"><i
+                            class="fa-solid fa-minus"></i></button>
+                    <button type="button" class="btn btn-danger btn-delete-node" title="Elimina defnitivamente"><i
+                            class="fa-solid fa-trash"></i> -*</button>
                 </div>
             </div>
             <div class="tree-skus" style="margin-top: 5px;"></div>
@@ -326,29 +375,35 @@
 
     <!-- Template per Nodo Albero SKU -->
     <template id="tpl-tree-sku">
-        <div class="tree-node tree-sku" style="margin-left: 40px; border-left: 2px dotted #8b5cf6; padding-left: 10px; margin-top: 5px; font-size: 0.95em;">
+        <div class="tree-node tree-sku"
+            style="margin-left: 40px; border-left: 2px dotted #8b5cf6; padding-left: 10px; margin-top: 5px; font-size: 0.95em;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <i class="fa-solid fa-box-open" style="color:#8b5cf6"></i> SKU
-                    <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong> 
-                    <span class="tree-nome" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1; cursor: pointer;"></span>
-                    <span> - €<span class="tree-prezzo" contenteditable="true" style="border-bottom: 1px dashed #cbd5e1;"></span></span>
+                    <strong>[<span class="tree-codice" contenteditable="true"></span>]</strong>
+                    <span class="tree-nome" contenteditable="true"
+                        style="border-bottom: 1px dashed #cbd5e1; cursor: pointer;"></span>
+                    <span> - €<span class="tree-prezzo" contenteditable="true"
+                            style="border-bottom: 1px dashed #cbd5e1;"></span></span>
                 </div>
                 <div>
-                    <button type="button" class="btn btn-warning btn-unlink-sku" style="padding: 2px 6px;" title="Scollega SKU"><i class="fa-solid fa-minus"></i></button>
-                    <button type="button" class="btn btn-danger btn-delete-sku" style="padding: 2px 6px;" title="Elimina definitivamente SKU"><i class="fa-solid fa-trash"></i> -*</button>
+                    <button type="button" class="btn btn-warning btn-unlink-sku" style="padding: 2px 6px;"
+                        title="Scollega SKU"><i class="fa-solid fa-minus"></i></button>
+                    <button type="button" class="btn btn-danger btn-delete-sku" style="padding: 2px 6px;"
+                        title="Elimina definitivamente SKU"><i class="fa-solid fa-trash"></i> -*</button>
                 </div>
             </div>
         </div>
     </template>
 
     <!-- Modale Aggiungi Sottoprodotto -->
-    <div id="modal-add-child" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+    <div id="modal-add-child" class="modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
         <div class="modal-content form-card" style="width:400px; max-width:90%;">
             <div class="content-header">
                 <h3><i class="fa-solid fa-plus form-icon"></i> Aggiungi Sottoprodotto</h3>
             </div>
-            <form id="form-add-child" style="margin-top: 15px;">
+            <form id="form-add-child" style="margin-top: 15px;" novalidate>
                 <input type="hidden" id="add-child-parent-id">
                 <div class="form-group">
                     <label>Tipo di Sottoprodotto</label>
@@ -366,7 +421,8 @@
                     <input type="text" id="add-child-nome" class="form-control" required>
                 </div>
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-add-child').style.display='none'">Annulla</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-add-child').style.display='none'">Annulla</button>
                     <button type="submit" class="btn btn-primary">Aggiungi</button>
                 </div>
             </form>
@@ -374,21 +430,23 @@
     </div>
 
     <!-- Modale Aggiungi SKU -->
-    <div id="modal-add-sku" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+    <div id="modal-add-sku" class="modal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
         <div class="modal-content form-card" style="width:400px; max-width:90%;">
             <div class="content-header">
                 <h3><i class="fa-solid fa-box-open form-icon"></i> Aggiungi SKU</h3>
             </div>
-            <form id="form-add-sku" style="margin-top: 15px;">
+            <form id="form-add-sku" style="margin-top: 15px;" novalidate>
                 <input type="hidden" id="add-sku-parent-id">
                 <div class="form-group">
                     <label>Opzione</label>
-                    <select id="add-sku-opzione" class="form-control" onchange="document.getElementById('add-sku-new-fields').style.display = this.value === 'NEW' ? 'block' : 'none'; document.getElementById('add-sku-exist-fields').style.display = this.value === 'EXIST' ? 'block' : 'none';">
+                    <select id="add-sku-opzione" class="form-control"
+                        onchange="document.getElementById('add-sku-new-fields').style.display = this.value === 'NEW' ? 'block' : 'none'; document.getElementById('add-sku-exist-fields').style.display = this.value === 'EXIST' ? 'block' : 'none';">
                         <option value="NEW">Crea Nuova SKU</option>
                         <option value="EXIST">Scegli SKU Esistente</option>
                     </select>
                 </div>
-                
+
                 <div id="add-sku-new-fields">
                     <div class="form-group">
                         <label>Codice Numerico</label>
@@ -414,7 +472,8 @@
                 </div>
 
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-add-sku').style.display='none'">Annulla</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-add-sku').style.display='none'">Annulla</button>
                     <button type="submit" class="btn btn-primary">Aggiungi</button>
                 </div>
             </form>
@@ -428,4 +487,5 @@
     <script src="js/api.js?v=2"></script>
     <script src="js/app-fornitore.js?v=6"></script>
 </body>
+
 </html>

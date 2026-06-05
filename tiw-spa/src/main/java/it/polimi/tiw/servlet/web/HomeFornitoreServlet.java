@@ -18,6 +18,15 @@ import jakarta.servlet.http.HttpServletResponse;
 public class HomeFornitoreServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Gestisce la richiesta HTTP GET. Legge il file HTML "home-fornitore.html",
+     * sostituisce il placeholder col token CSRF e restituisce la pagina modificata al client.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errori della servlet.
+     * @throws IOException in caso di errori di I/O nel caricamento del file.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {

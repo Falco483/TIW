@@ -51,7 +51,7 @@
                                     <i class="fa-solid fa-copy"></i>
                                 </button>
                             </form>
-                            <form method="POST" th:action="@{/cliente/azione}" style="display: inline; margin: 0;" onsubmit="return confirm('Sei sicuro di voler eliminare questa configurazione?');">
+                            <form method="POST" th:action="@{/cliente/azione}" style="display: inline; margin: 0;" onsubmit="return showCustomConfirm(this, event, 'Sei sicuro di voler eliminare questa configurazione?');">
                                 <input type="hidden" name="_csrf" th:value="${session.csrfToken}" />
                                 <input type="hidden" name="azione" value="elimina" />
                                 <input type="hidden" name="id" th:value="${conf.id}" />

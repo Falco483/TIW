@@ -107,9 +107,9 @@ public class ApiProdottoTreeController extends HttpServlet {
         }
 
         // --- Fase 3: Validazione base lato server ---
-        if (prodottoInviato.getCodice() <= 0) {
+        if (prodottoInviato.getCodice() < 1000 || prodottoInviato.getCodice() > 9999) {
             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Il codice del prodotto deve essere un intero positivo");
+                    "Il codice del prodotto deve essere un numero di esattamente 4 cifre (1000-9999)");
             return;
         }
         if (prodottoInviato.getNome() == null || prodottoInviato.getNome().isBlank()) {
@@ -370,7 +370,14 @@ public class ApiProdottoTreeController extends HttpServlet {
                     MAPPER.writeValue(response.getOutputStream(), Map.of("success", true));
                 }
                 case "scollega" -> {
+                    // Prima scopri il padre prima di scollegare
+                    Prodotto figlio = dao.findById(id);
+                    Integer idPadre = (figlio != null) ? figlio.getIdPadre() : null;
                     dao.rimuoviFiglio(id);
+                    // Ricalcola i prezzi del padre composto
+                    if (idPadre != null) {
+                        dao.ricalcolaPrezziComposto(idPadre);
+                    }
                     MAPPER.writeValue(response.getOutputStream(), Map.of("success", true));
                 }
                 case "scollegaSku" -> {
@@ -382,6 +389,13 @@ public class ApiProdottoTreeController extends HttpServlet {
                     }
                     int idSku = Integer.parseInt(idSkuParam);
                     dao.rimuoviAssociazioneSku(id, idSku);
+                    // Ricalcola i prezzi del prodotto semplice padre dalle SKU rimanenti
+                    dao.calcolaPrezziDaSku(id);
+                    // Ricalcola anche l'eventuale nonno composto
+                    Prodotto padreSemplice = dao.findById(id);
+                    if (padreSemplice != null && padreSemplice.getIdPadre() != null) {
+                        dao.ricalcolaPrezziComposto(padreSemplice.getIdPadre());
+                    }
                     MAPPER.writeValue(response.getOutputStream(), Map.of("success", true));
                 }
                 default -> sendError(response, HttpServletResponse.SC_BAD_REQUEST,

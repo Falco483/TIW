@@ -273,6 +273,13 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Conta ricorsivamente quanti prodotti semplici sono presenti nell'albero radicato nel nodo specificato.
+     * Utilizzato per verificare che il numero di SKU inviate corrisponda al numero di componenti da configurare.
+     *
+     * @param nodo il nodo corrente dell'albero.
+     * @return il numero di prodotti semplici trovati.
+     */
     private int contaProdottiSemplici(Prodotto nodo) {
         if ("SEMPLICE".equals(nodo.getTipo())) {
             return 1;
@@ -286,6 +293,18 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
         return 0;
     }
 
+    /**
+     * Gestisce i casi di errore di validazione durante il salvataggio:
+     * salva lo stato corrente delle scelte e dell'albero in sessione (come flash attributes)
+     * e reindirizza l'utente alla pagina di configurazione mostrando il messaggio d'errore.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @param messaggio il testo del messaggio d'errore.
+     * @param codiceRadice il codice del prodotto radice.
+     * @param apertoSet l'insieme dei nodi composti attualmente aperti.
+     * @throws IOException in caso di errore di redirect.
+     */
     private void ritornaAllaFormConErrore(HttpServletRequest request, HttpServletResponse response,
             String messaggio, int codiceRadice, Set<Integer> apertoSet) throws IOException {
 

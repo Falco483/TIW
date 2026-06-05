@@ -239,20 +239,12 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Restituisce tutte le configurazioni salvate da un utente, ordinate per data
-     * di modifica decrescente (le più recenti prima).
+     * Recupera le voci di dettaglio di una configurazione (prodotti semplici e relative SKU associate),
+     * includendo il prezzo della SKU "congelato" al momento del salvataggio.
      *
-     * Esegue un JOIN con la tabella {@code prodotto} per recuperare anche il nome
-     * e il codice del prodotto radice, necessari per visualizzare la lista e
-     * costruire i link di modifica (che richiedono il codice prodotto come parametro).
-     *
-     * I campi {@code nomeProdottoRadice} e {@code codiceProdottoRadice} sono campi
-     * transienti del model Configurazione (non mappati su colonne proprie della tabella
-     * configurazione, ma popolati dal risultato del JOIN).
-     *
-     * @param username username del cliente di cui recuperare le configurazioni
-     * @return lista di Configurazione ordinate per data_modifica DESC, vuota se nessuna trovata
-     * @throws SQLException se la query SELECT fallisce
+     * @param idConfig ID della configurazione di cui recuperare i dettagli.
+     * @return Mappa che associa l'ID del Prodotto Semplice a un oggetto DTO contenente la SKU e il prezzo congelato.
+     * @throws SQLException se la query fallisce.
      */
     public Map<Integer, VoceConfigurazioneDTO> getVociDettaglio(int idConfig) throws SQLException {
         String sql = "SELECT cd.id_prodotto, cd.prezzo_unitario_congelato, "
@@ -280,6 +272,22 @@ public class ConfigurazioneDAO {
         return mappa;
     }
 
+    /**
+     * Restituisce tutte le configurazioni salvate da un utente, ordinate per data
+     * di modifica decrescente (le più recenti prima).
+     *
+     * Esegue un JOIN con la tabella {@code prodotto} per recuperare anche il nome
+     * e il codice del prodotto radice, necessari per visualizzare la lista e
+     * costruire i link di modifica (che richiedono il codice prodotto come parametro).
+     *
+     * I campi {@code nomeProdottoRadice} e {@code codiceProdottoRadice} sono campi
+     * transienti del model Configurazione (non mappati su colonne proprie della tabella
+     * configurazione, ma popolati dal risultato del JOIN).
+     *
+     * @param username username del cliente di cui recuperare le configurazioni
+     * @return lista di Configurazione ordinate per data_modifica DESC, vuota se nessuna trovata
+     * @throws SQLException se la query SELECT fallisce
+     */
     public List<Configurazione> getConfigurazioniByUtente(String username) throws SQLException {
         String sql = "SELECT c.id, c.cliente_username, c.prodotto_radice_id, c.nome, "
                    + "c.data_creazione, c.data_modifica, c.prezzo_totale, p.nome AS nome_prodotto, p.codice AS codice_prodotto "

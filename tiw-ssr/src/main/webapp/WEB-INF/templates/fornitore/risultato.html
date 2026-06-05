@@ -3,20 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Risultato / Dettaglio — Configuratore di Prodotto</title>
+    <title>Configuratore TIW - Risultato / Dettaglio (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body style="flex-direction: column;">
+<div th:replace="~{fragments/navbar :: navBar(@{/fornitore/home})}"></div>
 
 <main class="content" th:if="${risultato != null}">
     <section class="app-section active">
-        <div class="content-header">
-            <h2>Elemento salvato/visualizzato</h2>
+        <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+            <a th:href="@{/fornitore/home}" class="btn btn-ghost">
+                <i class="fa-solid fa-arrow-left"></i> Home Fornitore
+            </a>
+            <div>
+                <h2>Elemento salvato/visualizzato</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                    Dettagli dell'elemento.
+                </p>
+            </div>
         </div>
         <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=true)}"></div>
         
-        <div style="margin-top: 1.5rem;">
-            <a th:href="@{/fornitore/home}" class="btn btn-ghost"><i class="fa-solid fa-arrow-left"></i> Torna alla Home Fornitore</a>
-        </div>
     </section>
 </main>
 
@@ -28,17 +36,17 @@
     <div th:case="'sku'" class="result-card">
         <div class="result-card-header">
             <strong>SKU [<span th:text="${risultato.codice}"></span>] - <span th:text="${risultato.nome}"></span></strong>
-            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return confirm('Attenzione: eliminare questa SKU?');" style="margin: 0;">
+            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return showCustomConfirm(this, event, 'Attenzione: eliminare questa SKU?');" style="margin: 0;">
                 <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
                 <input type="hidden" name="azione" value="ELIMINA">
                 <input type="hidden" name="tipoOggetto" value="SKU">
                 <input type="hidden" name="idOggetto" th:value="${risultato.id}">
-                <button type="submit" class="btn btn-danger" title="Elimina SKU"><i class="fa-solid fa-trash"></i></button>
+                <button type="submit" class="btn btn-danger" title="Elimina SKU">Elimina</button>
             </form>
         </div>
         <div style="display:flex; gap:1.5rem; align-items:flex-start;">
-            <div th:if="${risultato.fotografia != null}" style="flex-shrink:0;">
-                <img th:src="${risultato.fotografia}" alt="Foto SKU" style="width:120px; height:120px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--card-border);" />
+            <div th:if="${risultato.fotografia != null and !risultato.fotografia.isEmpty()}" style="flex-shrink:0;">
+                <img th:src="${#strings.startsWith(risultato.fotografia, 'uploads/') ? '/' + risultato.fotografia : (#strings.startsWith(risultato.fotografia, '/foto/') ? risultato.fotografia : '/foto/' + risultato.fotografia)}" alt="Foto SKU" style="width:120px; height:120px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--card-border);" />
             </div>
             <div class="result-card-grid" style="flex:1;">
                 <div class="sku-field"><span class="field-label">Codice:</span> <span class="field-value" th:text="${risultato.codice}"></span></div>
@@ -53,12 +61,12 @@
     <div th:case="'semplice'" class="result-card">
         <div class="result-card-header">
             <strong>Prodotto Semplice [<span th:text="${risultato.codice}"></span>] - <span th:text="${risultato.nome}"></span></strong>
-            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return confirm('Attenzione: eliminare questo Prodotto?');" style="margin: 0;">
+            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return showCustomConfirm(this, event, 'Attenzione: eliminare questo Prodotto?');" style="margin: 0;">
                 <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
                 <input type="hidden" name="azione" value="ELIMINA">
                 <input type="hidden" name="tipoOggetto" value="SEMPLICE">
                 <input type="hidden" name="idOggetto" th:value="${risultato.id}">
-                <button type="submit" class="btn btn-danger" title="Elimina Prodotto"><i class="fa-solid fa-trash"></i></button>
+                <button type="submit" class="btn btn-danger" title="Elimina Prodotto">Elimina</button>
             </form>
         </div>
         <div class="result-card-grid" style="margin-bottom: 1.5rem;">
@@ -83,8 +91,8 @@
                             <input type="hidden" name="tipoOggetto" value="SKU">
                             <input type="hidden" name="idOggetto" th:value="${sku.id}">
                             <input type="hidden" name="idPadre" th:value="${risultato.id}">
-                            <button type="submit" class="btn btn-ghost" style="color:var(--warning);" title="Scollega SKU" onclick="return confirm('Scollegare questa SKU?');">
-                                <i class="fa-solid fa-unlink"></i>
+                            <button type="submit" class="btn btn-ghost" style="color:var(--warning);" title="Scollega SKU" onclick="return showCustomConfirm(this, event, 'Scollegare questa SKU?');">
+                                Scollega SKU
                             </button>
                         </form>
                     </div>
@@ -97,12 +105,12 @@
     <div th:case="'composto'" class="result-card">
         <div class="result-card-header">
             <strong>Prodotto Composto [<span th:text="${risultato.codice}"></span>] - <span th:text="${risultato.nome}"></span></strong>
-            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return confirm('Attenzione: eliminare questo Prodotto?');" style="margin: 0;">
+            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return showCustomConfirm(this, event, 'Attenzione: eliminare questo Prodotto?');" style="margin: 0;">
                 <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
                 <input type="hidden" name="azione" value="ELIMINA">
                 <input type="hidden" name="tipoOggetto" value="COMPOSTO">
                 <input type="hidden" name="idOggetto" th:value="${risultato.id}">
-                <button type="submit" class="btn btn-danger" title="Elimina Prodotto"><i class="fa-solid fa-trash"></i></button>
+                <button type="submit" class="btn btn-danger" title="Elimina Prodotto">Elimina</button>
             </form>
         </div>
         <div class="result-card-grid" style="margin-bottom: 1.5rem;">
@@ -137,8 +145,8 @@
                                             <input type="hidden" name="tipoOggetto" th:value="${figlio.tipo}">
                                             <input type="hidden" name="idOggetto" th:value="${figlio.id}">
                                             <input type="hidden" name="idPadre" th:value="${risultato.id}">
-                                            <button type="submit" class="btn btn-ghost" style="color:var(--warning); width:auto; height:auto; padding:0.2rem 0.5rem;" title="Scollega Figlio" onclick="return confirm('Scollegare questo componente?');">
-                                                <i class="fa-solid fa-unlink"></i> Rimuovi
+                                            <button type="submit" class="btn btn-ghost" style="color:var(--warning); width:auto; height:auto; padding:0.2rem 0.5rem;" title="Scollega Figlio" onclick="return showCustomConfirm(this, event, 'Scollegare questo componente?');">
+                                                Scollega
                                             </button>
                                         </form>
                                     </div>

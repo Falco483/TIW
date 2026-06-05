@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
  * Rappresenta un prodotto generico nel sistema.
  * Classe base astratta per ProdottoComposto e ProdottoSemplice.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "tipo")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "tipo", visible = true)
 @JsonSubTypes({
     @JsonSubTypes.Type(value = ProdottoComposto.class, name = "COMPOSTO"),
     @JsonSubTypes.Type(value = ProdottoSemplice.class, name = "SEMPLICE")

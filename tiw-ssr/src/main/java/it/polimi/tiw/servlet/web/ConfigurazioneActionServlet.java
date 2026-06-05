@@ -67,6 +67,11 @@ public class ConfigurazioneActionServlet extends HttpServlet {
     /**
      * Gestisce le richieste POST, smistando tra eliminazione e clonazione in base
      * al parametro 'azione'.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errore della servlet.
+     * @throws IOException in caso di errori di I/O.
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -111,8 +116,14 @@ public class ConfigurazioneActionServlet extends HttpServlet {
     }
 
     /**
-     * Esegue l'eliminazione fisica della configurazione e dei suoi dettagli (via
-     * cascade).
+     * Esegue l'eliminazione fisica della configurazione e dei suoi dettagli (via cascade).
+     *
+     * @param conn la connessione al database.
+     * @param idConfig l'ID della configurazione da eliminare.
+     * @param username lo username dell'utente loggato.
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws IOException in caso di errori di I/O.
      */
     private void gestisciEliminazione(Connection conn, int idConfig, String username,
             HttpServletRequest request, HttpServletResponse response)
@@ -130,6 +141,13 @@ public class ConfigurazioneActionServlet extends HttpServlet {
      * Esegue la clonazione di una configurazione esistente in modo transazionale.
      * Legge i componenti originali, recupera i prezzi attuali dal catalogo e crea
      * una nuova configurazione "Copia di...".
+     *
+     * @param conn la connessione al database.
+     * @param idConfig l'ID della configurazione originale.
+     * @param username lo username dell'utente loggato.
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws IOException in caso di errori di I/O.
      */
     private void gestisciClonazione(Connection conn, int idConfig, String username,
             HttpServletRequest request, HttpServletResponse response)

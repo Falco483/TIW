@@ -18,9 +18,23 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 
+/**
+ * Servlet che gestisce le modifiche del catalogo per conto del Fornitore (Server-Side Rendering).
+ * Gestisce sia lo scollegamento (RIMUOVI) di componenti (SKU da prodotti semplici o figli da composti),
+ * sia l'eliminazione fisica (ELIMINA) di SKU o Prodotti, pulendo a cascata le configurazioni associate.
+ */
 @WebServlet("/fornitore/azione")
 public class AzioneCatalogoServlet extends HttpServlet {
 
+    /**
+     * Gestisce la richiesta HTTP POST. Esegue i controlli di ruolo e CSRF, esegue l'operazione
+     * richiesta tramite i DAO e reindirizza l'utente alla Home del Fornitore.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errore della servlet.
+     * @throws IOException in caso di errori di I/O.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -83,8 +97,18 @@ public class AzioneCatalogoServlet extends HttpServlet {
                 int idPadre = Integer.parseInt(idPadreStr);
                 if ("SKU".equals(tipoOggetto)) {
                     prodottoDAO.rimuoviAssociazioneSku(idPadre, idOggetto);
+                    // Ricalcola i prezzi del prodotto semplice padre dalle SKU rimanenti
+                    prodottoDAO.calcolaPrezziDaSku(idPadre);
+                    // Ricalcola anche l'eventuale nonno composto
+                    it.polimi.tiw.model.Prodotto padreSemplice = prodottoDAO.findById(idPadre);
+                    if (padreSemplice != null && padreSemplice.getIdPadre() != null) {
+                        prodottoDAO.ricalcolaPrezziComposto(padreSemplice.getIdPadre());
+                    }
                 } else {
+                    // RIMUOVI figlio (SEMPLICE o COMPOSTO) da un prodotto COMPOSTO
                     prodottoDAO.rimuoviFiglio(idOggetto);
+                    // Ricalcola i prezzi del padre composto
+                    prodottoDAO.ricalcolaPrezziComposto(idPadre);
                 }
             }
         } catch (SQLIntegrityConstraintViolationException e) {

@@ -16,6 +16,11 @@ import org.thymeleaf.templateresolver.WebApplicationTemplateResolver;
 import org.thymeleaf.web.IWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
+/**
+ * Servlet che mostra il risultato del salvataggio di un elemento (SKU o Prodotto)
+ * creato dal fornitore, implementando il pattern PRG (Post/Redirect/Get) per prevenire
+ * il reinvio del form in caso di refresh della pagina.
+ */
 @WebServlet("/fornitore/risultato")
 public class RisultatoFornitoreServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
@@ -26,6 +31,9 @@ public class RisultatoFornitoreServlet extends HttpServlet {
     private static final String SESSION_RISULTATO      = "home.risultato";
     private static final String SESSION_TIPO_RISULTATO = "home.tipoRisultato";
 
+    /**
+     * Inizializza il motore Thymeleaf e configura i template resolver.
+     */
     @Override
     public void init() throws ServletException {
         webApp = JakartaServletWebApplication.buildApplication(getServletContext());
@@ -37,6 +45,15 @@ public class RisultatoFornitoreServlet extends HttpServlet {
         templateEngine.setTemplateResolver(resolver);
     }
 
+    /**
+     * Gestisce la richiesta HTTP GET. Legge il risultato del form inserito nella sessione
+     * (e lo rimuove immediatamente per pulizia), effettuando poi il rendering del template.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errore.
+     * @throws IOException in caso di errore di I/O.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {

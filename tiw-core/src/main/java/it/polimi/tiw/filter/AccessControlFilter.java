@@ -14,17 +14,32 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
-// Mappare il filter a tutti gli URL dell'applicazione
+/**
+ * Filtro di Controllo degli Accessi.
+ * Intercetta tutte le richieste dell'applicazione e verifica se l'utente è autenticato.
+ * Permette il libero passaggio solo per le risorse statiche e i path pubblici (login).
+ */
 public class AccessControlFilter implements Filter {
 
     private static final Set<String> PUBLIC_PATHS = Set.of("/login", "/api/login", "/login.html");
     private static final String STATIC_PREFIX = "/static/";
 
+    /**
+     * Inizializzazione del filtro.
+     */
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        // Eventuale inizializzazione (es. caricare whitelist URL pubblici)
+        // Inizializzazione vuota
     }
 
+    /**
+     * Esegue il filtraggio della richiesta. Se l'utente non è autenticato e cerca di accedere
+     * a una risorsa privata, viene reindirizzato al login o rifiutato con un codice 401 Unauthorized.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @param chain il filter chain.
+     */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response,
                          FilterChain chain)
@@ -59,6 +74,9 @@ public class AccessControlFilter implements Filter {
         }
     }
 
+    /**
+     * Distrugge il filtro rilasciando eventuali risorse allocate.
+     */
     @Override
     public void destroy() {
         // Pulizia risorse

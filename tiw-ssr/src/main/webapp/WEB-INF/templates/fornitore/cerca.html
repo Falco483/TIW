@@ -23,10 +23,14 @@
             </div>
         </div>
 
+        <div th:if="${query != null and #strings.isEmpty(query.trim())}" role="alert" style="color: red; padding: 10px; border: 1px solid red; background-color: #f8d7da; margin: 0 0 1rem 0; border-radius: var(--radius-sm);">
+            Inserisci un termine di ricerca prima di cercare.
+        </div>
+
         <div class="form-card" style="max-width: 600px; margin: 0 auto 2rem auto;">
             <form method="get" th:action="@{/fornitore/cerca}">
                 <div class="search-bar" style="margin-bottom: 0;">
-                    <input type="text" id="query" name="query" required
+                    <input type="text" id="query" name="query"
                            placeholder="Inserisci codice o nome..."
                            th:value="${query}">
                     <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.5rem;"><i class="fa-solid fa-magnifying-glass"></i> Cerca</button>

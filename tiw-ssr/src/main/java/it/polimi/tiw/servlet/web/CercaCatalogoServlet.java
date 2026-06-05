@@ -28,11 +28,19 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Servlet che gestisce la ricerca degli elementi del catalogo (prodotti e SKU)
+ * per il Fornitore (Server-Side Rendering).
+ * Permette anche di visualizzare i dettagli completi (albero o scheda SKU) dell'elemento selezionato.
+ */
 @WebServlet("/fornitore/cerca")
 public class CercaCatalogoServlet extends HttpServlet {
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 
+    /**
+     * Inizializza il motore Thymeleaf e configura i template resolver.
+     */
     @Override
     public void init() throws ServletException {
         this.webApp = JakartaServletWebApplication.buildApplication(getServletContext());
@@ -46,6 +54,16 @@ public class CercaCatalogoServlet extends HttpServlet {
         this.templateEngine.setTemplateResolver(resolver);
     }
 
+    /**
+     * Gestisce la richiesta HTTP GET. Esegue la ricerca tramite i DAO se viene specificato
+     * il parametro "query", ed eventualmente estrae il dettaglio di un singolo elemento,
+     * effettuando infine il rendering tramite Thymeleaf.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errori.
+     * @throws IOException in caso di errori di I/O.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
