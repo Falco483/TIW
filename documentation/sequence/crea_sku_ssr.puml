@@ -1,0 +1,84 @@
+@startuml crea_sku_ssr
+title Evento: Creazione SKU (SSR — Thymeleaf)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #81C784
+    BoxBackgroundColor #E8F5E9
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#A9DFBF>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "Browser\n(fornitore/home)" as Browser #FFFFFF
+
+box "Server Side"
+    participant "HomeFornitore\nServlet"            as HFS     #A9DFBF
+    participant "SKUDAO"                            as DAO     #A9DFBF
+    database    "DB\n(tabella sku)"                as DB      #A9DFBF
+    participant "Thymeleaf\nEngine"                as TH      #A9DFBF
+end box
+
+'==== SUBMIT FORM SKU ====
+note left of Browser : Submit form\ntipoForm="sku"
+
+Browser -> HFS : POST /fornitore/home
+activate HFS
+HFS -> HFS : tipoForm = "sku"\n→ handleCreaSku(request, response)
+HFS -> HFS : legge parametri e filePart
+
+alt [campi vuoti o file mancante]
+    HFS -> TH : forwardConErrore(req, res,\nerrori, valoriForm)
+    activate TH
+    TH -> TH : process("fornitore/home", ctx)\nth:each="errore : ${errori}"\nform ripopolato con ${valoriForm}
+    TH --> Browser : 200 OK — home.html\ncon lista errori visibile
+    deactivate TH
+    note left of Browser : Show error msg\n(lista errori nel form)
+else [dati validi]
+    HFS -> HFS : salva file in UPLOAD_DIR
+    HFS -> HFS : new SKU().set*(...)
+    HFS -> DAO : skuDAO.insert(nuovaSku)
+    activate DAO
+    DAO -> DB : INSERT INTO sku\n(codice, nome, fotografia,\ndescrizioneTecnica, prezzo)
+    activate DB
+    DB --> DAO : generated id (int)
+    deactivate DB
+    DAO --> HFS : SKU con id impostato
+    deactivate DAO
+
+    HFS -> HFS : session.setAttribute\n("home.risultato", skuCreata)\nsession.setAttribute\n("home.tipoRisultato", "sku")
+    HFS --> Browser : 302 redirect → /fornitore/home
+    deactivate HFS
+    note left of Browser : [location =\n/fornitore/home]
+
+    Browser -> HFS : GET /fornitore/home
+    activate HFS
+    HFS -> HFS : legge e rimuove\nsession("home.risultato")\nsession("home.tipoRisultato")
+    HFS -> TH : process("fornitore/home", ctx)
+    activate TH
+    TH --> Browser : 200 OK — home.html\ncon dettagli elemento a fondo pagina
+    deactivate TH
+    deactivate HFS
+    note left of Browser : Show home page\ncon scheda\nSKU creata
+end
+
+@enduml
+

@@ -1,0 +1,82 @@
+﻿@startuml crea_composto_spa
+title Evento: Creazione Prodotto Composto (SPA)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #90CAF9
+    BoxBackgroundColor #E3F2FD
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#AED6F1>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "home-fornitore.html\n+ app-fornitore.js" as JS #FFFFFF
+
+box "Server Side"
+    participant "ApiProdottoTree\nController"         as API  #AED6F1
+    participant "ProdottoDAO"                         as DAO  #AED6F1
+    database    "DB\n(prodotto, prodotto_figlio)"     as DB   #AED6F1
+end box
+
+'==== SUBMIT FORM COMPOSTO ====
+note left of JS : Submit\nform-composto
+
+JS -> JS : handleCreaComposto(e)\ne.preventDefault()
+JS -> JS : Validazione client-side
+
+alt [campi vuoti, prezzi errati\no nessun sottoprodotto]
+    JS -> JS : mostraMessaggio(msg, "error")
+    note left of JS : Show error msg\n(nessuna chiamata server)
+else [dati validi]
+    JS -> JS : payload = { codice, nome, descrizione,\nprezzoMin, prezzoMax, tipo:"COMPOSTO",\nfigli:[{id, tipo}, ...] }
+    JS -> API : POST api/prodotto\nContent-Type: application/json\nHeader: X-CSRF-Token\n{payload JSON}
+    activate API
+
+    API -> API : MAPPER.readValue(reader, Prodotto.class)\ndeserializza come ProdottoComposto
+    API -> API : Validazione server
+    API -> DAO : new ProdottoDAO(connection)\n.insertComposto(codice, nome,\ndescrizione, prezzoMin, prezzoMax)
+    activate DAO
+    DAO -> DB : INSERT INTO prodotto\n(codice, nome, descrizione,\nprezzo_min, prezzo_max, tipo='COMPOSTO')
+    activate DB
+    DB --> DAO : idGenerato (int)
+    deactivate DB
+
+    loop [per ogni figlio in figli[]]
+        API -> DAO : dao.calcolaProfondita(figlio.id)
+        DAO -> DB : SELECT profondità ricorsiva
+        DB --> DAO : profonditaFiglio (int)
+        DAO --> API : profonditaFiglio
+        API -> DAO : dao.addFiglio(idGenerato, figlio.id)
+        DAO -> DB : INSERT INTO prodotto_figlio\n(id_padre, id_figlio)
+        DB --> DAO : ok
+        DAO --> API : ok
+    end
+    deactivate DAO
+
+    API --> JS : 201 Created\n{"success": true,\n"id_prodotto": idGenerato,\n"message": "Prodotto salvato con successo"}
+    deactivate API
+
+    JS -> JS : aggiornaOrfani()\nrenderProdottoCreato(savedProd)
+    note left of JS : Show success msg\n"Prodotto Composto\nsalvato con successo"\n+ render tree editor
+end
+
+@enduml
+

@@ -134,6 +134,11 @@ public class HomeFornitoreServlet extends HttpServlet {
             session.removeAttribute(SESSION_PREZZO_MAX_CALC);
             session.removeAttribute(SESSION_ID_FIGLI_SELEZIONATI);
             session.removeAttribute(REQ_VALORI_FORM);
+            
+            Object risultato = session.getAttribute(SESSION_RISULTATO);
+            String tipoRisultato = (String) session.getAttribute(SESSION_TIPO_RISULTATO);
+            session.removeAttribute(SESSION_RISULTATO);
+            session.removeAttribute(SESSION_TIPO_RISULTATO);
 
             if (messaggioSuccesso != null)
                 request.setAttribute("messaggioSuccesso", messaggioSuccesso);
@@ -147,6 +152,11 @@ public class HomeFornitoreServlet extends HttpServlet {
                 request.setAttribute("idFigliSelezionati", idFigliSelezionati);
             if (valoriForm != null)
                 request.setAttribute(REQ_VALORI_FORM, valoriForm);
+                
+            if (risultato != null)
+                request.setAttribute("risultato", risultato);
+            if (tipoRisultato != null)
+                request.setAttribute("tipoRisultato", tipoRisultato);
         }
 
         renderHome(request, response);
@@ -212,7 +222,7 @@ public class HomeFornitoreServlet extends HttpServlet {
         HttpSession session = req.getSession(true);
         session.setAttribute(SESSION_RISULTATO, risultato);
         session.setAttribute(SESSION_TIPO_RISULTATO, tipoRisultato);
-        res.sendRedirect(req.getContextPath() + "/fornitore/risultato");
+        res.sendRedirect(req.getContextPath() + "/fornitore/home");
     }
 
     // -------------------------------------------------------------------------

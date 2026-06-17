@@ -165,6 +165,17 @@
                 </form>
             </div>
         </div>
+
+        <!-- RISULTATO (mostrato dopo la creazione) -->
+        <div th:if="${risultato != null}" style="margin-top: 2rem;">
+            <div class="content-header" style="margin-bottom: 1rem;">
+                <h2>Elemento salvato/visualizzato</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                    Dettagli dell'elemento appena creato.
+                </p>
+            </div>
+            <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=true)}"></div>
+        </div>
     </section>
 </main>
 

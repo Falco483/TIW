@@ -1,0 +1,106 @@
+@startuml crea_composto_ssr
+title Evento: Creazione Prodotto Composto (SSR — Thymeleaf)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #81C784
+    BoxBackgroundColor #E8F5E9
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#A9DFBF>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "Browser\n(fornitore/home)" as Browser #FFFFFF
+
+box "Server Side"
+    participant "HomeFornitore\nServlet"            as HFS  #A9DFBF
+    participant "ProdottoDAO"                       as DAO  #A9DFBF
+    database    "DB\n(prodotto, prodotto_figlio)"   as DB   #A9DFBF
+    participant "Thymeleaf\nEngine"                 as TH   #A9DFBF
+end box
+
+'==== SUBMIT FORM COMPOSTO ====
+note left of Browser : Submit form\ntipoForm="composto"\nazione="salva"
+
+Browser -> HFS : POST /fornitore/home
+activate HFS
+
+HFS -> HFS : tipoForm="composto", azione="salva"\n→ handleCreaComposto(req, res)
+HFS -> HFS : legge parametri e idFigli[]
+HFS -> HFS : Validazione
+
+alt [campi vuoti o prezzi non validi]
+    HFS -> TH : forwardConErrore(req, res,\nerrori, valoriForm)
+    activate TH
+    TH -> TH : process("fornitore/home", ctx)\nth:each="errore : ${errori}"
+    TH --> Browser : 200 OK — home.html\ncon lista errori visibile
+    deactivate TH
+    note left of Browser : Show error msg\n(lista errori nel form)
+else [dati validi]
+    HFS -> HFS : connection.setAutoCommit(false)
+    HFS -> DAO : prodottoDAO.insertComposto
+    activate DAO
+    DAO -> DB : INSERT INTO prodotto\n(codice, nome, descrizione,\nprezzo_min, prezzo_max, tipo='COMPOSTO')
+    activate DB
+    DB --> DAO : idGenerato (int)
+    deactivate DB
+    DAO --> HFS : idGenerato
+    deactivate DAO
+
+    loop [per ogni idFiglio in idFigliList]
+        HFS -> DAO : prodottoDAO.calcolaProfondita(idFiglio)
+        activate DAO
+        DAO -> DB : SELECT profondità ricorsiva
+        DB --> DAO : profonditaFiglio
+        DAO --> HFS : profonditaFiglio
+        deactivate DAO
+        HFS -> DAO : prodottoDAO.addFiglio\n(idGenerato, idFiglio)
+        activate DAO
+        DAO -> DB : INSERT INTO prodotto_figlio\n(id_padre, id_figlio)
+        DB --> DAO : ok
+        deactivate DAO
+    end
+
+    HFS -> HFS : connection.commit()
+    HFS -> DAO : prodottoDAO.getAlberoProdotto(id)
+    activate DAO
+    DAO -> DB : SELECT ricorsivo albero prodotto
+    DB --> DAO : Prodotto composto con figli
+    DAO --> HFS : Prodotto creato
+    deactivate DAO
+
+    HFS -> HFS : session.setAttribute\n("home.risultato", creato)\nsession.setAttribute\n("home.tipoRisultato", "composto")
+    HFS --> Browser : 302 redirect → /fornitore/home
+    deactivate HFS
+    note left of Browser : [location =\n/fornitore/home]
+
+    Browser -> HFS : GET /fornitore/home
+    activate HFS
+    HFS -> HFS : legge e rimuove\nsession("home.risultato")\nsession("home.tipoRisultato")
+    HFS -> TH : process("fornitore/home", ctx)
+    activate TH
+    TH --> Browser : 200 OK — home.html\ncon dettagli elemento a fondo pagina
+    deactivate TH
+    deactivate HFS
+    note left of Browser : Show home page
+
+@enduml
+
