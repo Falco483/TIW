@@ -15,6 +15,11 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Classe DAO per l'interazione con la tabella prodotto del database
+ * Gestisce le operazioni di CRUD (Create, Read, Update, Delete) sui prodotti
+ * e l'interazione con le tabelle correlate sku e prodotto_sku
+ */
 public class ProdottoDAO {
 
     private final Connection connection;
@@ -22,10 +27,6 @@ public class ProdottoDAO {
     public ProdottoDAO(Connection connection) {
         this.connection = connection;
     }
-
-    // -------------------------------------------------------------------------
-    // Query
-    // -------------------------------------------------------------------------
 
     /**
      * Recupera tutti i prodotti radice (che non hanno un padre) di tipo COMPOSTO.
@@ -65,10 +66,12 @@ public class ProdottoDAO {
     }
 
     /**
-     * Estrae una lista di prodotti composti paginati e ordinati per nome in ordine decrescente.
+     * Estrae una lista di prodotti composti paginati e ordinati per nome in ordine
+     * decrescente.
      *
-     * @param offset l'indice di partenza dei risultati da restituire (salta le prime N righe).
-     * @param limit il numero massimo di prodotti da restituire nella pagina.
+     * @param offset l'indice di partenza dei risultati da restituire (salta le
+     *               prime N righe).
+     * @param limit  il numero massimo di prodotti da restituire nella pagina.
      * @return una lista di ProdottoComposto.
      * @throws SQLException se la query SQL fallisce.
      */
@@ -94,8 +97,10 @@ public class ProdottoDAO {
     }
 
     /**
-     * Recupera tutti i prodotti (sia semplici che composti) ordinati per nome in modo decrescente.
-     * Usato per popolare le checkbox e i form di selezione nel pannello del fornitore.
+     * Recupera tutti i prodotti (sia semplici che composti) ordinati per nome in
+     * modo decrescente.
+     * Usato per popolare le checkbox e i form di selezione nel pannello del
+     * fornitore.
      *
      * @return la lista di tutti i prodotti.
      * @throws SQLException se la query SQL fallisce.
@@ -117,7 +122,8 @@ public class ProdottoDAO {
     }
 
     /**
-     * Recupera tutti i prodotti orfani (cioè senza un prodotto padre, id_padre IS NULL)
+     * Recupera tutti i prodotti orfani (cioè senza un prodotto padre, id_padre IS
+     * NULL)
      * la cui profondità complessiva del sotto-albero non supera 2 livelli.
      * Questi prodotti sono candidabili come figli per nuovi prodotti composti.
      *
@@ -185,7 +191,8 @@ public class ProdottoDAO {
     }
 
     /**
-     * Carica l'intero albero di un prodotto (composto o semplice) partendo dal suo ID.
+     * Carica l'intero albero di un prodotto (composto o semplice) partendo dal suo
+     * ID.
      * Se il prodotto è composto carica ricorsivamente tutti i figli, altrimenti
      * carica le SKU associate.
      *
@@ -204,8 +211,10 @@ public class ProdottoDAO {
     }
 
     /**
-     * Carica l'intero albero di un prodotto (composto o semplice) partendo dal suo codice.
-     * Se è composto, carica ricorsivamente i figli. Se è semplice, carica le SKU associate.
+     * Carica l'intero albero di un prodotto (composto o semplice) partendo dal suo
+     * codice.
+     * Se è composto, carica ricorsivamente i figli. Se è semplice, carica le SKU
+     * associate.
      * 
      * @param codice Codice identificativo del prodotto.
      * @return L'oggetto prodotto completo di sotto-albero.
@@ -255,11 +264,13 @@ public class ProdottoDAO {
 
     /**
      * Verifica che non vengano creati cicli all'interno dell'albero dei prodotti.
-     * Un ciclo si verificherebbe se il padre proposto è già un discendente del figlio proposto.
+     * Un ciclo si verificherebbe se il padre proposto è già un discendente del
+     * figlio proposto.
      *
-     * @param idPadre l'ID del padre proposto.
+     * @param idPadre  l'ID del padre proposto.
      * @param idFiglio l'ID del figlio proposto.
-     * @return true se l'operazione non crea cicli (cioè è aciclica), false altrimenti.
+     * @return true se l'operazione non crea cicli (cioè è aciclica), false
+     *         altrimenti.
      * @throws SQLException se la query SQL fallisce.
      */
     public boolean verificaAciclicita(int idPadre, int idFiglio) throws SQLException {
@@ -331,16 +342,18 @@ public class ProdottoDAO {
 
     /**
      * Inserisce un prodotto semplice con i prezzi min e max calcolati dalla servlet
-     * a partire dalle SKU selezionate nel form (MIN e MAX dei prezzi delle SKU scelte).
+     * a partire dalle SKU selezionate nel form (MIN e MAX dei prezzi delle SKU
+     * scelte).
      *
-     * @param codice il codice a barre/identificativo di business del prodotto.
-     * @param nome il nome del prodotto.
+     * @param codice    il codice a barre/identificativo di business del prodotto.
+     * @param nome      il nome del prodotto.
      * @param prezzoMin il prezzo minimo calcolato.
      * @param prezzoMax il prezzo massimo calcolato.
      * @return l'ID auto-generato del prodotto semplice.
      * @throws SQLException se l'inserimento o il recupero delle chiavi fallisce.
      */
-    public int insertSemplice(String codice, String nome, BigDecimal prezzoMin, BigDecimal prezzoMax) throws SQLException {
+    public int insertSemplice(String codice, String nome, BigDecimal prezzoMin, BigDecimal prezzoMax)
+            throws SQLException {
         String sql = "INSERT INTO prodotto (codice, nome, tipo, prezzo_min, prezzo_max) VALUES (?, ?, 'SEMPLICE', ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, codice);
@@ -359,11 +372,11 @@ public class ProdottoDAO {
     /**
      * Inserisce un prodotto composto con la sua descrizione e la fascia di prezzo.
      *
-     * @param codice il codice identificativo di business del prodotto.
-     * @param nome il nome del prodotto composto.
+     * @param codice      il codice identificativo di business del prodotto.
+     * @param nome        il nome del prodotto composto.
      * @param descrizione la descrizione descrittiva dei componenti inclusi.
-     * @param prezzoMin il prezzo minimo della fascia consentita.
-     * @param prezzoMax il prezzo massimo della fascia consentita.
+     * @param prezzoMin   il prezzo minimo della fascia consentita.
+     * @param prezzoMax   il prezzo massimo della fascia consentita.
      * @return l'ID auto-generato del prodotto composto.
      * @throws SQLException se la query SQL di inserimento fallisce.
      */
@@ -393,16 +406,19 @@ public class ProdottoDAO {
     // -------------------------------------------------------------------------
 
     /**
-     * Associa una SKU a un prodotto semplice inserendo una riga nella tabella prodotto_sku.
-     * Utilizza la clausola INSERT IGNORE per evitare errori in caso di associazione duplicata.
+     * Associa una SKU a un prodotto semplice inserendo una riga nella tabella
+     * prodotto_sku.
+     * Utilizza la clausola INSERT IGNORE per evitare errori in caso di associazione
+     * duplicata.
      *
      * @param idProdotto l'ID del prodotto semplice.
-     * @param idSku l'ID della SKU da associare.
+     * @param idSku      l'ID della SKU da associare.
      * @throws SQLException se la query SQL fallisce.
      */
     public void addSku(int idProdotto, int idSku) throws SQLException {
         // INSERT IGNORE: se la coppia (id_prodotto, id_sku) esiste già (PK composita),
-        // l'operazione viene ignorata silenziosamente senza lanciare una duplicate-key exception.
+        // l'operazione viene ignorata silenziosamente senza lanciare una duplicate-key
+        // exception.
         String sql = "INSERT IGNORE INTO prodotto_sku (id_prodotto, id_sku) VALUES (?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idProdotto);
@@ -414,9 +430,10 @@ public class ProdottoDAO {
     /**
      * Imposta il prodotto padre per un determinato prodotto figlio.
      * 
-     * @param idPadre l'ID del prodotto padre (deve essere COMPOSTO).
+     * @param idPadre  l'ID del prodotto padre (deve essere COMPOSTO).
      * @param idFiglio l'ID del prodotto figlio.
-     * @throws SQLException se il figlio non viene trovato o se la query fallisce.
+     * @throws SQLException          se il figlio non viene trovato o se la query
+     *                               fallisce.
      * @throws IllegalStateException se il figlio ha già un padre diverso impostato.
      */
     public void addFiglio(int idPadre, int idFiglio) throws SQLException {
@@ -468,7 +485,8 @@ public class ProdottoDAO {
     }
 
     /**
-     * Carica tutte le SKU associate a un prodotto semplice dalla tabella prodotto_sku.
+     * Carica tutte le SKU associate a un prodotto semplice dalla tabella
+     * prodotto_sku.
      *
      * @param prodottoSemplice il prodotto semplice da arricchire con le sue SKU.
      * @throws SQLException se la query fallisce.
@@ -520,7 +538,8 @@ public class ProdottoDAO {
         p.setCodice(rs.getInt("codice"));
         p.setNome(rs.getString("nome"));
         p.setTipo(rs.getString("tipo"));
-        // prezzoMin e prezzoMax letti per entrambi i tipi (SEMPLICE: calcolati dalle SKU al momento della creazione;
+        // prezzoMin e prezzoMax letti per entrambi i tipi (SEMPLICE: calcolati dalle
+        // SKU al momento della creazione;
         // COMPOSTO: scelti dal fornitore come somma dei prezzi dei sotto-prodotti)
         p.setPrezzoMin(rs.getBigDecimal("prezzo_min"));
         p.setPrezzoMax(rs.getBigDecimal("prezzo_max"));
@@ -595,7 +614,7 @@ public class ProdottoDAO {
      * Rimuove l'associazione N:M tra un prodotto semplice e una determinata SKU.
      *
      * @param idProdotto l'ID del prodotto semplice.
-     * @param idSku l'ID della SKU da dissociare.
+     * @param idSku      l'ID della SKU da dissociare.
      * @throws SQLException se la query SQL fallisce.
      */
     public void rimuoviAssociazioneSku(int idProdotto, int idSku) throws SQLException {
@@ -639,8 +658,10 @@ public class ProdottoDAO {
                 if (rs.next()) {
                     BigDecimal sumMin = rs.getBigDecimal(1);
                     BigDecimal sumMax = rs.getBigDecimal(2);
-                    if (sumMin != null) min = sumMin;
-                    if (sumMax != null) max = sumMax;
+                    if (sumMin != null)
+                        min = sumMin;
+                    if (sumMax != null)
+                        max = sumMax;
                 }
             }
         }
@@ -669,7 +690,7 @@ public class ProdottoDAO {
             connection.setAutoCommit(false);
 
             // 1) Trova le configurazioni il cui dettaglio referenzia
-            //    questo prodotto o un suo discendente, e cancellale.
+            // questo prodotto o un suo discendente, e cancellale.
             String findConfigSql = """
                     WITH RECURSIVE discendenti AS (
                         SELECT id FROM prodotto WHERE id = ?
@@ -711,7 +732,8 @@ public class ProdottoDAO {
     }
 
     /**
-     * Aggiorna i campi modificabili di un prodotto (nome, descrizione, prezzoMin e prezzoMax).
+     * Aggiorna i campi modificabili di un prodotto (nome, descrizione, prezzoMin e
+     * prezzoMax).
      *
      * @param p l'oggetto Prodotto contenente i nuovi valori.
      * @throws SQLException se la query SQL fallisce.
@@ -733,8 +755,10 @@ public class ProdottoDAO {
     // -------------------------------------------------------------------------
 
     /**
-     * Salva un intero albero di prodotti in modo atomico all'interno di una transazione.
-     * Esegue l'inserimento partendo dal nodo radice e scendendo ricorsivamente lungo i rami.
+     * Salva un intero albero di prodotti in modo atomico all'interno di una
+     * transazione.
+     * Esegue l'inserimento partendo dal nodo radice e scendendo ricorsivamente
+     * lungo i rami.
      *
      * @param radice il prodotto composto che fa da radice all'albero.
      * @return l'ID auto-generato del prodotto radice inserito.
@@ -744,9 +768,9 @@ public class ProdottoDAO {
         boolean autoCommitOriginale = connection.getAutoCommit();
         try {
             connection.setAutoCommit(false);
-            
+
             int rootId = insertNode(radice, null);
-            
+
             connection.commit();
             return rootId;
         } catch (SQLException e) {
@@ -758,23 +782,24 @@ public class ProdottoDAO {
     }
 
     /**
-     * Metodo di supporto ricorsivo privato che inserisce un nodo del prodotto e i suoi figli.
+     * Metodo di supporto ricorsivo privato che inserisce un nodo del prodotto e i
+     * suoi figli.
      * Se il nodo è semplice, associa anche le SKU definite.
      *
-     * @param nodo il nodo corrente da inserire.
+     * @param nodo    il nodo corrente da inserire.
      * @param idPadre l'ID del prodotto padre (può essere null per il nodo radice).
      * @return l'ID auto-generato del nodo inserito.
      * @throws SQLException se l'inserimento fallisce.
      */
     private int insertNode(Prodotto nodo, Integer idPadre) throws SQLException {
         String sql = "INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        
+
         int idGenerato;
-        
+
         try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, nodo.getCodice());
             stmt.setString(2, nodo.getNome());
-            
+
             if (nodo instanceof ProdottoComposto) {
                 stmt.setString(3, "COMPOSTO");
                 stmt.setString(4, nodo.getDescrizione());
@@ -788,15 +813,15 @@ public class ProdottoDAO {
             } else {
                 throw new SQLException("Tipo di prodotto sconosciuto.");
             }
-            
+
             if (idPadre == null) {
                 stmt.setNull(7, java.sql.Types.INTEGER);
             } else {
                 stmt.setInt(7, idPadre);
             }
-            
+
             stmt.executeUpdate();
-            
+
             try (ResultSet keys = stmt.getGeneratedKeys()) {
                 if (keys.next()) {
                     idGenerato = keys.getInt(1);
@@ -806,7 +831,7 @@ public class ProdottoDAO {
                 }
             }
         }
-        
+
         if (nodo instanceof ProdottoComposto pc) {
             if (pc.getFigli() != null) {
                 for (Prodotto figlio : pc.getFigli()) {
@@ -820,7 +845,7 @@ public class ProdottoDAO {
                 }
             }
         }
-        
+
         return idGenerato;
     }
 }
