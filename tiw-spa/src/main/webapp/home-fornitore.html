@@ -165,8 +165,14 @@
                 <div id="dettaglio-content">
                     <!-- Popolato dinamicamente da JS -->
                 </div>
-                <div style="margin-top: 1rem; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
-                    <button type="button" class="btn btn-primary btn-full" id="btn-salva-tree">
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                    <button type="button" class="btn btn-secondary" id="btn-undo" title="Annulla (Ctrl+Z)" disabled>
+                        <i class="fa-solid fa-rotate-left"></i> Annulla
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-redo" title="Ripristina (Ctrl+Y)" disabled>
+                        <i class="fa-solid fa-rotate-right"></i> Ripristina
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-salva-tree">
                         <i class="fa-solid fa-save"></i> SALVA PRODOTTO
                     </button>
                 </div>
@@ -485,7 +491,9 @@
 
     <!-- Scripts -->
     <script src="js/api.js?v=2"></script>
-    <script src="js/app-fornitore.js?v=6"></script>
+    <script src="js/tree-model.js?v=1"></script>
+    <script src="js/history-manager.js?v=1"></script>
+    <script src="js/app-fornitore.js?v=11"></script>
 </body>
 
 </html>

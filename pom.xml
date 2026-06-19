@@ -58,6 +58,8 @@
         <jackson.version>2.17.0</jackson.version>
         <thymeleaf.version>3.1.2.RELEASE</thymeleaf.version>
         <jbcrypt.version>0.4</jbcrypt.version>
+        <!-- GraalVM JS: motore JavaScript per testare da JUnit i moduli JS della SPA -->
+        <graalvm.version>22.3.3</graalvm.version>
     </properties>
 
     <!--
@@ -122,6 +124,19 @@
                 <version>5.10.2</version>
                 <scope>test</scope>
             </dependency>
+            <!-- GraalVM JS — esecuzione dei moduli JS nei test JUnit -->
+            <dependency>
+                <groupId>org.graalvm.sdk</groupId>
+                <artifactId>graal-sdk</artifactId>
+                <version>${graalvm.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.graalvm.js</groupId>
+                <artifactId>js</artifactId>
+                <version>${graalvm.version}</version>
+                <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -144,6 +159,12 @@
                     <configuration>
                         <failOnMissingWebXml>false</failOnMissingWebXml>
                     </configuration>
+                </plugin>
+                <!-- Surefire 3.x: necessario per eseguire i test JUnit 5 (Jupiter) -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
                 </plugin>
             </plugins>
         </pluginManagement>

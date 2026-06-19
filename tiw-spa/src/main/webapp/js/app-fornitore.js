@@ -102,10 +102,44 @@ const AppFornitore = {
         });
 
         document.getElementById('btn-salva-tree').addEventListener('click', () => this.handleSalvaTree());
+
+        // Pulsanti Undo/Redo del Tree Editor
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        if (btnUndo) btnUndo.addEventListener('click', () => this.doUndo());
+        if (btnRedo) btnRedo.addEventListener('click', () => this.doRedo());
+
+        // Scorciatoie da tastiera: Ctrl/Cmd+Z = Undo, Ctrl/Cmd+Y o Ctrl/Cmd+Shift+Z = Redo.
+        // Disattivate mentre il focus è su un campo editabile, per non interferire con
+        // l'undo nativo del campo di testo (U3).
+        document.addEventListener('keydown', (e) => {
+            if (this.stato.sezioneAttiva !== 'home') return;
+            const target = e.target;
+            if (target && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+            if (!(e.ctrlKey || e.metaKey)) return;
+
+            const tasto = e.key.toLowerCase();
+            if (tasto === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                this.doUndo();
+            } else if (tasto === 'y' || (tasto === 'z' && e.shiftKey)) {
+                e.preventDefault();
+                this.doRedo();
+            }
+        });
+
         const btnRicalcola = document.getElementById('btn-ricalcola-prezzo');
         if (btnRicalcola) {
             btnRicalcola.addEventListener('click', () => this.handleRicalcolaPrezzo());
         }
+
+        // EC8: avvisa prima di abbandonare la pagina se ci sono modifiche pendenti non salvate
+        window.addEventListener('beforeunload', (e) => {
+            if (this.stato.pendingActions && this.stato.pendingActions.length > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         document.getElementById('form-add-child').addEventListener('submit', (e) => this.submitTreeAddChild(e));
         document.getElementById('form-add-sku').addEventListener('submit', (e) => this.submitTreeAddSku(e));
@@ -362,6 +396,10 @@ const AppFornitore = {
         } catch (e) {
             this.mostraMessaggio("Errore caricamento albero: " + e.message, "error");
         }
+
+        // R14/R17: inizio di una nuova sessione di editing → cronologia pulita
+        history.init();
+        this.aggiornaPulsantiUndoRedo();
     },
 
     /**
@@ -467,14 +505,117 @@ const AppFornitore = {
     },
 
     /**
+     * Effettua un clone profondo dello stato (Memento). Restituisce null/undefined inalterati.
+     * @param {*} v - Il valore da clonare.
+     * @returns {*} Una copia profonda indipendente.
+     */
+    cloneStato: function (v) {
+        return (v === null || v === undefined) ? v : structuredClone(v);
+    },
+
+    /**
+     * Cattura uno snapshot immutabile dello stato pendente della sessione di editing:
+     * albero corrente, coda azioni pendenti ed elenco delle SKU associate.
+     * @returns {{tree:Object, pendingActions:Array, skuAssociate:Array}} Lo snapshot clonato.
+     */
+    snapshot: function () {
+        return {
+            tree: this.cloneStato(this.stato.currentTree),
+            pendingActions: this.cloneStato(this.stato.pendingActions || []),
+            skuAssociate: this.cloneStato(this.stato.skuAssociateProdottoCorrente || [])
+        };
+    },
+
+    /**
+     * Esegue un'operazione undoable applicando la strategia "snapshot-before":
+     * cattura lo stato precedente, esegue l'operazione e — solo se l'albero è
+     * effettivamente cambiato (no-op detection, R3/EC3) — registra un checkpoint.
+     * In caso di no-op annulla eventuali effetti collaterali sulla coda/lista SKU.
+     * @param {Function} fn - La funzione che applica la modifica al modello e alla vista.
+     * @returns {boolean} true se è stato registrato un checkpoint.
+     */
+    eseguiOperazione: function (fn) {
+        const before = this.snapshot();
+        fn();
+        const cambiato = JSON.stringify(before.tree) !== JSON.stringify(this.stato.currentTree);
+        if (cambiato) {
+            history.commit(before);
+        } else {
+            // Ripristina la coda e la lista SKU per non lasciare azioni ridondanti
+            this.stato.pendingActions = before.pendingActions;
+            this.stato.skuAssociateProdottoCorrente = before.skuAssociate;
+        }
+        this.aggiornaPulsantiUndoRedo();
+        return cambiato;
+    },
+
+    /**
+     * Aggiorna lo stato (abilitato/disabilitato) dei pulsanti Undo/Redo in base alla
+     * cronologia. I pulsanti veri e propri vengono introdotti nello Step 5: qui il
+     * metodo è difensivo verso la loro eventuale assenza nel DOM.
+     */
+    aggiornaPulsantiUndoRedo: function () {
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        if (btnUndo) btnUndo.disabled = !history.canUndo();
+        if (btnRedo) btnRedo.disabled = !history.canRedo();
+    },
+
+    /**
+     * Applica uno snapshot ripristinato dalla cronologia: ricostruisce lo stato pendente
+     * (modello, coda azioni, SKU associate) e rigenera l'intera vista dell'albero.
+     * Poiché si ripristina l'intero albero, posizione dei nodi scollegati e coerenza
+     * della coda sono garantite automaticamente (R11/R12).
+     * @param {{tree:Object, pendingActions:Array, skuAssociate:Array}} snap - Lo snapshot da applicare.
+     */
+    applicaSnapshot: function (snap) {
+        this.stato.currentTree = this.cloneStato(snap.tree);
+        this.stato.pendingActions = this.cloneStato(snap.pendingActions);
+        this.stato.skuAssociateProdottoCorrente = this.cloneStato(snap.skuAssociate);
+        if (this.stato.currentTree) {
+            this.renderTreeView(this.stato.currentTree);
+        } else {
+            const container = document.getElementById('dettaglio-content');
+            if (container) container.innerHTML = '';
+        }
+    },
+
+    /**
+     * Annulla l'ultima operazione undoable: chiede alla cronologia lo snapshot precedente
+     * (passandole lo stato corrente per consentire il redo) e lo applica.
+     */
+    doUndo: function () {
+        const snap = history.undo(this.snapshot());
+        if (!snap) return;
+        this.applicaSnapshot(snap);
+        this.aggiornaPulsantiUndoRedo();
+        this.mostraMessaggio("Operazione annullata", "info");
+    },
+
+    /**
+     * Ripristina l'ultima operazione annullata: chiede alla cronologia lo snapshot
+     * successivo (passandole lo stato corrente per un nuovo undo) e lo applica.
+     */
+    doRedo: function () {
+        const snap = history.redo(this.snapshot());
+        if (!snap) return;
+        this.applicaSnapshot(snap);
+        this.aggiornaPulsantiUndoRedo();
+        this.mostraMessaggio("Operazione ripristinata", "info");
+    },
+
+    /**
      * Gestisce l'azione di "scollegamento" di un nodo figlio dal suo padre.
      * Aggiunge l'azione in coda e rimuove visivamente il nodo dal DOM.
      * @param {HTMLElement} nodeDiv - L'elemento DOM che rappresenta il nodo figlio da scollegare.
      */
     handleTreeUnlink: function (nodeDiv) {
         const id = nodeDiv.dataset.id;
-        this.enqueueAction({ action: 'UNLINK_NODE', id: id });
-        nodeDiv.remove();
+        this.eseguiOperazione(() => {
+            treeModel.removeNode(this.stato.currentTree, id);
+            this.enqueueAction({ action: 'UNLINK_NODE', id: id });
+            this.renderTreeView(this.stato.currentTree);
+        });
     },
 
     /**
@@ -484,8 +625,9 @@ const AppFornitore = {
      */
     handleTreeDelete: function (nodeDiv) {
         const id = nodeDiv.dataset.id;
+        treeModel.removeNode(this.stato.currentTree, id);
         this.enqueueAction({ action: 'DELETE_NODE', id: id });
-        nodeDiv.remove();
+        this.renderTreeView(this.stato.currentTree);
     },
 
     /**
@@ -496,10 +638,13 @@ const AppFornitore = {
     handleTreeUnlinkSku: function (skuDiv) {
         const skuId = skuDiv.dataset.skuId;
         const parentId = skuDiv.dataset.parentId;
-        this.enqueueAction({ action: 'UNLINK_SKU', skuId: skuId, parentId: parentId });
-        skuDiv.remove();
-        // Rimuovi dalla lista locale
-        this.stato.skuAssociateProdottoCorrente = this.stato.skuAssociateProdottoCorrente.filter(id => id !== String(skuId));
+        this.eseguiOperazione(() => {
+            treeModel.removeSku(this.stato.currentTree, parentId, skuId);
+            this.enqueueAction({ action: 'UNLINK_SKU', skuId: skuId, parentId: parentId });
+            // Rimuovi dalla lista locale
+            this.stato.skuAssociateProdottoCorrente = this.stato.skuAssociateProdottoCorrente.filter(id => id !== String(skuId));
+            this.renderTreeView(this.stato.currentTree);
+        });
     },
 
     /**
@@ -510,15 +655,17 @@ const AppFornitore = {
      */
     handleTreeDeleteSku: async function (skuDiv) {
         const skuId = skuDiv.dataset.skuId;
+        const parentId = skuDiv.dataset.parentId;
 
-        // Se l'ID è temporaneo (SKU non ancora salvata), basta rimuoverla dalla coda e dal DOM
+        // Se l'ID è temporaneo (SKU non ancora salvata), basta rimuoverla dalla coda e dal modello
         if (String(skuId).startsWith('temp_')) {
             this.stato.pendingActions = (this.stato.pendingActions || []).filter(a =>
                 !(a.tempId === skuId) && !(a.skuId === skuId)
             );
-            skuDiv.remove();
+            treeModel.removeSku(this.stato.currentTree, parentId, skuId);
             // Rimuovi dalla lista locale
             this.stato.skuAssociateProdottoCorrente = this.stato.skuAssociateProdottoCorrente.filter(id => id !== String(skuId));
+            this.renderTreeView(this.stato.currentTree);
             this.mostraMessaggio('SKU rimossa (non era ancora salvata)', 'success');
             return;
         }
@@ -530,7 +677,8 @@ const AppFornitore = {
             // Elimina la SKU definitivamente e cancella a cascata configurazioni e associazioni
             await api.deleteSku(parseInt(skuId));
 
-            skuDiv.remove();
+            treeModel.removeSku(this.stato.currentTree, parentId, skuId);
+            this.renderTreeView(this.stato.currentTree);
             // Rimuovi dalla lista locale
             this.stato.skuAssociateProdottoCorrente = this.stato.skuAssociateProdottoCorrente.filter(id => id !== String(skuId));
 
@@ -542,6 +690,12 @@ const AppFornitore = {
             // Aggiorna anche la lista globale delle SKU
             this.stato.skusDisponibili = this.stato.skusDisponibili.filter(s => s.id !== parseInt(skuId));
             this.renderSkuCheckboxList();
+
+            // EC7: l'eliminazione definitiva tocca il DB e non è annullabile. La cronologia
+            // pregressa potrebbe riferirsi a entità ora inesistenti: la azzeriamo per coerenza.
+            history.clear();
+            this.aggiornaPulsantiUndoRedo();
+
             this.mostraMessaggio('SKU eliminata definitivamente', 'success');
         } catch (err) {
             this.mostraMessaggio('Errore eliminazione SKU: ' + err.message, 'error');
@@ -561,22 +715,54 @@ const AppFornitore = {
         const id = isSku ? nodeDiv.dataset.skuId : nodeDiv.dataset.id;
         const val = span.textContent.trim();
 
-        let updateAction = this.stato.pendingActions.find(a =>
-            (isSku ? a.action === 'UPDATE_SKU' : a.action === 'UPDATE_NODE') && (a.id == id || a.tempId == id)
-        );
+        // Determina quale campo è stato modificato
+        let campo = null;
+        if (span.classList.contains('tree-nome')) campo = 'nome';
+        else if (span.classList.contains('tree-codice')) campo = 'codice';
+        else if (span.classList.contains('tree-pmin')) campo = 'prezzoMin';
+        else if (span.classList.contains('tree-pmax')) campo = 'prezzoMax';
+        else if (span.classList.contains('tree-prezzo')) campo = 'prezzo';
+        if (!campo) return;
 
-        if (!updateAction) {
-            updateAction = isSku ? { action: 'UPDATE_SKU', id: id } : { action: 'UPDATE_NODE', id: id };
-            this.stato.pendingActions.push(updateAction);
+        // EC2: valore vuoto non valido → rifiuta e ripristina il valore dal modello,
+        // senza generare alcun checkpoint.
+        if (val === '') {
+            let valorePrec = '';
+            if (isSku) {
+                const padre = treeModel.findNode(this.stato.currentTree, nodeDiv.dataset.parentId);
+                const skuCorr = padre && padre.skus ? padre.skus.find(s => treeModel.sameId(s.id, id)) : null;
+                valorePrec = skuCorr ? skuCorr[campo] : '';
+            } else {
+                const nodoCorr = treeModel.findNode(this.stato.currentTree, id);
+                valorePrec = nodoCorr ? nodoCorr[campo] : '';
+            }
+            span.textContent = valorePrec != null ? valorePrec : '';
+            this.mostraMessaggio('Il campo non può essere vuoto', 'error');
+            return;
         }
 
-        if (span.classList.contains('tree-nome')) updateAction.nome = val;
-        else if (span.classList.contains('tree-codice')) updateAction.codice = val;
-        else if (span.classList.contains('tree-pmin')) updateAction.prezzoMin = val;
-        else if (span.classList.contains('tree-pmax')) updateAction.prezzoMax = val;
-        else if (span.classList.contains('tree-prezzo')) updateAction.prezzo = val;
+        this.eseguiOperazione(() => {
+            let updateAction = this.stato.pendingActions.find(a =>
+                (isSku ? a.action === 'UPDATE_SKU' : a.action === 'UPDATE_NODE') && (a.id == id || a.tempId == id)
+            );
 
-        this.mostraMessaggio("Modifica in attesa", "success");
+            if (!updateAction) {
+                updateAction = isSku ? { action: 'UPDATE_SKU', id: id } : { action: 'UPDATE_NODE', id: id };
+                this.stato.pendingActions.push(updateAction);
+            }
+
+            updateAction[campo] = val;
+
+            // Aggiorna il modello (unica fonte di verità)
+            if (isSku) {
+                const parentId = nodeDiv.dataset.parentId;
+                treeModel.updateSkuFields(this.stato.currentTree, parentId, id, { [campo]: val });
+            } else {
+                treeModel.updateNodeFields(this.stato.currentTree, id, { [campo]: val });
+            }
+
+            this.mostraMessaggio("Modifica in attesa", "success");
+        });
     },
 
     /**
@@ -652,13 +838,12 @@ const AppFornitore = {
             newNode = { id: tempId, tipo: 'SEMPLICE', codice: codice, nome: nome, skus: [] };
         }
 
-        this.enqueueAction(action);
-
-        // Trova il div padre corretto e aggiungi
-        if (parentDiv) {
-            const childrenContainer = parentDiv.querySelector('.tree-children');
-            childrenContainer.appendChild(this.buildNodeUI(newNode, false));
-        }
+        // Modifica il modello (unica fonte di verità) e rigenera la vista
+        this.eseguiOperazione(() => {
+            treeModel.addChild(this.stato.currentTree, parentId, newNode);
+            this.enqueueAction(action);
+            this.renderTreeView(this.stato.currentTree);
+        });
 
         document.getElementById('modal-add-child').style.display = 'none';
     },
@@ -719,32 +904,36 @@ const AppFornitore = {
         e.preventDefault();
         const parentId = document.getElementById('add-sku-parent-id').value;
         const opzione = document.getElementById('add-sku-opzione').value;
-        const parentDiv = document.querySelector(`.tree-node[data-id="${parentId}"]`);
 
+        // Validazione prima di entrare nell'operazione undoable
         if (opzione === 'NEW') {
-            const tempId = 'temp_sku_' + Date.now();
             const codice = document.getElementById('add-sku-codice').value;
             const nome = document.getElementById('add-sku-nome').value;
             const prezzo = document.getElementById('add-sku-prezzo').value;
-
             if (!codice || !nome || !prezzo) return;
 
-            this.enqueueAction({ action: 'CREATE_SKU', tempId: tempId, parentId: parentId, codice: codice, nome: nome, prezzo: prezzo });
-            const skuUI = this.buildSkuUI({ id: tempId, codice: codice, nome: nome, prezzo: prezzo }, parentId);
-            if (parentDiv) parentDiv.querySelector('.tree-skus').appendChild(skuUI);
-            // Aggiungi l'ID temporaneo alla lista locale
-            this.stato.skuAssociateProdottoCorrente.push(String(tempId));
+            this.eseguiOperazione(() => {
+                const tempId = 'temp_sku_' + Date.now();
+                const nuovaSku = { id: tempId, codice: codice, nome: nome, prezzo: prezzo };
+                treeModel.addSku(this.stato.currentTree, parentId, nuovaSku);
+                this.enqueueAction({ action: 'CREATE_SKU', tempId: tempId, parentId: parentId, codice: codice, nome: nome, prezzo: prezzo });
+                // Aggiungi l'ID temporaneo alla lista locale
+                this.stato.skuAssociateProdottoCorrente.push(String(tempId));
+                this.renderTreeView(this.stato.currentTree);
+            });
 
         } else {
             const skuId = document.getElementById('add-sku-select').value;
             if (!skuId) return;
-            this.enqueueAction({ action: 'ADD_SKU', parentId: parentId, skuId: skuId });
 
-            const existingSku = this.stato.skusDisponibili.find(s => s.id == skuId) || { id: skuId, codice: '?', nome: 'SKU Aggiunta', prezzo: '0' };
-            const skuUI = this.buildSkuUI(existingSku, parentId);
-            if (parentDiv) parentDiv.querySelector('.tree-skus').appendChild(skuUI);
-            // Aggiungi l'ID reale alla lista locale
-            this.stato.skuAssociateProdottoCorrente.push(String(skuId));
+            this.eseguiOperazione(() => {
+                const existingSku = this.stato.skusDisponibili.find(s => s.id == skuId) || { id: skuId, codice: '?', nome: 'SKU Aggiunta', prezzo: '0' };
+                treeModel.addSku(this.stato.currentTree, parentId, { ...existingSku });
+                this.enqueueAction({ action: 'ADD_SKU', parentId: parentId, skuId: skuId });
+                // Aggiungi l'ID reale alla lista locale
+                this.stato.skuAssociateProdottoCorrente.push(String(skuId));
+                this.renderTreeView(this.stato.currentTree);
+            });
         }
 
         document.getElementById('modal-add-sku').style.display = 'none';
@@ -769,6 +958,12 @@ const AppFornitore = {
             if (res.success) {
                 this.mostraMessaggio("Tutte le modifiche salvate con successo!", "success");
                 this.stato.pendingActions = [];
+                // R15: le modifiche sono persistite → la cronologia client-side va azzerata
+                history.clear();
+                this.aggiornaPulsantiUndoRedo();
+                // Rinfresca l'elenco dei prodotti disponibili nel form del composto,
+                // così le modifiche appena salvate sul DB vi si riflettono
+                this.aggiornaOrfani();
                 // Ricarichiamo l'albero per essere sicuri
                 const rootDiv = document.querySelector('.tree-node');
                 if (rootDiv && rootDiv.dataset.id && !rootDiv.dataset.id.startsWith('temp_')) {
