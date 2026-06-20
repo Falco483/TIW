@@ -374,6 +374,8 @@ public class HomeFornitoreServlet extends HttpServlet {
             errori.add("Il nome del prodotto supera la lunghezza massima consentita (200 caratteri).");
         }
 
+        request.setAttribute("idSkuSelezionati", idSkuList);
+
         if (!errori.isEmpty()) {
             forwardConErrore(request, response, errori, valoriForm);
             return;
@@ -665,6 +667,7 @@ public class HomeFornitoreServlet extends HttpServlet {
             BigDecimal prezzoMinCalcolato = (BigDecimal) request.getAttribute("prezzoMinCalcolato");
             BigDecimal prezzoMaxCalcolato = (BigDecimal) request.getAttribute("prezzoMaxCalcolato");
             List<Integer> idFigliSelezionati = (List<Integer>) request.getAttribute("idFigliSelezionati");
+            List<Integer> idSkuSelezionati = (List<Integer>) request.getAttribute("idSkuSelezionati");
 
             if (errori != null && !errori.isEmpty())
                 ctx.setVariable("errori", errori);
@@ -680,6 +683,8 @@ public class HomeFornitoreServlet extends HttpServlet {
                 ctx.setVariable("prezzoMaxCalcolato", prezzoMaxCalcolato);
             if (idFigliSelezionati != null)
                 ctx.setVariable("idFigliSelezionati", idFigliSelezionati);
+            if (idSkuSelezionati != null)
+                ctx.setVariable("idSkuSelezionati", idSkuSelezionati);
 
             response.setContentType("text/html;charset=UTF-8");
             templateEngine.process("fornitore/home", ctx, response.getWriter());

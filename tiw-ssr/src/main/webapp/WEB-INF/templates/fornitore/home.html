@@ -88,7 +88,7 @@
                         </div>
                         <div th:unless="${tutteLeSku == null or tutteLeSku.isEmpty()}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #fafbfc; padding: 1rem; border: 1px solid var(--card-border); border-radius: var(--radius-sm);">
                             <label th:each="sku : ${tutteLeSku}" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; background: #fff; border: 1px solid var(--card-border); border-radius: 4px;">
-                                <input type="checkbox" name="idSkuSelezionate" th:value="${sku.id}">
+                                <input type="checkbox" name="idSkuSelezionate" th:value="${sku.id}" th:checked="${idSkuSelezionati != null and idSkuSelezionati.contains(sku.id)}">
                                 <span th:text="'[' + ${sku.codice} + '] ' + ${sku.nome} + ' - ' + ${sku.prezzo} + ' €'" style="font-size: 0.85rem;"></span>
                             </label>
                         </div>
