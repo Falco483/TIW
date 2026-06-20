@@ -43,6 +43,16 @@ Monta `$CATALINA_BASE/tiw-foto` sull'URL `/foto`. Due modi equivalenti:
   `${catalina.base}/tiw-foto`: altrimenti Tomcat non parte
   (`The main resource set specified [...] is not a directory`).
 
+  > **Attenzione (Eclipse/WTP):** Eclipse **non** usa direttamente il
+  > `$CATALINA_BASE/conf/server.xml`. Tiene una copia "sorgente" nel progetto
+  > **Servers** del workspace
+  > (`Servers/Tomcat v10.1 Server at localhost-config/server.xml`) e la
+  > **ripubblica** sopra `conf/server.xml` ad ogni avvio/publish. Se correggi solo
+  > il file pubblicato, al primo republish la modifica viene **sovrascritta** e
+  > Tomcat torna a fallire con lo stesso errore. Correggi quindi la riga
+  > `<Context ... path="/foto" .../>` **nel file del progetto Servers**, poi tasto
+  > destro sul server → **Clean...** e riavvia.
+
 ### 2. Creare la cartella e (opzionale) le immagini di esempio
 
 ```bash
