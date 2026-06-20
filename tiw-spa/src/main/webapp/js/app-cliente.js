@@ -706,26 +706,9 @@ const AppCliente = {
     cloneConfigurazione: async function (id) {
         try {
             this.mostraMessaggio('Clonazione in corso...', 'info');
-            const res = await api.fetchJson(`api/cliente/configurazioni/${id}`);
-            const { configurazione, albero, voci } = res;
 
-            // Ricostruisci la mappa delle scelte (idProdottoSemplice -> idSku)
-            const scelte = {};
-            for (const [idProd, voce] of Object.entries(voci)) {
-                if (voce && voce.sku) {
-                    scelte[idProd] = voce.sku.id;
-                }
-            }
-
-            const payload = {
-                nome: 'Copia di ' + configurazione.nome,
-                codiceRadice: albero.codice,
-                scelte: scelte
-            };
-
-            const cloneRes = await api.fetchJson('api/cliente/configurazioni', {
-                method: 'POST',
-                body: JSON.stringify(payload)
+            const cloneRes = await api.fetchJson(`api/cliente/configurazioni/${id}/clona`, {
+                method: 'POST'
             });
 
             this.mostraMessaggio('Configurazione clonata con successo!', 'success');

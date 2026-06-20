@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import it.polimi.tiw.dao.ConfigurazioneDAO;
 import it.polimi.tiw.dao.ProdottoDAO;
+import it.polimi.tiw.dao.SKUDAO;
 import it.polimi.tiw.dto.DettaglioDTO;
 import it.polimi.tiw.dto.UtenteSessionDTO;
 import it.polimi.tiw.dto.VoceConfigurazioneDTO;
@@ -187,6 +188,13 @@ public class ApiConfigurazioneController extends HttpServlet {
         }
 
         String username = getUsername(request);
+
+        // POST /configurazioni/{id}/clona → clonazione server-side dell'originale
+        Integer idDaClonare = parseCloneId(request.getPathInfo());
+        if (idDaClonare != null) {
+            gestisciClonazione(idDaClonare, username, response);
+            return;
+        }
 
         JsonNode body;
         try {
@@ -468,6 +476,89 @@ public class ApiConfigurazioneController extends HttpServlet {
         return null;
     }
 
+    /**
+     * Clona una configurazione esistente copiando direttamente l'originale, senza
+     * rivalidare che il prodotto radice sia ancora una radice (stessa permissività
+     * della versione SSR). Legge le scelte SKU salvate, ricongela i prezzi correnti
+     * del catalogo e inserisce la copia "Copia di..." in un'unica transazione.
+     *
+     * @param idConfig l'id della configurazione da clonare
+     * @param username lo username del cliente loggato (proprietario)
+     * @param response la risposta HTTP; 201 con l'id della copia in caso di successo
+     * @throws IOException se la scrittura della risposta fallisce
+     */
+    private void gestisciClonazione(int idConfig, String username, HttpServletResponse response)
+            throws IOException {
+        try {
+            connection.setAutoCommit(false);
+            try {
+                ConfigurazioneDAO cDao = new ConfigurazioneDAO(connection);
+                SKUDAO sDao = new SKUDAO(connection);
+
+                // 1. Verifica che l'originale esista e appartenga all'utente
+                Configurazione originale = cDao.getConfigurazioneById(idConfig, username);
+                if (originale == null) {
+                    connection.rollback();
+                    sendError(response, HttpServletResponse.SC_NOT_FOUND, "Configurazione non trovata");
+                    return;
+                }
+
+                // 2. Recupera le scelte SKU salvate nella configurazione originale
+                Map<Integer, Integer> scelteOriginali = cDao.getScelteDettaglio(idConfig);
+                if (scelteOriginali.isEmpty()) {
+                    connection.rollback();
+                    sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                            "Configurazione originale senza dettagli");
+                    return;
+                }
+
+                // 3. Congela i prezzi correnti del catalogo nella copia
+                List<DettaglioDTO> nuoviDettagli = new ArrayList<>();
+                BigDecimal nuovoPrezzoTotale = BigDecimal.ZERO;
+
+                for (Map.Entry<Integer, Integer> entry : scelteOriginali.entrySet()) {
+                    int idProdotto = entry.getKey();
+                    int idSku = entry.getValue();
+
+                    BigDecimal prezzoCorrente = sDao.getPrezzoReale(idSku);
+                    if (prezzoCorrente == null) {
+                        connection.rollback();
+                        sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                                "Una delle SKU non è più disponibile nel catalogo");
+                        return;
+                    }
+
+                    nuoviDettagli.add(new DettaglioDTO(idProdotto, idSku, prezzoCorrente));
+                    nuovoPrezzoTotale = nuovoPrezzoTotale.add(prezzoCorrente);
+                }
+
+                // 4. Inserisce la nuova testata, riusando la radice dell'originale
+                Configurazione copia = new Configurazione();
+                copia.setClienteUsername(username);
+                copia.setProdottoRadiceId(originale.getProdottoRadiceId());
+                copia.setNome("Copia di " + originale.getNome());
+                copia.setPrezzoTotale(nuovoPrezzoTotale);
+
+                int nuovoId = cDao.inserisciTestata(copia);
+
+                // 5. Inserisce i nuovi dettagli in batch
+                cDao.inserisciDettagliBatch(nuovoId, nuoviDettagli);
+
+                connection.commit();
+                response.setStatus(HttpServletResponse.SC_CREATED);
+                MAPPER.writeValue(response.getOutputStream(), Map.of("id", nuovoId));
+
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Errore durante la clonazione");
+        }
+    }
+
     private String getUsername(HttpServletRequest request) {
         UtenteSessionDTO utente = (UtenteSessionDTO) request.getSession(false)
                 .getAttribute(UtenteSessionDTO.SESSION_KEY);
@@ -479,6 +570,20 @@ public class ApiConfigurazioneController extends HttpServlet {
         if (pathInfo == null || pathInfo.equals("/")) return null;
         try {
             return Integer.parseInt(pathInfo, 1, pathInfo.length(), 10);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Estrae l'id da un pathInfo nella forma "/{id}/clona"; restituisce null se il
+     * percorso non corrisponde alla rotta di clonazione.
+     */
+    private Integer parseCloneId(String pathInfo) {
+        if (pathInfo == null || !pathInfo.endsWith("/clona")) return null;
+        String idPart = pathInfo.substring(1, pathInfo.length() - "/clona".length());
+        try {
+            return Integer.parseInt(idPart);
         } catch (NumberFormatException e) {
             return null;
         }
