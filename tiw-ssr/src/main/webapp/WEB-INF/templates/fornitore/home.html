@@ -83,14 +83,14 @@
 
                     <div class="form-group" style="margin-top: 1rem;">
                         <label style="margin-bottom: 0.5rem; display: block; font-weight: 600;">SKU disponibili (seleziona almeno una)</label>
-                        <div th:if="${tutteLeSku == null or tutteLeSku.isEmpty()}" class="empty-state" style="padding: 1rem;">
-                            <em>Nessuna SKU disponibile. Creane una prima.</em>
+                        <div th:if="${tutteLeSku == null or tutteLeSku.isEmpty()}" class="checkbox-list">
+                            <div class="empty-state" style="padding: 1rem;"><em>Nessuna SKU disponibile. Creane una prima.</em></div>
                         </div>
-                        <div th:unless="${tutteLeSku == null or tutteLeSku.isEmpty()}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #fafbfc; padding: 1rem; border: 1px solid var(--card-border); border-radius: var(--radius-sm);">
-                            <label th:each="sku : ${tutteLeSku}" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; background: #fff; border: 1px solid var(--card-border); border-radius: 4px;">
-                                <input type="checkbox" name="idSkuSelezionate" th:value="${sku.id}" th:checked="${idSkuSelezionati != null and idSkuSelezionati.contains(sku.id)}">
-                                <span th:text="'[' + ${sku.codice} + '] ' + ${sku.nome} + ' - ' + ${sku.prezzo} + ' €'" style="font-size: 0.85rem;"></span>
-                            </label>
+                        <div th:unless="${tutteLeSku == null or tutteLeSku.isEmpty()}" class="checkbox-list">
+                            <div th:each="sku : ${tutteLeSku}" class="checkbox-item">
+                                <input type="checkbox" th:id="'chk_sku_' + ${sku.id}" name="idSkuSelezionate" th:value="${sku.id}" th:checked="${idSkuSelezionati != null and idSkuSelezionati.contains(sku.id)}">
+                                <label th:for="'chk_sku_' + ${sku.id}" th:text="'[' + ${sku.codice} + '] ' + ${sku.nome} + ' - ' + ${sku.prezzo} + ' €'"></label>
+                            </div>
                         </div>
                     </div>
 
@@ -124,20 +124,18 @@
 
                     <div class="form-group" style="margin-top: 1rem;">
                         <label style="margin-bottom: 0.5rem; display: block; font-weight: 600;">Sottoprodotti disponibili (seleziona almeno uno)</label>
-                        <div th:if="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}" class="empty-state" style="padding: 1rem;">
-                            <em>Nessun sottoprodotto disponibile.</em>
+                        <div th:if="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}" class="checkbox-list">
+                            <div class="empty-state" style="padding: 1rem;"><em>Nessun sottoprodotto disponibile.</em></div>
                         </div>
-                        <div th:unless="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem; background: #fafbfc; padding: 1rem; border: 1px solid var(--card-border); border-radius: var(--radius-sm);">
-                            <label th:each="p : ${tuttiIProdotti}" style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; padding: 0.5rem; background: #fff; border: 1px solid var(--card-border); border-radius: 4px;">
-                                <input type="checkbox" name="idFigli" th:value="${p.id}" th:checked="${idFigliSelezionati != null and idFigliSelezionati.contains(p.id)}" style="margin-top: 0.2rem;">
-                                <div style="display: flex; flex-direction: column;">
-                                    <span style="font-weight: 600; font-size: 0.85rem;">
-                                        <span th:class="${p.tipo == 'SEMPLICE' ? 'badge badge-semplice' : 'badge badge-composto'}" th:text="${p.tipo}" style="margin-right: 0.3rem;"></span>
-                                        <span th:text="${p.nome}"></span>
-                                    </span>
-                                    <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;" th:text="'Min: €' + ${p.prezzoMin} + ' | Max: €' + ${p.prezzoMax}"></span>
-                                </div>
-                            </label>
+                        <div th:unless="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}" class="checkbox-list">
+                            <div th:each="p : ${tuttiIProdotti}" class="checkbox-item">
+                                <input type="checkbox" th:id="'chk_orf_' + ${p.id}" name="idFigli" th:value="${p.id}" th:checked="${idFigliSelezionati != null and idFigliSelezionati.contains(p.id)}">
+                                <label th:for="'chk_orf_' + ${p.id}">
+                                    <span th:class="${p.tipo == 'SEMPLICE' ? 'badge badge-semplice' : 'badge badge-composto'}" th:text="${p.tipo}" style="margin-right: 0.3rem;"></span>
+                                    <span th:text="${p.nome}"></span>
+                                    <span style="color: var(--text-secondary);" th:text="' — Min: €' + ${p.prezzoMin} + ' / Max: €' + ${p.prezzoMax}"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 

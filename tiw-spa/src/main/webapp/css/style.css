@@ -238,13 +238,6 @@
         border-radius: var(--radius-sm);
         padding: 0.5rem;
         background: #fafbfc;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5rem;
-    }
-
-    .checkbox-list .empty-state {
-        grid-column: 1 / -1;
     }
 
     .checkbox-item {
