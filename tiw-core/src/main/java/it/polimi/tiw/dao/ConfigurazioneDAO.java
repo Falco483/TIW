@@ -16,39 +16,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Data Access Object per la tabella {@code configurazione} e {@code configurazione_dettaglio}.
+ * DAO per le tabelle {@code configurazione} e {@code configurazione_dettaglio}.
  *
- * Gestisce tutte le operazioni CRUD sulle configurazioni del cliente:
- * inserimento, lettura, aggiornamento, eliminazione, clonazione e
- * recupero dei dettagli (scelte SKU) associati.
- *
- * Ogni metodo che modifica dati protegge la proprietà della risorsa
- * filtrando per {@code cliente_username} nella clausola WHERE.
+ * I metodi che modificano dati filtrano sempre per {@code cliente_username}
+ * nella WHERE, così un utente può operare solo sulle proprie configurazioni.
  */
 public class ConfigurazioneDAO {
     private final Connection connection;
 
-    /**
-     * Costruttore: riceve la connessione JDBC da usare per tutte le query.
-     * La connessione NON viene chiusa da questo DAO — la gestione del ciclo
-     * di vita è responsabilità del chiamante (Servlet).
-     *
-     * @param connection connessione JDBC attiva verso il database MySQL
-     */
     public ConfigurazioneDAO(Connection connection) {
         this.connection = connection;
     }
 
     /**
-     * Inserisce la testata (riga padre) di una nuova configurazione nella tabella {@code configurazione}.
+     * Inserisce la testata di una nuova configurazione. Le date sono gestite
+     * dai DEFAULT del DB. Restituisce l'ID auto-generato, che serve poi per
+     * collegare i dettagli.
      *
-     * Campi inseriti: cliente_username, prodotto_radice_id, nome, prezzo_totale.
-     * I campi data_creazione e data_modifica sono gestiti dal DEFAULT del DB (CURRENT_TIMESTAMP).
-     *
-     * Usa {@code Statement.RETURN_GENERATED_KEYS} per recuperare l'ID auto-generato
-     * dalla colonna AUTO_INCREMENT, necessario per collegare i dettagli (righe figlie).
-     *
-     * @param conf oggetto Configurazione con i dati da inserire
+     * @param conf dati della configurazione da inserire
      * @return l'ID auto-generato della nuova configurazione
      * @throws SQLException se l'inserimento fallisce o non viene generato un ID
      */
@@ -59,9 +44,9 @@ public class ConfigurazioneDAO {
             stmt.setInt(2, conf.getProdottoRadiceId());
             stmt.setString(3, conf.getNome());
             stmt.setBigDecimal(4, conf.getPrezzoTotale());
-            
+
             stmt.executeUpdate();
-            
+
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     return generatedKeys.getInt(1);
@@ -73,18 +58,14 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Inserisce in batch tutte le righe di dettaglio nella tabella {@code configurazione_dettaglio}.
+     * Inserisce in batch le righe di dettaglio di una configurazione.
      *
-     * Ogni riga rappresenta la scelta di una SKU per un prodotto semplice dell'albero.
-     * Il campo {@code prezzo_unitario_congelato} contiene il prezzo corrente della SKU
-     * al momento del salvataggio (Price Snapshotting), così il prezzo della configurazione
-     * non cambia se il catalogo viene aggiornato in seguito.
+     * Il campo {@code prezzo_unitario_congelato} salva il prezzo della SKU al
+     * momento del salvataggio, così il totale della configurazione non cambia
+     * se in seguito il catalogo viene aggiornato.
      *
-     * Usa JDBC batch ({@code addBatch/executeBatch}) per efficienza: una sola
-     * round-trip al DB invece di N INSERT separati.
-     *
-     * @param idConfig ID della configurazione padre (FK verso configurazione.id)
-     * @param dettagli lista di DTO contenenti id_prodotto, id_sku e prezzo congelato
+     * @param idConfig ID della configurazione padre
+     * @param dettagli righe da inserire (id_prodotto, id_sku, prezzo congelato)
      * @throws SQLException se l'inserimento batch fallisce
      */
     public void inserisciDettagliBatch(int idConfig, List<DettaglioDTO> dettagli) throws SQLException {
@@ -102,15 +83,11 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Elimina una configurazione solo se appartiene all'utente specificato.
-     *
-     * La clausola {@code WHERE id = ? AND cliente_username = ?} garantisce che
-     * un utente non possa cancellare le configurazioni altrui (sicurezza per proprietà).
-     * Grazie al {@code ON DELETE CASCADE} sulla FK di configurazione_dettaglio,
-     * i dettagli associati vengono eliminati automaticamente dal DB.
+     * Elimina una configurazione solo se appartiene all'utente indicato.
+     * I dettagli associati vengono rimossi dal DB grazie al ON DELETE CASCADE.
      *
      * @param idConfig ID della configurazione da eliminare
-     * @param username username del cliente loggato (verifica proprietà)
+     * @param username cliente loggato, per la verifica di proprietà
      * @throws SQLException se la query DELETE fallisce
      */
     public void eliminaConfigurazione(int idConfig, String username) throws SQLException {
@@ -123,24 +100,18 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Recupera la testata di una configurazione dato il suo ID e l'username proprietario.
-     *
-     * Usato in due contesti:
-     * - Clonazione: per leggere nome e prodotto_radice_id della configurazione originale.
-     * - Modifica (GET): per verificare che la configurazione appartenga all'utente loggato
-     *   prima di mostrare il form pre-compilato.
-     *
-     * Restituisce {@code null} se la configurazione non esiste oppure non appartiene
-     * all'utente specificato (doppia protezione: 404 + autorizzazione).
+     * Recupera la testata di una configurazione, dato il suo ID e l'username
+     * proprietario. Usata sia in clonazione sia nel GET di modifica, dove serve
+     * anche a verificare la proprietà prima di mostrare il form.
      *
      * @param idConfig ID della configurazione da recuperare
-     * @param username username del proprietario atteso
-     * @return l'oggetto Configurazione completo, oppure null se non trovata/non autorizzata
+     * @param username proprietario atteso
+     * @return la Configurazione, oppure null se non esiste o non appartiene all'utente
      * @throws SQLException se la query SELECT fallisce
      */
     public Configurazione getConfigurazioneById(int idConfig, String username) throws SQLException {
         String sql = "SELECT id, cliente_username, prodotto_radice_id, nome, data_creazione, data_modifica, prezzo_totale "
-                   + "FROM configurazione WHERE id = ? AND cliente_username = ?";
+                + "FROM configurazione WHERE id = ? AND cliente_username = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idConfig);
             stmt.setString(2, username);
@@ -162,16 +133,9 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Restituisce le scelte SKU salvate in una configurazione come mappa prodotto → SKU.
-     *
-     * Interroga la tabella {@code configurazione_dettaglio} e costruisce una
-     * {@code Map<Integer, Integer>} dove:
-     * - chiave = id_prodotto (il prodotto semplice dell'albero)
-     * - valore = id_sku (la variante scelta dal cliente per quel prodotto)
-     *
-     * Usata nel flusso di modifica: il template Thymeleaf usa questa mappa
-     * per impostare {@code th:selected} sulle option della select, così l'utente
-     * vede le scelte precedenti già selezionate quando apre il form.
+     * Restituisce le scelte salvate in una configurazione come mappa
+     * id_prodotto → id_sku. Usata nel form di modifica per pre-selezionare le
+     * SKU scelte in precedenza.
      *
      * @param idConfig ID della configurazione di cui recuperare i dettagli
      * @return mappa id_prodotto → id_sku con le scelte salvate
@@ -192,17 +156,11 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Aggiorna la testata di una configurazione esistente (nome e prezzo totale).
+     * Aggiorna nome e prezzo totale di una configurazione esistente, solo se
+     * appartiene all'utente. Il campo {@code data_modifica} è aggiornato dal DB
+     * (ON UPDATE CURRENT_TIMESTAMP).
      *
-     * Esegue un UPDATE sulla tabella {@code configurazione} modificando solo
-     * {@code nome} e {@code prezzo_totale}. Il campo {@code data_modifica} si
-     * aggiorna automaticamente grazie alla clausola {@code ON UPDATE CURRENT_TIMESTAMP}
-     * definita nello schema SQL, quindi non serve settarlo esplicitamente.
-     *
-     * La clausola {@code WHERE id = ? AND cliente_username = ?} impedisce che
-     * un utente modifichi configurazioni altrui.
-     *
-     * @param conf oggetto Configurazione con id, clienteUsername, nome e prezzoTotale aggiornati
+     * @param conf configurazione con id, clienteUsername, nome e prezzoTotale aggiornati
      * @throws SQLException se la query UPDATE fallisce
      */
     public void updateTestata(Configurazione conf) throws SQLException {
@@ -217,15 +175,10 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Elimina tutti i dettagli (righe figlie) di una configurazione.
-     *
-     * Usato nel flusso di modifica con pattern "delete + re-insert":
-     * 1. Si cancellano TUTTI i vecchi dettagli con questo metodo
-     * 2. Si reinseriscono i nuovi dettagli con {@link #inserisciDettagliBatch}
-     *
-     * Questo approccio è più semplice e sicuro rispetto a un UPDATE selettivo
-     * riga per riga, ed è comunque atomico perché avviene dentro una transazione
-     * con {@code setAutoCommit(false)}.
+     * Elimina tutti i dettagli di una configurazione. Usato nella modifica con
+     * pattern "delete + re-insert": si cancellano i vecchi dettagli e si
+     * reinseriscono con {@link #inserisciDettagliBatch}, il tutto dentro la
+     * stessa transazione.
      *
      * @param idConfig ID della configurazione di cui eliminare i dettagli
      * @throws SQLException se la query DELETE fallisce
@@ -239,27 +192,21 @@ public class ConfigurazioneDAO {
     }
 
     /**
-     * Restituisce tutte le configurazioni salvate da un utente, ordinate per data
-     * di modifica decrescente (le più recenti prima).
+     * Recupera le voci di dettaglio di una configurazione (prodotti semplici e
+     * relative SKU associate),
+     * includendo il prezzo della SKU "congelato" al momento del salvataggio.
      *
-     * Esegue un JOIN con la tabella {@code prodotto} per recuperare anche il nome
-     * e il codice del prodotto radice, necessari per visualizzare la lista e
-     * costruire i link di modifica (che richiedono il codice prodotto come parametro).
-     *
-     * I campi {@code nomeProdottoRadice} e {@code codiceProdottoRadice} sono campi
-     * transienti del model Configurazione (non mappati su colonne proprie della tabella
-     * configurazione, ma popolati dal risultato del JOIN).
-     *
-     * @param username username del cliente di cui recuperare le configurazioni
-     * @return lista di Configurazione ordinate per data_modifica DESC, vuota se nessuna trovata
-     * @throws SQLException se la query SELECT fallisce
+     * @param idConfig ID della configurazione di cui recuperare i dettagli.
+     * @return Mappa che associa l'ID del Prodotto Semplice a un oggetto DTO
+     *         contenente la SKU e il prezzo congelato.
+     * @throws SQLException se la query fallisce.
      */
     public Map<Integer, VoceConfigurazioneDTO> getVociDettaglio(int idConfig) throws SQLException {
         String sql = "SELECT cd.id_prodotto, cd.prezzo_unitario_congelato, "
-                   + "s.id, s.codice, s.nome, s.fotografia, s.descrizione_tecnica, s.prezzo "
-                   + "FROM configurazione_dettaglio cd "
-                   + "JOIN sku s ON cd.id_sku = s.id "
-                   + "WHERE cd.id_configurazione = ?";
+                + "s.id, s.codice, s.nome, s.fotografia, s.descrizione_tecnica, s.prezzo "
+                + "FROM configurazione_dettaglio cd "
+                + "JOIN sku s ON cd.id_sku = s.id "
+                + "WHERE cd.id_configurazione = ?";
         Map<Integer, VoceConfigurazioneDTO> mappa = new HashMap<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idConfig);
@@ -273,20 +220,30 @@ public class ConfigurazioneDAO {
                     sku.setDescrizioneTecnica(rs.getString("descrizione_tecnica"));
                     sku.setPrezzo(rs.getBigDecimal("prezzo"));
                     mappa.put(rs.getInt("id_prodotto"),
-                              new VoceConfigurazioneDTO(sku, rs.getBigDecimal("prezzo_unitario_congelato")));
+                            new VoceConfigurazioneDTO(sku, rs.getBigDecimal("prezzo_unitario_congelato")));
                 }
             }
         }
         return mappa;
     }
 
+    /**
+     * Restituisce le configurazioni di un utente, dalla più recente alla meno
+     * recente. Fa un JOIN con {@code prodotto} per riempire i campi transienti
+     * nomeProdottoRadice e codiceProdottoRadice, usati nella lista e nei link di
+     * modifica.
+     *
+     * @param username cliente di cui recuperare le configurazioni
+     * @return lista ordinata per data_modifica DESC, vuota se nessuna trovata
+     * @throws SQLException se la query SELECT fallisce
+     */
     public List<Configurazione> getConfigurazioniByUtente(String username) throws SQLException {
         String sql = "SELECT c.id, c.cliente_username, c.prodotto_radice_id, c.nome, "
-                   + "c.data_creazione, c.data_modifica, c.prezzo_totale, p.nome AS nome_prodotto, p.codice AS codice_prodotto "
-                   + "FROM configurazione c "
-                   + "JOIN prodotto p ON c.prodotto_radice_id = p.id "
-                   + "WHERE c.cliente_username = ? "
-                   + "ORDER BY c.data_modifica DESC";
+                + "c.data_creazione, c.data_modifica, c.prezzo_totale, p.nome AS nome_prodotto, p.codice AS codice_prodotto "
+                + "FROM configurazione c "
+                + "JOIN prodotto p ON c.prodotto_radice_id = p.id "
+                + "WHERE c.cliente_username = ? "
+                + "ORDER BY c.data_modifica DESC";
         List<Configurazione> lista = new ArrayList<>();
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, username);
@@ -308,23 +265,22 @@ public class ConfigurazioneDAO {
         }
         return lista;
     }
+
     /**
-     * Elimina automaticamente tutte le configurazioni dei clienti che contengono
-     * il componente (SKU o Prodotto) specificato.
-     * 
-     * Questa pulizia è necessaria prima di eliminare un componente dal catalogo
-     * per evitare errori di integrità referenziale (RESTRICT) sulla tabella
-     * configurazione_dettaglio.
-     * 
+     * Elimina tutte le configurazioni che contengono un dato componente (SKU o
+     * prodotto). Va chiamata prima di rimuovere il componente dal catalogo, per
+     * non violare i vincoli RESTRICT su configurazione_dettaglio.
+     *
      * @param idComponente ID del componente da cercare nei dettagli
-     * @param tipo "SKU" oppure "PRODOTTO" (case insensitive)
+     * @param tipo         "SKU" oppure "PRODOTTO" (case insensitive)
      * @throws SQLException se la query DELETE fallisce
      */
     public void eliminaConfigurazioniPerComponente(int idComponente, String tipo) throws SQLException {
         String colonna = tipo.equalsIgnoreCase("SKU") ? "id_sku" : "id_prodotto";
-        
-        // Eliminiamo la testata. Il database eliminerà a cascata i dettagli (ON DELETE CASCADE).
-        String sql = "DELETE FROM configurazione WHERE id IN (SELECT id_configurazione FROM configurazione_dettaglio WHERE " + colonna + " = ?)";
+
+        // Cancellando la testata, i dettagli spariscono in cascata (ON DELETE CASCADE).
+        String sql = "DELETE FROM configurazione WHERE id IN (SELECT id_configurazione FROM configurazione_dettaglio WHERE "
+                + colonna + " = ?)";
 
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, idComponente);

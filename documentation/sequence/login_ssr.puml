@@ -1,0 +1,81 @@
+@startuml login_ssr
+title Evento: Login (SSR — Thymeleaf)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #81C784
+    BoxBackgroundColor #E8F5E9
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#A9DFBF>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "Browser\n(form login)" as Browser #FFFFFF
+
+box "Server Side"
+    participant "AccessControl\nFilter"   as ACF  #A9DFBF
+    participant "LoginServlet\n(SSR)"     as LS   #A9DFBF
+    participant "Thymeleaf\nEngine"       as TH   #A9DFBF
+    participant "UtenteDAO"               as DAO  #A9DFBF
+    database    "DB\n(tabella utente)"    as DB   #A9DFBF
+    participant "HttpSession"             as SES  #A9DFBF
+end box
+
+'==== SUBMIT CREDENZIALI ====
+note left of Browser : Click\nsubmit\nbutton
+
+Browser -> ACF : POST /login\n(username, password)
+activate ACF
+ACF  -> ACF  : PUBLIC_PATHS.contains("/login") → true
+ACF  ->  LS  : doPost(request, response)
+deactivate ACF
+activate LS
+
+LS   ->  LS  : username = getParameter("username")\npassword = getParameter("password")
+LS   -> DAO  : new UtenteDAO(connection)\n.checkCredentials(username, password)
+activate DAO
+DAO  ->  DB  : SELECT password_hash, nome, cognome, ruolo\nFROM utente WHERE username = ?
+activate DB
+DB  --> DAO  : ResultSet
+deactivate DB
+DAO  -> DAO  : BCrypt.checkpw(password, hash)
+DAO --> LS   : UtenteSessionDTO | null
+deactivate DAO
+
+alt [user == null]
+    LS   ->  TH  : mostraLogin(req, res,\n"Credenziali non valide.")
+    activate TH
+    TH   ->  TH  : ctx.setVariable("errore", msg)\nctx.setVariable("usernameInserito", ...)
+    TH  --> Browser : 200 OK — login.html\nth:text="${errore}" = "Credenziali non valide."
+    deactivate TH
+    note left of Browser : Show error msg\n"Credenziali\nnon valide."
+else [user != null]
+    LS   -> SES : setAttribute("utente", utente)
+    activate SES
+    LS   -> SES : setAttribute("csrfToken",\nUUID.randomUUID().toString())
+    SES --> LS
+    deactivate SES
+    LS  --> Browser : 302 redirect /fornitore/home
+    note left of Browser : [location =\n/fornitore/home]
+end
+deactivate LS
+
+@enduml

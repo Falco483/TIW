@@ -27,6 +27,11 @@ public class LoginServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private Connection connection = null;
 
+    /**
+     * Inizializza la servlet ricavando la connessione al database tramite ConnectionFactory.
+     *
+     * @throws ServletException se il caricamento del driver o la connessione fallisce.
+     */
     @Override
     public void init() throws ServletException {
         try {
@@ -36,6 +41,15 @@ public class LoginServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Gestisce la richiesta HTTP GET. Se invocata sul path "/logout" invalida la sessione dell'utente,
+     * dopodiché effettua un reindirizzamento alla pagina statica di login.html.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errori.
+     * @throws IOException in caso di errori di I/O.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -48,6 +62,17 @@ public class LoginServlet extends HttpServlet {
         response.sendRedirect(request.getContextPath() + "/login.html");
     }
 
+    /**
+     * Gestisce la richiesta HTTP POST per eseguire l'autenticazione.
+     * Legge le credenziali (username e password) inviate dal form di login, le verifica tramite il
+     * DAO e, in caso di successo, crea la sessione utente generando un token CSRF univoco.
+     * Infine, effettua il reindirizzamento verso la home specifica in base al ruolo dell'utente.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errori.
+     * @throws IOException in caso di errori di I/O.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -83,11 +108,13 @@ public class LoginServlet extends HttpServlet {
         if (utente.ruolo() == UserRole.FORNITORE) {
             response.sendRedirect(request.getContextPath() + "/home-fornitore");
         } else {
-            // Se è cliente, ma la SPA per cliente non esiste ancora in questo modulo
-            response.getWriter().write("SPA per Cliente non implementata.");
+            response.sendRedirect(request.getContextPath() + "/home-cliente");
         }
     }
 
+    /**
+     * Distrugge la servlet chiudendo la connessione al database.
+     */
     @Override
     public void destroy() {
         try {

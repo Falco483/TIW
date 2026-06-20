@@ -1,0 +1,64 @@
+﻿@startuml crea_sku_spa
+title Evento: Creazione SKU (SPA)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #90CAF9
+    BoxBackgroundColor #E3F2FD
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#AED6F1>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "home-fornitore.html\n+ app-fornitore.js" as JS #FFFFFF
+
+box "Server Side"
+    participant "ApiSkuController"     as API   #AED6F1
+    database    "DB\n(tabella sku)"    as DB    #AED6F1
+end box
+
+'==== SUBMIT FORM SKU ====
+note left of JS : Submit\nform-sku
+
+JS -> JS : handleSubmitSku(e)\ne.preventDefault()
+
+alt [campi vuoti o file mancante]
+    JS -> JS : mostraMessaggio(msg, "error")
+    note left of JS : Show error msg\n(nessuna chiamata server)
+else [dati validi]
+    JS -> JS : new FormData(form)\n+ header X-CSRF-Token
+    JS -> API : POST api/sku\nContent-Type
+    activate API
+    API -> API : getParameter("codice","nome","prezzo")\ngetPart("fotografia_file")\nvalidazione server
+    API -> API : salva file in /uploads/
+    API -> DB : INSERT INTO sku\n(codice, nome, fotografia,\ndescrizioneTecnica, prezzo)
+    activate DB
+    DB --> API : generated id (int)
+    deactivate DB
+    API --> JS : 201 Created\n{"data": {id, codice, nome,\nprezzo, fotografia, ...}}
+    deactivate API
+
+    JS -> JS : stato.skusDisponibili.push(res.data)\nrenderSkuCheckboxList()\nrenderSkuCreata(res.data)
+    note left of JS : Show success msg\n"SKU creata con successo"\n+ render scheda SKU
+end
+
+@enduml
+

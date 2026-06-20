@@ -14,7 +14,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
-// Mappare il filter a tutti gli URL dell'applicazione
+/**
+ * Filtro di controllo degli accessi: verifica che l'utente sia autenticato e
+ * lascia passare liberamente solo risorse statiche e path pubblici (login).
+ */
 public class AccessControlFilter implements Filter {
 
     private static final Set<String> PUBLIC_PATHS = Set.of("/login", "/api/login", "/login.html");
@@ -22,26 +25,30 @@ public class AccessControlFilter implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        // Eventuale inizializzazione (es. caricare whitelist URL pubblici)
     }
 
+    /**
+     * Se l'utente non è autenticato e richiede una risorsa privata, lo reindirizza
+     * al login (pagine) o risponde 401 Unauthorized (chiamate /api/).
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @param chain il filter chain.
+     */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response,
                          FilterChain chain)
             throws IOException, ServletException {
 
-        // Cast a HttpServlet* per accedere alla sessione
         HttpServletRequest  req  = (HttpServletRequest)  request;
         HttpServletResponse res  = (HttpServletResponse) response;
 
         HttpSession session = req.getSession(false);
 
-        // Verificare se l'utente è autenticato
         boolean isAuthenticated = (session != null
-                                  && session.getAttribute(UtenteSessionDTO.SESSION_KEY) 
+                                  && session.getAttribute(UtenteSessionDTO.SESSION_KEY)
                                   instanceof UtenteSessionDTO);
 
-        // Controllare se la richiesta è verso una risorsa pubblica
         String relativePath = req.getRequestURI().substring(req.getContextPath().length());
         boolean isPublic = PUBLIC_PATHS.contains(relativePath)
                         || relativePath.startsWith(STATIC_PREFIX)
@@ -61,6 +68,5 @@ public class AccessControlFilter implements Filter {
 
     @Override
     public void destroy() {
-        // Pulizia risorse
     }
 }

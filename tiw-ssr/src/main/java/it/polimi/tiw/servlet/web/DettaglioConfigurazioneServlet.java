@@ -26,6 +26,11 @@ import org.thymeleaf.templateresolver.WebApplicationTemplateResolver;
 import org.thymeleaf.web.IWebExchange;
 import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 
+/**
+ * Servlet che gestisce la visualizzazione in modalità di sola lettura del dettaglio
+ * di una configurazione salvata dal cliente.
+ * Mostra l'intero albero dei prodotti con le relative SKU scelte ed i prezzi storici "congelati".
+ */
 @WebServlet("/cliente/dettaglio")
 public class DettaglioConfigurazioneServlet extends HttpServlet {
 
@@ -34,6 +39,11 @@ public class DettaglioConfigurazioneServlet extends HttpServlet {
     private JakartaServletWebApplication webApp;
     private TemplateEngine templateEngine;
 
+    /**
+     * Inizializza la servlet ricavando la connessione al database e configurando Thymeleaf.
+     *
+     * @throws ServletException se l'inizializzazione fallisce.
+     */
     @Override
     public void init() throws ServletException {
         try {
@@ -51,6 +61,9 @@ public class DettaglioConfigurazioneServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Chiude la connessione al database.
+     */
     @Override
     public void destroy() {
         try {
@@ -59,6 +72,15 @@ public class DettaglioConfigurazioneServlet extends HttpServlet {
         } catch (SQLException e) {}
     }
 
+    /**
+     * Gestisce la richiesta HTTP GET. Recupera dal database la configurazione, l'albero
+     * del prodotto e le voci di dettaglio congelate per poi passarli a Thymeleaf.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errore.
+     * @throws IOException in caso di errore di I/O.
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {

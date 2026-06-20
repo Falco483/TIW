@@ -2,50 +2,74 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title th:text="'Dettaglio: ' + ${configurazione.nome}">Dettaglio Configurazione</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuratore TIW - Dettaglio (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <header>
-        <div th:replace="~{fragments/navbar :: navBar(@{/cliente/home})}"></div>
-    </header>
+<body style="flex-direction: column;">
+    <div th:replace="~{fragments/navbar :: navBar(@{/cliente/home})}"></div>
 
-    <h2 th:text="${configurazione.nome}">Nome configurazione</h2>
-    <p>
-        <strong>Prezzo totale:</strong>
-        <span th:text="${configurazione.prezzoTotale + ' €'}"></span>
-    </p>
+    <main class="content">
+        <section class="app-section active">
+            <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+                <a th:href="@{/cliente/configurazioni}" class="btn btn-ghost">
+                    <i class="fa-solid fa-arrow-left"></i> Le mie Configurazioni
+                </a>
+                <div>
+                    <h2 th:text="'Dettaglio: ' + ${configurazione.nome}">Dettaglio Configurazione</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                        <strong>Prezzo totale:</strong> <span th:text="${configurazione.prezzoTotale + ' €'}"></span>
+                    </p>
+                </div>
+            </div>
 
-    <h3>Componenti scelti</h3>
-    <ul>
-        <li th:replace="~{::albero(${radice})}"></li>
-    </ul>
-
-    <th:block th:fragment="albero(nodo)" th:if="${nodo != null}">
-        <span th:text="${nodo.nome}"></span>
-
-        <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
-            <th:block th:with="voce=${mappaVoci.get(nodo.id)}">
-                <ul th:if="${voce != null}">
-                    <li>
-                        <strong th:text="${voce.sku.nome}"></strong>
-                        <span th:if="${voce.sku.descrizioneTecnica != null and !voce.sku.descrizioneTecnica.isEmpty()}"
-                              th:text="' — ' + ${voce.sku.descrizioneTecnica}"></span>
-                        <span th:text="' — ' + ${voce.prezzoCongelato} + ' €'"></span>
-                        <br />
-                        <img th:if="${voce.sku.fotografia != null and !voce.sku.fotografia.isEmpty()}"
-                             th:src="${voce.sku.fotografia}" alt="foto SKU"
-                             style="max-height: 80px; margin: 4px 0;" />
-                    </li>
+            <div class="form-card" style="padding: 1.5rem;">
+                <ul class="node-children">
+                    <li th:replace="~{::albero(${radice}, true)}"></li>
                 </ul>
-            </th:block>
+            </div>
+        </section>
+    </main>
+
+    <th:block th:fragment="albero(nodo, isRadice)" th:if="${nodo != null}">
+        
+        <th:block th:if="${nodo.tipo == 'SEMPLICE'}">
+            <div class="config-node config-node-semplice">
+                <div class="config-node-header">
+                    <span class="badge badge-semplice">Semplice</span>
+                    <span class="node-label" th:text="${nodo.nome}"></span>
+                </div>
+                
+                <th:block th:with="voce=${mappaVoci.get(nodo.id)}">
+                    <div th:if="${voce != null}" class="sku-detail-card" style="margin-left: 1.5rem;">
+                        <img th:if="${voce.sku.fotografia != null and !voce.sku.fotografia.isEmpty()}"
+                             th:src="${#strings.startsWith(voce.sku.fotografia, 'uploads/') ? '/' + voce.sku.fotografia : (#strings.startsWith(voce.sku.fotografia, '/foto/') ? voce.sku.fotografia : '/uploads/' + voce.sku.fotografia)}" alt="Foto SKU"
+                             class="sku-foto">
+                        
+                        <div class="sku-info">
+                            <div class="sku-nome" th:text="${voce.sku.codice} + ' - ' + ${voce.sku.nome}">Nome SKU</div>
+                            <div class="sku-desc" th:text="${voce.sku.descrizioneTecnica}">Descrizione</div>
+                            <div class="sku-prezzo" th:text="${voce.prezzoCongelato + ' € (prezzo al momento della configurazione)'}">Prezzo</div>
+                        </div>
+                    </div>
+                </th:block>
+            </div>
         </th:block>
 
         <th:block th:if="${nodo.tipo == 'COMPOSTO'}">
-            <ul>
-                <li th:each="figlio : ${nodo.figli}">
-                    <th:block th:replace="~{::albero(${figlio})}"></th:block>
-                </li>
-            </ul>
+            <div th:class="${isRadice ? 'config-node-composto-root' : 'config-node config-node-composto'}">
+                <div class="config-node-header">
+                    <span class="badge badge-composto">Composto</span>
+                    <span class="node-label" style="flex:1;" th:text="${nodo.nome}"></span>
+                </div>
+                
+                <ul class="node-children" style="margin-top: 0.5rem;">
+                    <li th:each="figlio : ${nodo.figli}">
+                        <th:block th:replace="~{::albero(${figlio}, false)}"></th:block>
+                    </li>
+                </ul>
+            </div>
         </th:block>
     </th:block>
 

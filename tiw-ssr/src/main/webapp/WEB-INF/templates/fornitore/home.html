@@ -3,160 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Fornitore — Configuratore di Prodotto</title>
+    <title>Configuratore TIW - Fornitore (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-
-<header>
-    <div th:replace="~{fragments/navbar :: navBar(null)}"></div>
-    <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span></h1>
-    <div style="margin-top: 15px;">
-        <a th:href="@{/fornitore/cerca}" style="display: inline-block; padding: 8px 16px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Cerca nel Catalogo (SKU / Prodotti)</a>
-    </div>
-</header>
+<body style="flex-direction: column;">
+<div th:replace="~{fragments/navbar :: navBar(null)}"></div>
 
 <!-- Messaggi di feedback (successo / errore) -->
-<div th:if="${messaggioSuccesso}" th:text="${messaggioSuccesso}" style="color: green; padding: 10px; border: 1px solid green; margin-bottom: 20px; background-color: #d4edda;"></div>
-
-<div th:if="${erroreEliminazione}" th:text="${erroreEliminazione}" style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 20px; background-color: #f8d7da;"></div>
-
-<!-- Errori -->
-<div th:if="${errori}" role="alert">
-    <ul>
+<div th:if="${messaggioSuccesso}" th:text="${messaggioSuccesso}" style="color: green; padding: 10px; border: 1px solid green; background-color: #d4edda; margin: 1rem 2rem 0; border-radius: var(--radius-sm);"></div>
+<div th:if="${erroreEliminazione}" th:text="${erroreEliminazione}" style="color: red; padding: 10px; border: 1px solid red; background-color: #f8d7da; margin: 1rem 2rem 0; border-radius: var(--radius-sm);"></div>
+<div th:if="${errori}" role="alert" style="color: red; padding: 10px; border: 1px solid red; background-color: #f8d7da; margin: 1rem 2rem 0; border-radius: var(--radius-sm);">
+    <ul style="margin-left: 1rem;">
         <li th:each="errore : ${errori}" th:text="${errore}"></li>
     </ul>
 </div>
 
+<main class="content">
+    <section class="app-section active">
 
-<!-- ===== FORM 1: Crea SKU ===== -->
-<section>
-    <h2>Crea nuova SKU</h2>
-    <form method="post" action="home" novalidate enctype="multipart/form-data">
-        <input type="hidden" name="tipoForm" value="sku">
-        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+        <div class="forms-row">
+            
+            <!-- Crea SKU -->
+            <div class="form-card">
+                <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--card-border);">Crea nuova SKU</h3>
+                <form method="post" action="home" novalidate enctype="multipart/form-data">
+                    <input type="hidden" name="tipoForm" value="sku">
+                    <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
 
-        <div>
-            <label for="codiceSku">Codice (intero)</label>
-            <input type="number" id="codiceSku" name="codiceSku" required min="0"
-                   th:value="${valoriForm != null ? valoriForm['codiceSku'] : ''}">
-        </div>
-        <div>
-            <label for="nomeSku">Nome</label>
-            <input type="text" id="nomeSku" name="nomeSku" required
-                   th:value="${valoriForm != null ? valoriForm['nomeSku'] : ''}">
-        </div>
-        <div>
-            <label for="fotografiaSku">Fotografia</label>
-            <input type="file" id="fotografiaSku" name="fotografia" accept="image/*" required />
-        </div>
-        <div>
-            <label for="descrizioneTecnicaSku">Descrizione tecnica</label>
-            <textarea id="descrizioneTecnicaSku" name="descrizioneTecnicaSku" required
-                      th:text="${valoriForm != null ? valoriForm['descrizioneTecnicaSku'] : ''}"></textarea>
-        </div>
-        <div>
-            <label for="prezzoSku">Prezzo (€)</label>
-            <input type="number" id="prezzoSku" name="prezzoSku" required min="0" step="0.01"
-                   th:value="${valoriForm != null ? valoriForm['prezzoSku'] : ''}">
-        </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="codiceSku">Codice (intero)</label>
+                            <input type="number" id="codiceSku" name="codiceSku" required min="1000" max="9999" th:value="${valoriForm != null ? valoriForm['codiceSku'] : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label for="nomeSku">Nome SKU</label>
+                            <input type="text" id="nomeSku" name="nomeSku" required th:value="${valoriForm != null ? valoriForm['nomeSku'] : ''}">
+                        </div>
+                    </div>
 
-        <button type="submit">SALVA SKU</button>
-    </form>
-</section>
+                    <div class="form-group">
+                        <label for="fotografiaSku">Fotografia</label>
+                        <input type="file" id="fotografiaSku" name="fotografia" accept="image/*" required style="padding: 0.5rem; background: #fff; width: 100%; border: 1px dashed var(--accent);" />
+                    </div>
 
-<!-- ===== FORM 2: Crea Prodotto Semplice ===== -->
-<section>
-    <h2>Crea Prodotto Semplice</h2>
-    <form method="post" action="home" novalidate>
-        <input type="hidden" name="tipoForm" value="semplice">
-        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                    <div class="form-group">
+                        <label for="descrizioneTecnicaSku">Descrizione tecnica</label>
+                        <textarea id="descrizioneTecnicaSku" name="descrizioneTecnicaSku" required rows="3" th:text="${valoriForm != null ? valoriForm['descrizioneTecnicaSku'] : ''}"></textarea>
+                    </div>
 
-        <div>
-            <label for="codiceSemplice">Codice</label>
-            <input type="text" id="codiceSemplice" name="codiceSemplice" required
-                   th:value="${valoriForm != null ? valoriForm['codiceSemplice'] : ''}">
-        </div>
-        <div>
-            <label for="nomeSemplice">Nome</label>
-            <input type="text" id="nomeSemplice" name="nomeSemplice" required
-                   th:value="${valoriForm != null ? valoriForm['nomeSemplice'] : ''}">
-        </div>
+                    <div class="form-group" style="max-width: 200px;">
+                        <label for="prezzoSku">Prezzo (€)</label>
+                        <input type="number" id="prezzoSku" name="prezzoSku" required min="0" step="0.01" th:value="${valoriForm != null ? valoriForm['prezzoSku'] : ''}">
+                    </div>
 
-        <fieldset>
-            <legend>SKU disponibili (seleziona almeno una)</legend>
-            <div th:if="${tutteLeSku == null or tutteLeSku.isEmpty()}">
-                <em>Nessuna SKU disponibile. Creane una prima.</em>
+                    <div style="margin-top: 1.5rem;">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> SALVA SKU</button>
+                    </div>
+                </form>
             </div>
-            <div th:each="sku : ${tutteLeSku}">
-                <label>
-                    <input type="checkbox" name="idSkuSelezionate" th:value="${sku.id}">
-                    <span th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></span>
-                </label>
+
+            <!-- Crea Prodotto Semplice -->
+            <div class="form-card">
+                <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--card-border);">Crea Prodotto Semplice</h3>
+                <form method="post" action="home" novalidate>
+                    <input type="hidden" name="tipoForm" value="semplice">
+                    <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="codiceSemplice">Codice Prodotto</label>
+                            <input type="text" id="codiceSemplice" name="codiceSemplice" required th:value="${valoriForm != null ? valoriForm['codiceSemplice'] : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label for="nomeSemplice">Nome Prodotto</label>
+                            <input type="text" id="nomeSemplice" name="nomeSemplice" required th:value="${valoriForm != null ? valoriForm['nomeSemplice'] : ''}">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label style="margin-bottom: 0.5rem; display: block; font-weight: 600;">SKU disponibili (seleziona almeno una)</label>
+                        <div th:if="${tutteLeSku == null or tutteLeSku.isEmpty()}" class="empty-state" style="padding: 1rem;">
+                            <em>Nessuna SKU disponibile. Creane una prima.</em>
+                        </div>
+                        <div th:unless="${tutteLeSku == null or tutteLeSku.isEmpty()}" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #fafbfc; padding: 1rem; border: 1px solid var(--card-border); border-radius: var(--radius-sm);">
+                            <label th:each="sku : ${tutteLeSku}" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem; background: #fff; border: 1px solid var(--card-border); border-radius: 4px;">
+                                <input type="checkbox" name="idSkuSelezionate" th:value="${sku.id}">
+                                <span th:text="'[' + ${sku.codice} + '] ' + ${sku.nome} + ' - ' + ${sku.prezzo} + ' €'" style="font-size: 0.85rem;"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem;">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> SALVA PRODOTTO SEMPLICE</button>
+                    </div>
+                </form>
             </div>
-        </fieldset>
 
-        <button type="submit">SALVA PRODOTTO SEMPLICE</button>
-    </form>
-</section>
+            <!-- Crea Prodotto Composto -->
+            <div class="form-card">
+                <h3 style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--card-border);">Crea Prodotto Composto</h3>
+                <form method="post" action="home" novalidate>
+                    <input type="hidden" name="tipoForm" value="composto">
+                    <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
 
-<!-- ===== FORM 3: Crea Prodotto Composto ===== -->
-<section>
-    <h2>Crea Prodotto Composto</h2>
-    <form method="post" action="home" novalidate>
-        <input type="hidden" name="tipoForm" value="composto">
-        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label for="codiceComposto">Codice Prodotto</label>
+                            <input type="text" id="codiceComposto" name="codiceComposto" required th:value="${valoriForm != null ? valoriForm['codiceComposto'] : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label for="nomeComposto">Nome Prodotto</label>
+                            <input type="text" id="nomeComposto" name="nomeComposto" required th:value="${valoriForm != null ? valoriForm['nomeComposto'] : ''}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="descrizioneComposto">Descrizione</label>
+                        <textarea id="descrizioneComposto" name="descrizioneComposto" required rows="2" th:text="${valoriForm != null ? valoriForm['descrizioneComposto'] : ''}"></textarea>
+                    </div>
 
-        <div>
-            <label for="codiceComposto">Codice</label>
-            <input type="text" id="codiceComposto" name="codiceComposto" required
-                   th:value="${valoriForm != null ? valoriForm['codiceComposto'] : ''}">
-        </div>
-        <div>
-            <label for="nomeComposto">Nome</label>
-            <input type="text" id="nomeComposto" name="nomeComposto" required
-                   th:value="${valoriForm != null ? valoriForm['nomeComposto'] : ''}">
-        </div>
-        <div>
-            <label for="descrizioneComposto">Descrizione</label>
-            <textarea id="descrizioneComposto" name="descrizioneComposto" required
-                      th:text="${valoriForm != null ? valoriForm['descrizioneComposto'] : ''}"></textarea>
-        </div>
-        <fieldset>
-            <legend>Sottoprodotti disponibili (seleziona almeno uno)</legend>
-            <div th:if="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}">
-                <em>Nessun sottoprodotto disponibile.</em>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label style="margin-bottom: 0.5rem; display: block; font-weight: 600;">Sottoprodotti disponibili (seleziona almeno uno)</label>
+                        <div th:if="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}" class="empty-state" style="padding: 1rem;">
+                            <em>Nessun sottoprodotto disponibile.</em>
+                        </div>
+                        <div th:unless="${tuttiIProdotti == null or tuttiIProdotti.isEmpty()}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem; background: #fafbfc; padding: 1rem; border: 1px solid var(--card-border); border-radius: var(--radius-sm);">
+                            <label th:each="p : ${tuttiIProdotti}" style="display: flex; align-items: flex-start; gap: 0.5rem; cursor: pointer; padding: 0.5rem; background: #fff; border: 1px solid var(--card-border); border-radius: 4px;">
+                                <input type="checkbox" name="idFigli" th:value="${p.id}" th:checked="${idFigliSelezionati != null and idFigliSelezionati.contains(p.id)}" style="margin-top: 0.2rem;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 600; font-size: 0.85rem;">
+                                        <span th:class="${p.tipo == 'SEMPLICE' ? 'badge badge-semplice' : 'badge badge-composto'}" th:text="${p.tipo}" style="margin-right: 0.3rem;"></span>
+                                        <span th:text="${p.nome}"></span>
+                                    </span>
+                                    <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;" th:text="'Min: €' + ${p.prezzoMin} + ' | Max: €' + ${p.prezzoMax}"></span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Prezzi calcolati (visibili dopo il ricalcolo) -->
+                    <div th:if="${prezzoMinCalcolato != null}" style="background: var(--accent-light); padding: 1rem; border-radius: var(--radius-sm); margin: 1rem 0; border: 1px solid var(--accent);">
+                        <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Prezzo min calcolato (somma minimi figli): <strong style="color: var(--accent);" th:text="'€' + ${#numbers.formatDecimal(prezzoMinCalcolato, 1, 'COMMA', 2, 'POINT')}"></strong></p>
+                        <p style="margin: 0; font-size: 0.9rem;">Prezzo max calcolato (somma massimi figli): <strong style="color: var(--accent);" th:text="'€' + ${#numbers.formatDecimal(prezzoMaxCalcolato, 1, 'COMMA', 2, 'POINT')}"></strong></p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                        <div class="form-group">
+                            <label for="prezzoMinComposto">Prezzo minimo scelto (€)</label>
+                            <input type="number" id="prezzoMinComposto" name="prezzoMinComposto" required step="0.01" th:min="${prezzoMinCalcolato != null ? prezzoMinCalcolato : 0}" th:value="${valoriForm != null ? valoriForm['prezzoMinComposto'] : ''}">
+                        </div>
+                        <div class="form-group">
+                            <label for="prezzoMaxComposto">Prezzo massimo scelto (€)</label>
+                            <input type="number" id="prezzoMaxComposto" name="prezzoMaxComposto" required min="0" step="0.01" th:value="${valoriForm != null ? valoriForm['prezzoMaxComposto'] : ''}">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                        <button type="submit" name="azione" value="ricalcola" class="btn btn-ghost" style="border: 1px solid var(--card-border);"><i class="fa-solid fa-calculator"></i> Ricalcola prezzi base</button>
+                        <button type="submit" name="azione" value="salva" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> SALVA PRODOTTO COMPOSTO</button>
+                    </div>
+                </form>
             </div>
-            <div th:each="p : ${tuttiIProdotti}">
-                <label>
-                    <input type="checkbox" name="idFigli" th:value="${p.id}"
-                           th:checked="${idFigliSelezionati != null and idFigliSelezionati.contains(p.id)}">
-                    <span th:text="${p.nome} + ' [' + ${p.tipo} + '] — min: ' + ${p.prezzoMin} + ' €, max: ' + ${p.prezzoMax} + ' €'"></span>
-                </label>
+        </div>
+
+        <!-- RISULTATO (mostrato dopo la creazione) -->
+        <div th:if="${risultato != null}" style="margin-top: 2rem;">
+            <div class="content-header" style="margin-bottom: 1rem;">
+                <h2>Elemento salvato/visualizzato</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                    Dettagli dell'elemento appena creato.
+                </p>
             </div>
-        </fieldset>
-
-        <!-- Prezzi calcolati (visibili dopo il ricalcolo) -->
-        <div th:if="${prezzoMinCalcolato != null}">
-            <p>Prezzo min calcolato (somma minimi figli): <strong th:text="${#numbers.formatDecimal(prezzoMinCalcolato, 1, 'COMMA', 2, 'POINT')} + ' €'">0,00 €</strong></p>
-            <p>Prezzo max calcolato (somma massimi figli): <strong th:text="${#numbers.formatDecimal(prezzoMaxCalcolato, 1, 'COMMA', 2, 'POINT')} + ' €'">0,00 €</strong></p>
+            <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=true)}"></div>
         </div>
-
-        <div>
-            <label for="prezzoMinComposto">Prezzo minimo scelto (€)</label>
-            <input type="number" id="prezzoMinComposto" name="prezzoMinComposto" required step="0.01"
-                   th:min="${prezzoMinCalcolato != null ? prezzoMinCalcolato : 0}"
-                   th:value="${valoriForm != null ? valoriForm['prezzoMinComposto'] : ''}">
-        </div>
-        <div>
-            <label for="prezzoMaxComposto">Prezzo massimo scelto (€)</label>
-            <input type="number" id="prezzoMaxComposto" name="prezzoMaxComposto" required min="0" step="0.01"
-                   th:value="${valoriForm != null ? valoriForm['prezzoMaxComposto'] : ''}">
-        </div>
-
-        <button type="submit" name="azione" value="ricalcola">🔄 Ricalcola prezzi</button>
-        <button type="submit" name="azione" value="salva">💾 Salva prodotto composto</button>
-    </form>
-</section>
+    </section>
+</main>
 
 </body>
 </html>

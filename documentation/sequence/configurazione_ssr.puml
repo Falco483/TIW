@@ -1,0 +1,127 @@
+﻿@startuml configurazione_ssr
+title Evento: Creazione Nuova Configurazione (SSR — Thymeleaf)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #81C784
+    BoxBackgroundColor #E8F5E9
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#A9DFBF>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "Browser\n(cliente/configura)" as Browser #FFFFFF
+
+box "Server Side"
+    participant "ConfiguraServlet"                  as CFG  #A9DFBF
+    participant "SalvaConfigura\nzioneServlet"      as SALVA #A9DFBF
+    participant "ProdottoDAO\nSKUDAO\nConfigurDAO"  as DAO  #A9DFBF
+    database    "DB\n(configurazione,\nconfigurazione_dettaglio)" as DB #A9DFBF
+    participant "Thymeleaf\nEngine"                 as TH   #A9DFBF
+    participant "DettaglioConfigura\nzioneServlet"  as DET  #A9DFBF
+end box
+
+'==== PASSO 1: CARICAMENTO FORM ====
+note left of Browser : Click su prodotto\nnella Home Cliente
+
+Browser -> CFG : GET /cliente/configura?codice=<cod>
+activate CFG
+CFG -> DAO : pDao.getAlberoProdottoByCodice(codice)
+activate DAO
+DAO -> DB : SELECT albero prodotto (ricorsivo)
+DB --> DAO : Prodotto (albero completo)
+DAO --> CFG : Prodotto (albero completo)
+deactivate DAO
+CFG -> TH : ctx.setVariable("albero", albero)\nprocess("cliente/configura", ctx)
+activate TH
+TH --> Browser : 200 OK — configura.html\nalbero nodi con radio/select SKU\ne form con _csrf, codiceRadice
+deactivate TH
+deactivate CFG
+note left of Browser : Show form\nconfigurazione\n(select SKU per\nogni prodotto semplice)
+
+'==== PASSO 2: SALVATAGGIO ====
+note left of Browser : Scelta SKU\ne submit form
+
+Browser -> SALVA : POST /cliente/salva\n(codiceRadice, nomeConfigurazione,\nsku_<idProd>=<idSku>, ...,\n_csrf)
+activate SALVA
+
+SALVA -> SALVA : legge nomeConfigurazione,\ncodiceRadice, params sku_*
+
+alt [nome vuoto]
+    SALVA -> SALVA : ritornaAllaFormConErrore\n(msg, codiceRadice, apertoSet)
+    SALVA --> Browser : 302 redirect → /cliente/configura\n+ session("configura.errore")
+    note left of Browser : Show error msg\nnel form
+else [dati validi]
+    SALVA -> SALVA : conn.setAutoCommit(false)
+    SALVA -> DAO : pDao.getAlberoProdottoByCodice(codice)
+    activate DAO
+    DAO -> DB : SELECT albero prodotto
+    DB --> DAO : Prodotto radice
+    deactivate DAO
+
+    loop [per ogni param sku_<idProd>]
+        SALVA -> DAO : sDao.getPrezzoReale(idSku)\n(Price Snapshotting)
+        activate DAO
+        DAO -> DB : SELECT prezzo FROM sku WHERE id=?
+        DB --> DAO : prezzoReale (Decimal)
+        DAO --> SALVA : prezzoReale (Decimal)
+        deactivate DAO
+        SALVA -> SALVA : dettagli.add(new DettaglioDTO\n(idProdotto, idSku, prezzoReale))\nprezzoTotale += prezzoReale
+    end
+
+    SALVA -> SALVA : verifica actualSkuCount\n== expectedSkuCount\nverifica prezzoTotale\nin [prezzoMin, prezzoMax]
+
+    SALVA -> DAO : cDao.inserisciTestata(conf)\n{username, idProdottoRadice,\nnome, prezzoTotale}
+    activate DAO
+    DAO -> DB : INSERT INTO configurazione\n(cliente_username, id_prodotto_radice,\nnome, prezzo_totale)
+    DB --> DAO : idConfig (int)
+    DAO --> SALVA : idConfig (int)
+    deactivate DAO
+
+    SALVA -> DAO : cDao.inserisciDettagliBatch\n(idConfig, dettagli)
+    activate DAO
+    DAO -> DB : INSERT INTO configurazione_dettaglio\n(id_configurazione, id_prodotto_semplice,\nid_sku, prezzo_unitario_congelato)
+    DB --> DAO : ok
+    DAO --> SALVA : ok
+    deactivate DAO
+
+    SALVA -> SALVA : conn.commit()\nrimuove flash attrs sessione
+    SALVA --> Browser : 302 redirect\n→ /cliente/dettaglio?idConfig=<id>
+    deactivate SALVA
+    note left of Browser : [location =\n/cliente/dettaglio?idConfig=X]
+
+    Browser -> DET : GET /cliente/dettaglio?idConfig=<id>
+    activate DET
+    DET -> DAO : cDao.getConfigurazioneById(id, username)\npDao.getAlberoProdotto(idRadice)\ncDao.getVociDettaglio(id)
+    activate DAO
+    DAO -> DB : SELECT configurazione, albero, dettagli
+    DB --> DAO : Configurazione + Prodotto + VociDTO
+    deactivate DAO
+    DET -> TH : process("cliente/dettaglio", ctx)
+    activate TH
+    TH --> Browser : 200 OK — dettaglio.html\nalbero con SKU scelte\ne prezzi congelati
+    deactivate TH
+    deactivate DET
+    note left of Browser : Show dettaglio\nconfigura-\nzione salvata
+end
+
+@enduml
+

@@ -2,49 +2,56 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Home Cliente - Prodotti</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuratore TIW - Cliente (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <header>
-        <div th:replace="~{fragments/navbar :: navBar(null)}"></div>
-    </header>
-    <h1>Benvenuto, <span th:text="${session.utente.nome} + ' ' + ${session.utente.cognome}">Nome Cognome</span>!</h1>
-    
-    <div style="margin-bottom: 15px;">
-        <a th:href="@{/cliente/configurazioni}" style="display: inline-block; padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Le mie configurazioni</a>
-    </div>
+<body style="flex-direction: column;">
+    <div th:replace="~{fragments/navbar :: navBar(null)}"></div>
 
-    <h2>Prodotti Disponibili</h2>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Codice</th>
-                <th>Nome</th>
-                <th>Descrizione</th>
-                <th>Prezzo Min</th>
-                <th>Prezzo Max</th>
-                <th>Azione</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr th:each="prod : ${prodotti}">
-                <td th:text="${prod.codice}"></td>
-                <td th:text="${prod.nome}"></td>
-                <td th:text="${prod.descrizione}"></td>
-                <td th:text="${prod.prezzoMin != null ? prod.prezzoMin + ' €' : '-'}"></td>
-                <td th:text="${prod.prezzoMax != null ? prod.prezzoMax + ' €' : '-'}"></td>
-                <td>
-                    <a th:href="@{/cliente/configura(codice=${prod.codice})}">Seleziona</a>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+    <main class="content">
+        <section class="app-section active">
+            <div class="content-header">
+                <h2>Catalogo Prodotti</h2>
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;">
+                    Seleziona un prodotto per avviare una nuova configurazione.
+                </p>
+            </div>
+            
+            <div class="search-results">
+                <a th:each="prod : ${prodotti}" th:href="@{/cliente/configura(codice=${prod.codice})}" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="search-result-item" style="cursor: pointer; margin-bottom: 0.5rem;">
+                        <div class="config-row-header">
+                            <span class="badge badge-composto">Prodotto</span>
+                            <span class="result-name" style="font-weight:500; flex:1;" th:text="${prod.nome}">Nome</span>
+                            <span class="result-desc" style="color: var(--text-muted); font-size:0.8rem;" th:text="${prod.descrizione}">Descrizione</span>
+                            <span class="result-prezzo" style="color: var(--text-secondary); font-size:0.85rem; white-space:nowrap;">
+                                <span th:if="${prod.prezzoMin != null && prod.prezzoMax != null}" th:text="'€' + ${prod.prezzoMin} + ' - €' + ${prod.prezzoMax}"></span>
+                            </span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); margin-left:0.75rem;"></i>
+                    </div>
+                </a>
+                
+                <div th:if="${#lists.isEmpty(prodotti)}" class="empty-state">
+                    <i class="fa-solid fa-box-open empty-icon"></i>
+                    <p>Nessun prodotto disponibile nel catalogo.</p>
+                </div>
+            </div>
 
-    <div style="margin-top: 10px;">
-        <a th:if="${paginaCorrente > 1}" th:href="@{/cliente/home(pagina=${paginaCorrente - 1})}">Indietro</a>
-        <span>Pagina <span th:text="${paginaCorrente}"></span> di <span th:text="${totalePagine}"></span></span>
-        <a th:if="${paginaCorrente < totalePagine}" th:href="@{/cliente/home(pagina=${paginaCorrente + 1})}">Avanti</a>
-    </div>
-
+            <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem;">
+                <a th:if="${paginaCorrente > 1}" th:href="@{/cliente/home(pagina=${paginaCorrente - 1})}" class="btn btn-ghost">
+                    <i class="fa-solid fa-arrow-left"></i> Indietro
+                </a>
+                <span style="align-self: center; color: var(--text-secondary); font-size: 0.9rem;">
+                    Pagina <span th:text="${paginaCorrente}"></span> di <span th:text="${totalePagine}"></span>
+                </span>
+                <a th:if="${paginaCorrente < totalePagine}" th:href="@{/cliente/home(pagina=${paginaCorrente + 1})}" class="btn btn-ghost">
+                    Avanti <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </section>
+    </main>
 </body>
 </html>

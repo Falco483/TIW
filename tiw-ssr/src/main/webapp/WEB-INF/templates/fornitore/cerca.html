@@ -3,43 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ricerca Catalogo — Configuratore di Prodotto</title>
+    <title>Configuratore TIW - Cerca (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-
-<header>
-    <div th:replace="~{fragments/navbar :: navBar(@{/fornitore/home})}"></div>
-    <h1>Ricerca Catalogo</h1>
-</header>
-
-<section>
-    <form method="get" th:action="@{/fornitore/cerca}">
-        <label for="query">Cerca SKU o Prodotti:</label>
-        <input type="text" id="query" name="query" th:value="${query}" required>
-        <button type="submit">Cerca</button>
-    </form>
-</section>
-
-<section th:if="${risultati != null}">
-    <h2>Risultati della ricerca</h2>
-    <div th:if="${risultati.isEmpty()}">
-        <p>Nessun elemento trovato per la ricerca effettuata.</p>
-    </div>
-    <ul th:if="${!risultati.isEmpty()}">
-        <li th:each="elem : ${risultati}">
-            <a th:href="@{/fornitore/cerca(query=${query}, idDettaglio=${elem.id}, tipoDettaglio=${elem.tipo})}">
-                <strong th:text="${elem.codice} + ' - ' + ${elem.nome}"></strong> 
-                <span th:text="'(' + ${elem.tipo} + ')'"></span>
+<body style="flex-direction: column;">
+<div th:replace="~{fragments/navbar :: navBar(@{/fornitore/home})}"></div>
+<main class="content">
+    <section class="app-section active">
+        <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+            <a th:href="@{/fornitore/home}" class="btn btn-ghost">
+                <i class="fa-solid fa-arrow-left"></i> Home Fornitore
             </a>
-            <p style="margin: 0; font-size: 0.9em; color: #555;" th:text="${elem.descrizione}"></p>
-        </li>
-    </ul>
-</section>
+            <div>
+                <h2>Ricerca Catalogo</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                    Cerca SKU o Prodotti per codice o nome.
+                </p>
+            </div>
+        </div>
 
-<section th:if="${risultato != null}" style="margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px;">
-    <h2>Dettagli Elemento Selezionato</h2>
-    <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=false)}"></div>
-</section>
+        <div th:if="${query != null and #strings.isEmpty(query.trim())}" role="alert" style="color: red; padding: 10px; border: 1px solid red; background-color: #f8d7da; margin: 0 0 1rem 0; border-radius: var(--radius-sm);">
+            Inserisci un termine di ricerca prima di cercare.
+        </div>
+
+        <div class="form-card" style="max-width: 600px; margin: 0 auto 2rem auto;">
+            <form method="get" th:action="@{/fornitore/cerca}">
+                <div class="search-bar" style="margin-bottom: 0;">
+                    <input type="text" id="query" name="query"
+                           placeholder="Inserisci codice o nome..."
+                           th:value="${query}">
+                    <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.5rem;"><i class="fa-solid fa-magnifying-glass"></i> Cerca</button>
+                </div>
+            </form>
+        </div>
+
+        <div th:if="${risultati != null}">
+            <h3 style="margin-bottom: 1rem;">Risultati della ricerca</h3>
+            
+            <div th:if="${risultati.isEmpty()}" class="empty-state">
+                <i class="fa-solid fa-search empty-icon"></i>
+                <p>Nessun elemento trovato per la ricerca effettuata.</p>
+            </div>
+            
+            <div th:unless="${risultati.isEmpty()}" class="search-results">
+                <a th:each="elem : ${risultati}" th:href="@{/fornitore/cerca(query=${query}, idDettaglio=${elem.id}, tipoDettaglio=${elem.tipo})}" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="search-result-item" style="cursor: pointer; margin-bottom: 0.5rem;">
+                        <div class="config-row-header">
+                            <span th:class="${elem.tipo == 'SKU' ? 'badge badge-sku' : (elem.tipo == 'SEMPLICE' ? 'badge badge-semplice' : 'badge badge-composto')}" th:text="${elem.tipo}"></span>
+                            <span class="result-name" style="font-weight:500; flex:1;" th:text="${elem.codice} + ' - ' + ${elem.nome}"></span>
+                            <span class="result-desc" style="color: var(--text-muted); font-size:0.8rem;" th:text="${elem.descrizione}"></span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); margin-left:0.75rem;"></i>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div th:if="${risultato != null}" style="margin-top: 2rem; border-top: 1px solid var(--card-border); padding-top: 1.5rem;">
+            <h3 style="margin-bottom: 1rem;">Dettagli Elemento Selezionato</h3>
+            <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=false)}"></div>
+        </div>
+    </section>
+</main>
 
 </body>
 </html>

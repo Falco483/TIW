@@ -27,6 +27,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Controller API per la sincronizzazione in blocco dell'editor ad albero (SPA).
+ *
+ * Riceve un elenco ordinato di azioni (creazione/modifica/collegamento di nodi e
+ * SKU) e le applica in un'unica transazione: o vanno a buon fine tutte, o si fa
+ * rollback. Gli ID temporanei generati dal client ("temp_...") vengono risolti
+ * negli ID reali man mano che i nodi sono creati.
+ */
 @WebServlet("/api/sync")
 public class ApiSyncController extends HttpServlet {
 
@@ -125,11 +133,11 @@ public class ApiSyncController extends HttpServlet {
                         Object parentObj = actionObj.get("parentId");
                         if (parentObj != null) {
                             int realParentId = resolveId(parentObj, tempToRealIds);
-                            // Vincolo profondità: max 4 livelli
+                            // Vincolo profondità: massimo 3 livelli
                             int livelloPadre = prodDao.calcolaLivello(realParentId);
-                            if (livelloPadre + 1 > 4) {
+                            if (livelloPadre + 1 > 3) {
                                 throw new IllegalArgumentException(
-                                        "Impossibile aggiungere il nodo: profondità massima (4 livelli) superata");
+                                        "Impossibile aggiungere il nodo: profondità massima (3 livelli) superata");
                             }
                             prodDao.addFiglio(realParentId, newId);
                         }
@@ -148,12 +156,12 @@ public class ApiSyncController extends HttpServlet {
                     case "LINK_NODE" -> {
                         int parentId = resolveId(actionObj.get("parentId"), tempToRealIds);
                         int childId = resolveId(actionObj.get("childId"), tempToRealIds);
-                        // Vincolo profondità: livello padre + profondità sottoalbero figlio <= 4
+                        // Vincolo profondità: livello padre + profondità sottoalbero figlio <= 3
                         int livelloPadre = prodDao.calcolaLivello(parentId);
                         int profonditaFiglio = prodDao.calcolaProfondita(childId);
-                        if (livelloPadre + profonditaFiglio > 4) {
+                        if (livelloPadre + profonditaFiglio > 3) {
                             throw new IllegalArgumentException(
-                                    "Impossibile collegare il nodo: profondità massima (4 livelli) superata");
+                                    "Impossibile collegare il nodo: profondità massima (3 livelli) superata");
                         }
                         // Vincolo aciclicità
                         if (!prodDao.verificaAciclicita(parentId, childId)) {
@@ -174,6 +182,12 @@ public class ApiSyncController extends HttpServlet {
                         String tempId = (String) actionObj.get("tempId");
                         int codiceInt = Integer.parseInt(actionObj.get("codice").toString());
 
+                        // Vincolo: codice massimo 4 cifre
+                        if (codiceInt <= 0 || codiceInt > 9999) {
+                            throw new IllegalArgumentException(
+                                    "Il codice SKU deve essere un intero positivo di massimo 4 cifre (1-9999)");
+                        }
+
                         // Vincolo 9: verifica unicità codice SKU
                         if (skuDao.findByCodice(codiceInt) != null) {
                             throw new IllegalArgumentException(
@@ -189,7 +203,7 @@ public class ApiSyncController extends HttpServlet {
                         SKU savedSku = skuDao.insert(sku);
                         tempToRealSkuIds.put(tempId, savedSku.getId());
                         
-                        // Add to parent if specified
+                        // Associa al prodotto padre, se specificato
                         Object parentObj = actionObj.get("parentId");
                         if (parentObj != null) {
                             int realParentId = resolveId(parentObj, tempToRealIds);

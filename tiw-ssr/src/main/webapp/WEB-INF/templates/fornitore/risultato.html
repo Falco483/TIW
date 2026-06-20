@@ -3,138 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Risultato / Dettaglio — Configuratore di Prodotto</title>
+    <title>Configuratore TIW - Risultato / Dettaglio (SSR)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css(v=2)}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body style="flex-direction: column;">
+<div th:replace="~{fragments/navbar :: navBar(@{/fornitore/home})}"></div>
 
-<header>
-    <div th:replace="~{fragments/navbar :: navBar(@{/fornitore/home})}"></div>
-    <h1>Dettaglio Elemento</h1>
-</header>
-
-<section th:if="${risultato != null}">
-    <h2>Elemento creato/visualizzato con successo</h2>
-    <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=true)}"></div>
-</section>
+<main class="content" th:if="${risultato != null}">
+    <section class="app-section active">
+        <div class="content-header" style="display:flex; align-items:center; gap:1rem;">
+            <a th:href="@{/fornitore/home}" class="btn btn-ghost">
+                <i class="fa-solid fa-arrow-left"></i> Home Fornitore
+            </a>
+            <div>
+                <h2>Elemento salvato/visualizzato</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.2rem;">
+                    Dettagli dell'elemento.
+                </p>
+            </div>
+        </div>
+        <div th:replace="~{fornitore/risultato :: dettaglioOggetto(risultato=${risultato}, tipoRisultato=${tipoRisultato}, nascondiAzioni=true)}"></div>
+        
+    </section>
+</main>
 
 <div th:remove="all">
 <!-- FRAGMENT PRINCIPALE -->
 <div th:fragment="dettaglioOggetto(risultato, tipoRisultato, nascondiAzioni)" th:switch="${tipoRisultato}">
 
     <!-- SKU creata/cercata -->
-    <div th:case="'sku'">
-        <h3>SKU</h3>
-        <table>
-            <tr><th>Codice</th>      <td th:text="${risultato.codice}"></td></tr>
-            <tr><th>Nome</th>        <td th:text="${risultato.nome}"></td></tr>
-            <tr><th>Fotografia</th>
-                <td>
-                    <div th:if="${risultato.fotografia != null}">
-                        <img th:src="${risultato.fotografia}" alt="Foto SKU" style="max-width: 250px; height: auto;" />
-                    </div>
-                </td>
-            </tr>
-            <tr><th>Descrizione tecnica</th><td th:text="${risultato.descrizioneTecnica}"></td></tr>
-            <tr><th>Prezzo</th>      <td th:text="${risultato.prezzo} + ' €'"></td></tr>
-        </table>
-        <form method="post" th:action="@{/fornitore/azione}" style="margin-top: 15px;" th:if="${!nascondiAzioni}"
-              onsubmit="return confirm('Attenzione: l\'eliminazione cancellerà anche tutte le configurazioni dei clienti collegate. Procedere?');">
-            <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
-            <input type="hidden" name="azione" value="ELIMINA">
-            <input type="hidden" name="tipoOggetto" value="SKU">
-            <input type="hidden" name="idOggetto" th:value="${risultato.id}">
-            <button type="submit" style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;">ELIMINA SKU</button>
-        </form>
+    <div th:case="'sku'" class="result-card">
+        <div class="result-card-header">
+            <strong>SKU [<span th:text="${risultato.codice}"></span>] - <span th:text="${risultato.nome}"></span></strong>
+            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return showCustomConfirm(this, event, 'Attenzione: eliminare questa SKU?');" style="margin: 0;">
+                <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                <input type="hidden" name="azione" value="ELIMINA">
+                <input type="hidden" name="tipoOggetto" value="SKU">
+                <input type="hidden" name="idOggetto" th:value="${risultato.id}">
+                <button type="submit" class="btn btn-danger" title="Elimina SKU">Elimina</button>
+            </form>
+        </div>
+        <div style="display:flex; gap:1.5rem; align-items:flex-start;">
+            <div th:if="${risultato.fotografia != null and !risultato.fotografia.isEmpty()}" style="flex-shrink:0;">
+                <img th:src="${#strings.startsWith(risultato.fotografia, 'uploads/') ? '/' + risultato.fotografia : (#strings.startsWith(risultato.fotografia, '/foto/') ? risultato.fotografia : '/foto/' + risultato.fotografia)}" alt="Foto SKU" style="width:120px; height:120px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--card-border);" />
+            </div>
+            <div class="result-card-grid" style="flex:1;">
+                <div class="sku-field"><span class="field-label">Codice:</span> <span class="field-value" th:text="${risultato.codice}"></span></div>
+                <div class="sku-field"><span class="field-label">Nome:</span> <span class="field-value" th:text="${risultato.nome}"></span></div>
+                <div class="sku-field"><span class="field-label">Prezzo:</span> <span class="field-value" style="color:var(--accent); font-weight:600;" th:text="'€' + ${risultato.prezzo}"></span></div>
+                <div class="sku-field full-width"><span class="field-label">Descrizione:</span> <span class="field-value" th:text="${risultato.descrizioneTecnica}"></span></div>
+            </div>
+        </div>
     </div>
 
     <!-- Prodotto semplice creato/cercato -->
-    <div th:case="'semplice'">
-        <h3>Prodotto Semplice: <span th:text="${risultato.nome}"></span></h3>
-        <p>Codice: <span th:text="${risultato.codice}"></span></p>
+    <div th:case="'semplice'" class="result-card">
+        <div class="result-card-header">
+            <strong>Prodotto Semplice [<span th:text="${risultato.codice}"></span>] - <span th:text="${risultato.nome}"></span></strong>
+            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return showCustomConfirm(this, event, 'Attenzione: eliminare questo Prodotto?');" style="margin: 0;">
+                <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                <input type="hidden" name="azione" value="ELIMINA">
+                <input type="hidden" name="tipoOggetto" value="SEMPLICE">
+                <input type="hidden" name="idOggetto" th:value="${risultato.id}">
+                <button type="submit" class="btn btn-danger" title="Elimina Prodotto">Elimina</button>
+            </form>
+        </div>
+        <div class="result-card-grid" style="margin-bottom: 1.5rem;">
+            <div class="sku-field"><span class="field-label">Codice:</span> <span class="field-value" th:text="${risultato.codice}"></span></div>
+            <div class="sku-field"><span class="field-label">Nome:</span> <span class="field-value" th:text="${risultato.nome}"></span></div>
+        </div>
 
-        <form method="post" th:action="@{/fornitore/azione}" style="margin-bottom: 15px;" th:if="${!nascondiAzioni}"
-              onsubmit="return confirm('Attenzione: l\'eliminazione cancellerà anche tutte le configurazioni dei clienti collegate. Procedere?');">
-            <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
-            <input type="hidden" name="azione" value="ELIMINA">
-            <input type="hidden" name="tipoOggetto" value="SEMPLICE">
-            <input type="hidden" name="idOggetto" th:value="${risultato.id}">
-            <button type="submit" style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;">ELIMINA PRODOTTO</button>
-        </form>
-
-        <h4>SKU associate</h4>
-        <ul>
-            <li th:each="sku : ${risultato.skus}" style="margin-bottom: 5px;">
-                <span th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></span>
-                <form method="post" th:action="@{/fornitore/azione}" style="display: inline-block; margin-left: 10px;" th:if="${!nascondiAzioni}">
-                    <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
-                    <input type="hidden" name="azione" value="RIMUOVI">
-                    <input type="hidden" name="tipoOggetto" value="SKU">
-                    <input type="hidden" name="idOggetto" th:value="${sku.id}">
-                    <input type="hidden" name="idPadre" th:value="${risultato.id}">
-                    <button type="submit" style="background-color: #ff9800; color: white; border: none; padding: 2px 6px; cursor: pointer;" onclick="return confirm('Sicuro di voler SCOLLEGARE questa SKU dal prodotto?');">Rimuovi</button>
-                </form>
-            </li>
-        </ul>
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-secondary);">SKU Associate</h4>
+        <div th:if="${risultato.skus.isEmpty()}" class="empty-state" style="padding:1rem;">Nessuna SKU associata</div>
+        <div class="search-results">
+            <div th:each="sku : ${risultato.skus}" class="search-result-item search-item-row" style="margin-bottom: 0.25rem; padding: 0.5rem 0.75rem;">
+                <div class="config-row-header">
+                    <span class="badge badge-sku">SKU</span>
+                    <div class="config-info">
+                        <div class="sku-nome result-name" th:text="${sku.codice} + ' - ' + ${sku.nome}"></div>
+                    </div>
+                    <span class="sku-prezzo result-prezzo" th:text="'€' + ${sku.prezzo}"></span>
+                    <div class="config-actions" th:if="${!nascondiAzioni}">
+                        <form method="post" th:action="@{/fornitore/azione}">
+                            <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                            <input type="hidden" name="azione" value="RIMUOVI">
+                            <input type="hidden" name="tipoOggetto" value="SKU">
+                            <input type="hidden" name="idOggetto" th:value="${sku.id}">
+                            <input type="hidden" name="idPadre" th:value="${risultato.id}">
+                            <button type="submit" class="btn btn-ghost" style="color:var(--warning);" title="Scollega SKU" onclick="return showCustomConfirm(this, event, 'Scollegare questa SKU?');">
+                                Scollega SKU
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Prodotto composto creato/cercato -->
-    <div th:case="'composto'">
-        <h3>Prodotto Composto: <span th:text="${risultato.nome}"></span></h3>
-        <p>Codice: <span th:text="${risultato.codice}"></span></p>
-        <p>Descrizione: <span th:text="${risultato.descrizione}"></span></p>
-        <p>Fascia di prezzo: <span th:text="${risultato.prezzoMin}"></span> € — <span th:text="${risultato.prezzoMax}"></span> €</p>
+    <div th:case="'composto'" class="result-card">
+        <div class="result-card-header">
+            <strong>Prodotto Composto [<span th:text="${risultato.codice}"></span>] - <span th:text="${risultato.nome}"></span></strong>
+            <form th:if="${!nascondiAzioni}" method="post" th:action="@{/fornitore/azione}" onsubmit="return showCustomConfirm(this, event, 'Attenzione: eliminare questo Prodotto?');" style="margin: 0;">
+                <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                <input type="hidden" name="azione" value="ELIMINA">
+                <input type="hidden" name="tipoOggetto" value="COMPOSTO">
+                <input type="hidden" name="idOggetto" th:value="${risultato.id}">
+                <button type="submit" class="btn btn-danger" title="Elimina Prodotto">Elimina</button>
+            </form>
+        </div>
+        <div class="result-card-grid" style="margin-bottom: 1.5rem;">
+            <div class="sku-field"><span class="field-label">Codice:</span> <span class="field-value" th:text="${risultato.codice}"></span></div>
+            <div class="sku-field"><span class="field-label">Nome:</span> <span class="field-value" th:text="${risultato.nome}"></span></div>
+            <div class="sku-field"><span class="field-label">Fascia Prezzo:</span> <span class="field-value" th:text="'€' + ${risultato.prezzoMin} + ' - €' + ${risultato.prezzoMax}"></span></div>
+            <div class="sku-field full-width"><span class="field-label">Descrizione:</span> <span class="field-value" th:text="${risultato.descrizione}"></span></div>
+        </div>
 
-        <form method="post" th:action="@{/fornitore/azione}" style="margin-bottom: 15px;" th:if="${!nascondiAzioni}"
-              onsubmit="return confirm('Attenzione: l\'eliminazione cancellerà anche tutte le configurazioni dei clienti collegate. Procedere?');">
-            <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
-            <input type="hidden" name="azione" value="ELIMINA">
-            <input type="hidden" name="tipoOggetto" value="COMPOSTO">
-            <input type="hidden" name="idOggetto" th:value="${risultato.id}">
-            <button type="submit" style="background-color: red; color: white; border: none; padding: 5px 10px; cursor: pointer;">ELIMINA PRODOTTO</button>
-        </form>
-
-        <h4>Componenti</h4>
-        <ul>
-            <!-- Visualizzazione dell'albero con il tasto Rimuovi per i figli diretti -->
-            <th:block th:each="figlio : ${risultato.figli}">
-                <li style="margin-bottom: 5px;">
-                    <strong th:text="${figlio.nome}"></strong>
-                    <form method="post" th:action="@{/fornitore/azione}" style="display: inline-block; margin-left: 10px;" th:if="${!nascondiAzioni}">
-                        <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
-                        <input type="hidden" name="azione" value="RIMUOVI">
-                        <input type="hidden" name="tipoOggetto" th:value="${figlio.tipo}">
-                        <input type="hidden" name="idOggetto" th:value="${figlio.id}">
-                        <input type="hidden" name="idPadre" th:value="${risultato.id}">
-                        <button type="submit" style="background-color: #ff9800; color: white; border: none; padding: 2px 6px; cursor: pointer;" onclick="return confirm('Sicuro di voler SCOLLEGARE questo componente dal prodotto?');">Rimuovi</button>
-                    </form>
-                    
-                    <ul th:if="${figlio.tipo == 'SEMPLICE' and figlio.skus != null and !figlio.skus.isEmpty()}">
-                        <li th:each="sku : ${figlio.skus}" th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></li>
-                    </ul>
-                    <ul th:if="${figlio.tipo == 'COMPOSTO' and figlio.figli != null and !figlio.figli.isEmpty()}">
-                        <th:block th:each="subfiglio : ${figlio.figli}">
-                            <th:block th:replace="~{fornitore/risultato :: albero(${subfiglio})}"></th:block>
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Struttura Componenti</h4>
+        <div class="tree-root tree-zone visible" style="box-shadow:none; padding:1rem;">
+            <ul style="margin:0; border:none; padding:0;">
+                <li class="tree-node tree-composto">
+                    <div class="tree-header">
+                        <div>
+                            <span class="badge badge-composto">Composto</span>
+                            <strong th:text="'[' + ${risultato.codice} + '] ' + ${risultato.nome}"></strong>
+                        </div>
+                    </div>
+                    <ul class="node-children">
+                        <th:block th:each="figlio : ${risultato.figli}">
+                            <li th:class="'tree-node ' + (${figlio.tipo == 'SEMPLICE'} ? 'tree-semplice' : 'tree-composto')">
+                                <div class="tree-header">
+                                    <div style="flex:1;">
+                                        <span th:class="${figlio.tipo == 'SEMPLICE'} ? 'badge badge-semplice' : 'badge badge-composto'" th:text="${figlio.tipo}"></span>
+                                        <strong th:text="'[' + ${figlio.codice} + '] ' + ${figlio.nome}"></strong>
+                                    </div>
+                                    <div class="node-actions" th:if="${!nascondiAzioni}">
+                                        <form method="post" th:action="@{/fornitore/azione}" style="margin:0;">
+                                            <input type="hidden" name="_csrf" th:value="${session.csrfToken}">
+                                            <input type="hidden" name="azione" value="RIMUOVI">
+                                            <input type="hidden" name="tipoOggetto" th:value="${figlio.tipo}">
+                                            <input type="hidden" name="idOggetto" th:value="${figlio.id}">
+                                            <input type="hidden" name="idPadre" th:value="${risultato.id}">
+                                            <button type="submit" class="btn btn-ghost" style="color:var(--warning); width:auto; height:auto; padding:0.2rem 0.5rem;" title="Scollega Figlio" onclick="return showCustomConfirm(this, event, 'Scollegare questo componente?');">
+                                                Scollega
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <ul class="node-children" th:if="${figlio.tipo == 'SEMPLICE' and figlio.skus != null and !figlio.skus.isEmpty()}">
+                                    <li th:each="sku : ${figlio.skus}" class="tree-node" style="padding:0.2rem 0;">
+                                        <div class="node-row">
+                                            <span class="badge badge-sku">SKU</span>
+                                            <span class="node-name" th:text="'[' + ${sku.codice} + '] ' + ${sku.nome}"></span>
+                                            <span class="node-warning" th:text="'€' + ${sku.prezzo}" style="color:var(--accent);"></span>
+                                        </div>
+                                    </li>
+                                </ul>
+                                <ul class="node-children" th:if="${figlio.tipo == 'COMPOSTO' and figlio.figli != null and !figlio.figli.isEmpty()}">
+                                    <th:block th:each="subfiglio : ${figlio.figli}">
+                                        <th:block th:replace="~{fornitore/risultato :: albero(${subfiglio})}"></th:block>
+                                    </th:block>
+                                </ul>
+                            </li>
                         </th:block>
                     </ul>
                 </li>
-            </th:block>
-        </ul>
+            </ul>
+        </div>
     </div>
 </div>
 </div>
 
-<!-- Fragment ricorsivo per l'albero prodotto composto, per non duplicare il codice Rimuovi a profondità > 1 -->
+<!-- Fragment ricorsivo per l'albero prodotto composto -->
 <th:block th:fragment="albero(nodo)" th:if="${nodo != null}">
-    <li th:if="${nodo.tipo == 'SEMPLICE'}">
-        <strong th:text="${nodo.nome}"></strong>
-        <ul th:if="${nodo.skus != null and !nodo.skus.isEmpty()}">
-            <li th:each="sku : ${nodo.skus}"
-                th:text="${sku.codice} + ' — ' + ${sku.nome} + ' (' + ${sku.prezzo} + ' €)'"></li>
+    <li th:class="'tree-node ' + (${nodo.tipo == 'SEMPLICE'} ? 'tree-semplice' : 'tree-composto')">
+        <div class="tree-header">
+            <div>
+                <span th:class="${nodo.tipo == 'SEMPLICE'} ? 'badge badge-semplice' : 'badge badge-composto'" th:text="${nodo.tipo}"></span>
+                <strong th:text="'[' + ${nodo.codice} + '] ' + ${nodo.nome}"></strong>
+            </div>
+        </div>
+        <ul class="node-children" th:if="${nodo.tipo == 'SEMPLICE' and nodo.skus != null and !nodo.skus.isEmpty()}">
+            <li th:each="sku : ${nodo.skus}" class="tree-node" style="padding:0.2rem 0;">
+                <div class="node-row">
+                    <span class="badge badge-sku">SKU</span>
+                    <span class="node-name" th:text="'[' + ${sku.codice} + '] ' + ${sku.nome}"></span>
+                    <span class="node-warning" th:text="'€' + ${sku.prezzo}" style="color:var(--accent);"></span>
+                </div>
+            </li>
         </ul>
-    </li>
-    <li th:if="${nodo.tipo == 'COMPOSTO'}">
-        <strong th:text="${nodo.nome}"></strong>
-        <ul th:if="${nodo.figli != null and !nodo.figli.isEmpty()}">
+        <ul class="node-children" th:if="${nodo.tipo == 'COMPOSTO' and nodo.figli != null and !nodo.figli.isEmpty()}">
             <th:block th:each="figlio : ${nodo.figli}">
                 <th:block th:replace="~{fornitore/risultato :: albero(${figlio})}"></th:block>
             </th:block>

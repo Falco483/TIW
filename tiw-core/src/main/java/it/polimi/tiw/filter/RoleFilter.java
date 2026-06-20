@@ -13,12 +13,26 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
-// Registrato via web.xml su /*  (eseguito dopo AccessControlFilter)
+/**
+ * Filtro per il controllo dei ruoli utente (Autorizzazione).
+ * Verifica che l'utente loggato stia accedendo a percorsi consentiti al suo ruolo.
+ * Le risorse in "/fornitore/" e "/api/fornitore/" sono accessibili solo a FORNITORE.
+ * Le risorse in "/cliente/" e "/api/cliente/" sono accessibili solo a CLIENTE.
+ */
 public class RoleFilter implements Filter {
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {}
 
+    /**
+     * Esegue l'autorizzazione basata sul ruolo per la richiesta corrente.
+     * Confronta l'area di destinazione (Fornitore o Cliente) con il ruolo dell'utente
+     * presente in sessione e blocca l'accesso non autorizzato.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @param chain il filter chain.
+     */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response,
                          FilterChain chain)
@@ -64,6 +78,13 @@ public class RoleFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+    /**
+     * Rifiuta la richiesta inviando un errore 403 Forbidden.
+     * Restituisce un JSON di errore se la richiesta è per le API (/api/*), altrimenti reindirizza al login.
+     *
+     * @param req la servlet request.
+     * @param res la servlet response.
+     */
     private void reject(HttpServletRequest req, HttpServletResponse res) throws IOException {
         res.setStatus(HttpServletResponse.SC_FORBIDDEN);
 

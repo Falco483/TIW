@@ -1,0 +1,103 @@
+﻿@startuml configurazione_spa
+title Evento: Creazione Nuova Configurazione (SPA — Cliente)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #90CAF9
+    BoxBackgroundColor #E3F2FD
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#AED6F1>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "home-cliente.html\n+ app-cliente.js" as JS #FFFFFF
+
+box "Server Side"
+    participant "ApiConfigura\nzioneController"     as API  #AED6F1
+    participant "ProdottoDAO\nConfigurazioneDAO"    as DAO  #AED6F1
+    database    "DB\n(configurazione,\nconfigurazione_dettaglio)" as DB #AED6F1
+end box
+
+'==== PASSO 1: CARICAMENTO ALBERO ====
+note left of JS : Click su prodotto\nnel catalogo
+
+JS -> JS : apriConfigurazione(codice, nome)
+JS -> API : GET api/cliente/configurazioni\n?codice=<codice>
+activate API
+API -> DAO : ProdottoDAO.getAlberoProdottoByCodice(codice)
+activate DAO
+DAO -> DB : SELECT * FROM prodotto\nWHERE id_padre IS NULL AND codice = <codice>
+DB --> DAO : Prodotto
+DAO --> API : Prodotto
+deactivate DAO
+API --> JS : 200 OK\n{"data": alberoProdotto}
+deactivate API
+
+JS -> JS : stato.alberoCorrente = albero\nbuildNodoConfigura(albero)
+note left of JS : Show albero configurabile\n(select SKU per ogni nodo SEMPLICE
+
+'==== PASSO 2: SUBMIT CONFIGURAZIONE ====
+note left of JS : Click "Espandi" e\nscelta SKU per\nogni nodo semplice
+
+JS -> JS : Submit form-configura\nhandleSalvaConfigurazione(e)
+JS -> JS : Validazione client:\nnome non vuoto,\ntutti i nodi espansi,\nSKU selezionata per ogni nodo
+
+alt [nome vuoto o SKU non selezionate]
+    JS -> JS : show errorNome / errorGenerico
+    note left of JS : Show error msg\n(nessuna chiamata server)
+else [dati validi]
+    JS -> JS : payload = { nome, codiceRadice,\nscelte: {idProdotto: idSku, ...} }
+    JS -> API : POST api/cliente/configurazioni\nContent-Type: application/json\n{nome, codiceRadice, scelte}\nHeader: X-CSRF-Token
+    activate API
+
+    API -> DAO : pDao.getAlberoProdottoByCodice\n(codiceRadice)
+    activate DAO
+    DAO -> DB : SELECT albero prodotto
+    DB --> DAO : Prodotto (albero)
+    DAO --> API : Prodotto (albero)
+    deactivate DAO
+
+    API -> API : costruisciDettagli(albero, scelte, dettagli)\n— verifica che ogni nodo SEMPLICE\nabbia la SKU scelta nell'albero
+    API -> API : calcola prezzoTotale =\nsomma prezzi SKU scelte
+    API -> API : verificaFasciaPrezzo(albero, prezzoTotale)
+    API -> DAO : cDao.inserisciTestata(conf)\n{username, idProdottoRadice,\nnome, prezzoTotale}
+    activate DAO
+    DAO -> DB : INSERT INTO configurazione\n(cliente_username, id_prodotto_radice,\nnome, prezzo_totale)
+    DB --> DAO : idConfig (int)
+    DAO --> API : idConfig
+    deactivate DAO
+
+    API -> DAO : cDao.inserisciDettagliBatch\n(idConfig, dettagli)
+    activate DAO
+    DAO -> DB : INSERT INTO configurazione_dettaglio\n(id_configurazione, id_prodotto_semplice,\nid_sku, prezzo_unitario_congelato)
+    DB --> DAO : ok
+    DAO --> API : ok
+    deactivate DAO
+
+    API --> JS : 201 Created\n{"id": idConfig}
+    deactivate API
+
+    JS -> JS : mostraMessaggio\n("Configurazione salvata!", "success")\napriDettaglio(idConfig)
+    note left of JS : Show scheda\ndettaglio configurazione\ncon prezzo congelato
+end
+
+@enduml
+

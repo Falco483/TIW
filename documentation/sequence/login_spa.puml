@@ -1,0 +1,86 @@
+@startuml login_spa
+title Evento: Login (SPA)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #90CAF9
+    BoxBackgroundColor #E3F2FD
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#AED6F1>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "login.html" as HTML #FFFFFF
+
+box "Server Side"
+    participant "AccessControl\nFilter"    as ACF  #AED6F1
+    participant "LoginServlet\n(SPA)"      as LS   #AED6F1
+    participant "UtenteDAO"                as DAO  #AED6F1
+    database    "DB\n(tabella utente)"     as DB   #AED6F1
+    participant "HttpSession"              as SES  #AED6F1
+    participant "HomeFornitore\nServlet"   as HFS  #AED6F1
+end box
+
+'==== SUBMIT CREDENZIALI ====
+note left of HTML : Click\nsubmit\nbutton
+
+HTML -> ACF : POST /login\n(username, password)
+activate ACF
+ACF  -> ACF  : PUBLIC_PATHS.contains("/login") → true
+ACF  ->  LS  : doPost(request, response)
+deactivate ACF
+activate LS
+
+LS   ->  LS  : username = getParameter("username")\npassword = getParameter("password")
+LS   -> DAO  : new UtenteDAO(connection)\n.checkCredentials(username, password)
+activate DAO
+DAO  ->  DB  : SELECT password_hash, nome, cognome, ruolo\nFROM utente WHERE username = ?
+activate DB
+DB  --> DAO  : ResultSet
+deactivate DB
+DAO  -> DAO  : BCrypt.checkpw(password, hash)
+DAO --> LS   : UtenteSessionDTO | null
+deactivate DAO
+
+alt [user == null]
+    LS  --> HTML : 302 redirect /login.html?error=1
+    note left of HTML : Show error msg\n"Credenziali non valide\no errore di connessione."
+else [user != null]
+    LS   -> SES : setAttribute("utente", utente)
+    activate SES
+    LS   -> SES : setAttribute("csrfToken", UUID.randomUUID())
+    SES --> LS
+    deactivate SES
+    LS  --> HTML : 302 redirect /home-fornitore
+    note left of HTML : [location =\n/home-fornitore]
+    HTML ->  HFS : GET /home-fornitore
+    activate HFS
+    HFS ->  SES  : getAttribute("csrfToken")
+    activate SES
+    SES --> HFS  : csrfToken (String)
+    deactivate SES
+    HFS ->  HFS  : html.replace("${csrfToken}", csrfToken)
+    HFS --> HTML : 200 OK — home-fornitore.html\n(csrfToken iniettato nel DOM)
+    deactivate HFS
+end
+deactivate LS
+
+@enduml

@@ -83,8 +83,7 @@ public class ApiProdottoTreeController extends HttpServlet {
             throws IOException {
 
         // --- Fase 0: Configurazione encoding ---
-        // Forziamo UTF-8 su entrambi i canali per evitare che caratteri accentati
-        // (es. "Scheda Grafica Élite") vengano corrotti durante la serializzazione.
+        // UTF-8 su richiesta e risposta, così i caratteri accentati non si corrompono.
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -107,9 +106,9 @@ public class ApiProdottoTreeController extends HttpServlet {
         }
 
         // --- Fase 3: Validazione base lato server ---
-        if (prodottoInviato.getCodice() <= 0) {
+        if (prodottoInviato.getCodice() < 1000 || prodottoInviato.getCodice() > 9999) {
             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Il codice del prodotto deve essere un intero positivo");
+                    "Il codice del prodotto deve essere un numero di esattamente 4 cifre (1000-9999)");
             return;
         }
         if (prodottoInviato.getNome() == null || prodottoInviato.getNome().isBlank()) {
@@ -184,12 +183,12 @@ public class ApiProdottoTreeController extends HttpServlet {
 
                 if (pComposto.getFigli() != null) {
                     for (Prodotto figlio : pComposto.getFigli()) {
-                        // Vincolo profondità: il padre appena creato è al livello 1 (radice),
-                        // il figlio e il suo sotto-albero non devono superare il livello 4.
+                        // Vincolo profondità: il padre appena creato è la radice (livello 1);
+                        // il figlio con il suo sotto-albero non deve far superare i 3 livelli.
                         int profonditaFiglio = dao.calcolaProfondita(figlio.getId());
-                        if (1 + profonditaFiglio > 4) {
+                        if (1 + profonditaFiglio > 3) {
                             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                                    "Impossibile aggiungere il figlio: la profondità massima dell'albero (4 livelli) verrebbe superata");
+                                    "Impossibile aggiungere il figlio: la profondità massima dell'albero (3 livelli) verrebbe superata");
                             return;
                         }
                         // Vincolo aciclicità
@@ -247,6 +246,9 @@ public class ApiProdottoTreeController extends HttpServlet {
 
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+        response.setDateHeader("Expires", 0);
 
         try {
             ProdottoDAO dao = new ProdottoDAO(connection);
@@ -262,7 +264,13 @@ public class ApiProdottoTreeController extends HttpServlet {
                 MAPPER.writeValue(response.getOutputStream(), Map.of("data", albero));
             } else if ("true".equals(request.getParameter("orfani"))) {
                 List<Prodotto> orfani = dao.findAllOrfani();
-                MAPPER.writeValue(response.getOutputStream(), Map.of("data", orfani));
+                List<Prodotto> orfaniFiltrati = new java.util.ArrayList<>();
+                for (Prodotto o : orfani) {
+                    if (dao.calcolaProfondita(o.getId()) <= 2) {
+                        orfaniFiltrati.add(o);
+                    }
+                }
+                MAPPER.writeValue(response.getOutputStream(), Map.of("data", orfaniFiltrati));
             } else {
                 List<Prodotto> radici = dao.getProdottiRadice();
                 MAPPER.writeValue(response.getOutputStream(), Map.of("data", radici));
@@ -361,7 +369,14 @@ public class ApiProdottoTreeController extends HttpServlet {
                     MAPPER.writeValue(response.getOutputStream(), Map.of("success", true));
                 }
                 case "scollega" -> {
+                    // Prima scopri il padre prima di scollegare
+                    Prodotto figlio = dao.findById(id);
+                    Integer idPadre = (figlio != null) ? figlio.getIdPadre() : null;
                     dao.rimuoviFiglio(id);
+                    // Ricalcola i prezzi del padre composto
+                    if (idPadre != null) {
+                        dao.ricalcolaPrezziComposto(idPadre);
+                    }
                     MAPPER.writeValue(response.getOutputStream(), Map.of("success", true));
                 }
                 case "scollegaSku" -> {
@@ -373,6 +388,13 @@ public class ApiProdottoTreeController extends HttpServlet {
                     }
                     int idSku = Integer.parseInt(idSkuParam);
                     dao.rimuoviAssociazioneSku(id, idSku);
+                    // Ricalcola i prezzi del prodotto semplice padre dalle SKU rimanenti
+                    dao.calcolaPrezziDaSku(id);
+                    // Ricalcola anche l'eventuale nonno composto
+                    Prodotto padreSemplice = dao.findById(id);
+                    if (padreSemplice != null && padreSemplice.getIdPadre() != null) {
+                        dao.ricalcolaPrezziComposto(padreSemplice.getIdPadre());
+                    }
                     MAPPER.writeValue(response.getOutputStream(), Map.of("success", true));
                 }
                 default -> sendError(response, HttpServletResponse.SC_BAD_REQUEST,
@@ -387,9 +409,13 @@ public class ApiProdottoTreeController extends HttpServlet {
     }
 
     /**
-     * Helper per inviare risposte di errore in formato JSON strutturato.
-     * Usiamo sempre lo stesso formato {"success": false, "error": "..."} per
-     * permettere al frontend di gestire gli errori in modo uniforme.
+     * Invia una risposta di errore JSON nel formato {"success": false, "error": "..."},
+     * così che il frontend possa gestire gli errori in modo uniforme.
+     *
+     * @param response la risposta HTTP su cui scrivere
+     * @param status   il codice di stato HTTP da impostare
+     * @param messaggio la descrizione dell'errore
+     * @throws IOException se la scrittura della risposta fallisce
      */
     private void sendError(HttpServletResponse response, int status, String messaggio)
             throws IOException {

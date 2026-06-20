@@ -1,0 +1,78 @@
+﻿@startuml ricerca_spa
+title Evento: Ricerca Catalogo (SPA — Fornitore)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #90CAF9
+    BoxBackgroundColor #E3F2FD
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#AED6F1>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "home-fornitore.html\n+ app-fornitore.js" as JS #FFFFFF
+
+box "Server Side"
+    participant "ApiRicerca\nController"          as API  #AED6F1
+    participant "ProdottoDAO\n+ SKUDAO"           as DAO  #AED6F1
+    database    "DB\n(prodotto, sku)"             as DB   #AED6F1
+end box
+
+'==== SUBMIT FORM RICERCA ====
+note left of JS : Submit\nform-ricerca
+
+JS -> JS : handleSearch(e)\ne.preventDefault()
+
+alt [query vuota]
+    JS -> JS : mostraMessaggio(msg, "error")
+    note left of JS : Show error msg\n(nessuna chiamata server)
+else [query non vuota]
+    JS -> API : GET api/ricerca?q=<query>
+    activate API
+
+    API -> API : getParameter("q")
+    API -> DAO : new ProdottoDAO(conn).search(q)\nnew SKUDAO(conn).search(q)
+    activate DAO
+    DAO -> DB : SELECT id, codice, nome,\ndescrizioneТecnica, prezzo\nFROM prodotto WHERE nome LIKE '%q%'\nOR descrizione LIKE '%q%'
+    DB --> DAO : List<ElementoCatalogo> (Prodotti)
+    DAO -> DB : SELECT id, codice, nome,\ndescrizioneТecnica, prezzo\nFROM sku WHERE nome LIKE '%q%'\nOR descrizione_tecnica LIKE '%q%'
+    DB --> DAO : List<ElementoCatalogo> (SKU)
+    DAO --> API : List<ElementoCatalogo>
+    deactivate DAO
+
+    API --> JS : 200 OK\n{"data": [ElementoCatalogo, ...]}\n(tipo: SEMPLICE | COMPOSTO | SKU)
+    deactivate API
+
+    JS -> JS : forEach item → renderizza\ntpl-search-result\n(badge tipo, nome, codice)
+    note left of JS : Show lista risultati\nnel risultati-container
+
+    note left of JS : [click su un risultato]
+    JS -> JS : handleExpandSearchResult\n(resultItem, id, tipo)
+    JS -> API : GET api/sku (tipo=SKU)\no GET api/prodotto?id=X
+    activate API
+    API --> JS : 200 OK\n{SKU | albero Prodotto}
+    deactivate API
+    JS -> JS : renderSkuCreata(sku)\no renderProdottoCreato(prod)
+    note left of JS : Show scheda\ndettaglio elemento
+end
+
+@enduml
+

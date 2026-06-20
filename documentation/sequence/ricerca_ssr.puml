@@ -1,0 +1,89 @@
+﻿@startuml ricerca_ssr
+title Evento: Ricerca Catalogo (SSR — Thymeleaf)
+
+skinparam titleFontSize 28
+skinparam titleFontStyle plain
+
+skinparam sequence {
+    LifeLineBorderColor #888888
+    LifeLineBackgroundColor #FAFAFA
+    ArrowColor #222222
+    BoxBorderColor #81C784
+    BoxBackgroundColor #E8F5E9
+}
+skinparam participant {
+    BorderColor #555555
+    FontSize 12
+}
+skinparam note {
+    BackgroundColor #FFFDE7
+    BorderColor #CCCCCC
+    FontSize 11
+}
+
+legend top left
+|= Colore |= Lato |
+|<#FFFFFF>   | Client side |
+|<#A9DFBF>   | Server side |
+endlegend
+
+'---- ATTORI ----
+participant "Browser\n(fornitore/cerca)" as Browser #FFFFFF
+
+box "Server Side"
+    participant "CercaCatalogo\nServlet"            as SERVLET #A9DFBF
+    participant "ProdottoDAO\n+ SKUDAO"             as DAO     #A9DFBF
+    database    "DB\n(prodotto, sku)"               as DB      #A9DFBF
+    participant "Thymeleaf\nEngine"                 as TH      #A9DFBF
+end box
+
+'==== RICERCA ====
+note left of Browser : Submit form\n?query=<testo>
+
+Browser -> SERVLET : GET /fornitore/cerca?query=<q>
+activate SERVLET
+
+SERVLET -> SERVLET : legge param "query"
+
+alt [query vuota o assente]
+    SERVLET -> TH : process("fornitore/cerca", ctx)\nresultati=[]
+    activate TH
+    TH --> Browser : 200 OK — cerca.html\nlista risultati vuota
+    deactivate TH
+    note left of Browser : Show pagina ricerca\nsenza risultati
+else [query non vuota]
+    SERVLET -> DAO : prodottoDAO.search(query)\nskuDAO.search(query)
+    activate DAO
+    DAO -> DB : SELECT ... FROM prodotto\nWHERE nome LIKE '%q%'\nOR descrizione LIKE '%q%'
+    DB --> DAO : List<ElementoCatalogo>
+    DAO -> DB : SELECT ... FROM sku\nWHERE nome LIKE '%q%'\nOR descrizione_tecnica LIKE '%q%'
+    DB --> DAO : List<ElementoCatalogo>
+    DAO --> SERVLET : List<ElementoCatalogo>
+    deactivate DAO
+
+    SERVLET -> TH : ctx.setVariable("risultati", risultati)\nctx.setVariable("query", query)\nprocess("fornitore/cerca", ctx)
+    activate TH
+    TH --> Browser : 200 OK — cerca.html\nth:each="item : ${risultati}"\n(nome, codice, tipo, prezzoMin/Max)
+    deactivate TH
+    note left of Browser : Show lista risultati
+    deactivate SERVLET
+
+    note left of Browser : [click su un risultato\n→ GET cerca?query=q\n&idDettaglio=X\n&tipoDettaglio=SKU|SEMPLICE|COMPOSTO]
+    Browser -> SERVLET : GET /fornitore/cerca\n?query=q&idDettaglio=X\n&tipoDettaglio=TIPO
+    activate SERVLET
+    SERVLET -> DAO : skuDAO.findById(id)\no prodottoDAO.getAlberoProdotto(id)
+    activate DAO
+    DAO -> DB : SELECT dettaglio elemento
+    DB --> DAO : SKU | Prodotto (con albero)
+    DAO --> SERVLET : SKU | Prodotto (con albero)
+    deactivate DAO
+    SERVLET -> TH : ctx.setVariable("risultato", obj)\nctx.setVariable("tipoRisultato", tipo)\nprocess("fornitore/cerca", ctx)
+    activate TH
+    TH --> Browser : 200 OK — cerca.html\ncon pannello dettaglio\n(albero o scheda SKU)
+    deactivate TH
+    deactivate SERVLET
+    note left of Browser : Show scheda\ndettaglio elemento
+end
+
+@enduml
+

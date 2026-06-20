@@ -39,9 +39,6 @@ import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 @WebServlet("/cliente/configura")
 public class ConfiguraServlet extends HttpServlet {
 
-    /**
-     * 
-     */
     private static final long serialVersionUID = 1L;
     private Connection connection = null;
     private JakartaServletWebApplication webApp;
@@ -252,6 +249,18 @@ public class ConfiguraServlet extends HttpServlet {
         return visibili;
     }
 
+    /**
+     * Gestisce le POST della pagina di configurazione, in due rami:
+     * - espansione di un nodo composto: aggiorna l'insieme dei nodi aperti e
+     *   reindirizza alla GET portando le scelte correnti come parametri "sku_*"
+     *   nell'URL (approccio stateless, senza scrittura in sessione);
+     * - salvataggio: inoltra la richiesta a SalvaConfigurazioneServlet.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errore della servlet.
+     * @throws IOException in caso di errori di I/O.
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {

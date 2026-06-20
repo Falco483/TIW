@@ -30,9 +30,6 @@ import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 @WebServlet("/cliente/configurazioni")
 public class MieConfigurazioniServlet extends HttpServlet {
 
-    /**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 	private Connection connection = null;
     private JakartaServletWebApplication webApp;
@@ -70,7 +67,13 @@ public class MieConfigurazioniServlet extends HttpServlet {
     }
 
     /**
-     * Recupera tutte le configurazioni associate all'utente loggato e le mostra tramite template.
+     * Gestisce la richiesta HTTP GET. Recupera dal database l'elenco delle configurazioni
+     * salvate dall'utente corrente e ne effettua il rendering con Thymeleaf.
+     *
+     * @param request la servlet request.
+     * @param response la servlet response.
+     * @throws ServletException in caso di errore della servlet.
+     * @throws IOException in caso di errori di I/O.
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
