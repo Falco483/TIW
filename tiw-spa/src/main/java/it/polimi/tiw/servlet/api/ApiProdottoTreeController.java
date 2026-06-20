@@ -83,8 +83,7 @@ public class ApiProdottoTreeController extends HttpServlet {
             throws IOException {
 
         // --- Fase 0: Configurazione encoding ---
-        // Forziamo UTF-8 su entrambi i canali per evitare che caratteri accentati
-        // (es. "Scheda Grafica Élite") vengano corrotti durante la serializzazione.
+        // UTF-8 su richiesta e risposta, così i caratteri accentati non si corrompono.
         request.setCharacterEncoding("UTF-8");
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
@@ -184,8 +183,8 @@ public class ApiProdottoTreeController extends HttpServlet {
 
                 if (pComposto.getFigli() != null) {
                     for (Prodotto figlio : pComposto.getFigli()) {
-                        // Vincolo profondità: il padre appena creato è al livello 1 (radice),
-                        // il figlio e il suo sotto-albero non devono superare il livello 4.
+                        // Vincolo profondità: il padre appena creato è la radice (livello 1);
+                        // il figlio con il suo sotto-albero non deve far superare i 3 livelli.
                         int profonditaFiglio = dao.calcolaProfondita(figlio.getId());
                         if (1 + profonditaFiglio > 3) {
                             sendError(response, HttpServletResponse.SC_BAD_REQUEST,
@@ -410,9 +409,13 @@ public class ApiProdottoTreeController extends HttpServlet {
     }
 
     /**
-     * Helper per inviare risposte di errore in formato JSON strutturato.
-     * Usiamo sempre lo stesso formato {"success": false, "error": "..."} per
-     * permettere al frontend di gestire gli errori in modo uniforme.
+     * Invia una risposta di errore JSON nel formato {"success": false, "error": "..."},
+     * così che il frontend possa gestire gli errori in modo uniforme.
+     *
+     * @param response la risposta HTTP su cui scrivere
+     * @param status   il codice di stato HTTP da impostare
+     * @param messaggio la descrizione dell'errore
+     * @throws IOException se la scrittura della risposta fallisce
      */
     private void sendError(HttpServletResponse response, int status, String messaggio)
             throws IOException {

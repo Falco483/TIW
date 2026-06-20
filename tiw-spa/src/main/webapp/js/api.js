@@ -193,7 +193,7 @@ const api = {
     },
 
     /**
-     * Effettua la ricerca full-text su SKU e Prodotti.
+     * Cerca tra SKU e prodotti per nome/descrizione.
      * @param {string} query - La stringa di ricerca inserita dall'utente.
      * @returns {Promise<Object>} Una Promise contenente i risultati testuali provenienti da SKU e prodotti.
      */

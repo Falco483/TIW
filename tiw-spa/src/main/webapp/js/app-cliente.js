@@ -53,7 +53,7 @@ const AppCliente = {
      * Gestisce la navigazione tra le sezioni e le azioni dell'utente.
      */
     bindGlobalEvents: function () {
-        // Toggle navbar (mobile/desktop single button navigation)
+        // Pulsante unico di navigazione: alterna tra catalogo e configurazioni
         const btnNavToggle = document.getElementById('btn-nav-toggle');
         if (btnNavToggle) {
             btnNavToggle.addEventListener('click', () => {
@@ -135,7 +135,7 @@ const AppCliente = {
         document.getElementById(`section-${sectionId}`).classList.add('active');
         this.stato.sezioneAttiva = sectionId;
 
-        // Sync toggle button text
+        // Aggiorna il testo del pulsante di navigazione in base alla sezione
         const btnNavToggle = document.getElementById('btn-nav-toggle');
         if (btnNavToggle) {
             if (sectionId === 'catalogo' || sectionId === 'configura') {
@@ -795,8 +795,9 @@ const AppCliente = {
     },
 
     /**
-     * Mostra una modale di conferma personalizzata al posto del window.confirm.
-     * Restituisce una Promise che si risolve con true se confermato, false altrimenti.
+     * Mostra una modale di conferma personalizzata al posto di window.confirm.
+     * @param {string} messaggio - Il testo da mostrare nella modale.
+     * @returns {Promise<boolean>} Una Promise che si risolve con true se confermato, false altrimenti.
      */
     confermaAzione: function(messaggio) {
         return new Promise((resolve) => {
@@ -839,6 +840,11 @@ const AppCliente = {
         });
     },
 
+    /**
+     * Effettua l'escape dei caratteri HTML per prevenire XSS quando si inserisce testo nel DOM.
+     * @param {string} str - La stringa da rendere sicura.
+     * @returns {string} La stringa con i caratteri speciali HTML neutralizzati.
+     */
     escapeHtml: function (str) {
         if (!str) return '';
         const div = document.createElement('div');

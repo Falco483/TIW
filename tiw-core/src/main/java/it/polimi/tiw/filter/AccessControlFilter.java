@@ -15,26 +15,21 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 /**
- * Filtro di Controllo degli Accessi.
- * Intercetta tutte le richieste dell'applicazione e verifica se l'utente è autenticato.
- * Permette il libero passaggio solo per le risorse statiche e i path pubblici (login).
+ * Filtro di controllo degli accessi: verifica che l'utente sia autenticato e
+ * lascia passare liberamente solo risorse statiche e path pubblici (login).
  */
 public class AccessControlFilter implements Filter {
 
     private static final Set<String> PUBLIC_PATHS = Set.of("/login", "/api/login", "/login.html");
     private static final String STATIC_PREFIX = "/static/";
 
-    /**
-     * Inizializzazione del filtro.
-     */
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        // Inizializzazione vuota
     }
 
     /**
-     * Esegue il filtraggio della richiesta. Se l'utente non è autenticato e cerca di accedere
-     * a una risorsa privata, viene reindirizzato al login o rifiutato con un codice 401 Unauthorized.
+     * Se l'utente non è autenticato e richiede una risorsa privata, lo reindirizza
+     * al login (pagine) o risponde 401 Unauthorized (chiamate /api/).
      *
      * @param request la servlet request.
      * @param response la servlet response.
@@ -45,18 +40,15 @@ public class AccessControlFilter implements Filter {
                          FilterChain chain)
             throws IOException, ServletException {
 
-        // Cast a HttpServlet* per accedere alla sessione
         HttpServletRequest  req  = (HttpServletRequest)  request;
         HttpServletResponse res  = (HttpServletResponse) response;
 
         HttpSession session = req.getSession(false);
 
-        // Verificare se l'utente è autenticato
         boolean isAuthenticated = (session != null
-                                  && session.getAttribute(UtenteSessionDTO.SESSION_KEY) 
+                                  && session.getAttribute(UtenteSessionDTO.SESSION_KEY)
                                   instanceof UtenteSessionDTO);
 
-        // Controllare se la richiesta è verso una risorsa pubblica
         String relativePath = req.getRequestURI().substring(req.getContextPath().length());
         boolean isPublic = PUBLIC_PATHS.contains(relativePath)
                         || relativePath.startsWith(STATIC_PREFIX)
@@ -74,11 +66,7 @@ public class AccessControlFilter implements Filter {
         }
     }
 
-    /**
-     * Distrugge il filtro rilasciando eventuali risorse allocate.
-     */
     @Override
     public void destroy() {
-        // Pulizia risorse
     }
 }

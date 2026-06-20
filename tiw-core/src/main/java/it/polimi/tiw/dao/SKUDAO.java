@@ -106,9 +106,9 @@ public class SKUDAO {
     }
 
     /**
-     * Recupera il prezzo corrente di una specifica SKU dal database.
-     * Fondamentale per il "Price Snapshotting": assicura che il prezzo salvato
-     * nella configurazione sia quello attuale del catalogo.
+     * Recupera il prezzo corrente di una SKU. Serve a "congelare" nella
+     * configurazione il prezzo attuale del catalogo al momento del salvataggio.
+     *
      * @param idSku ID della SKU.
      * @return Il prezzo come BigDecimal, o null se la SKU non esiste.
      */
@@ -145,8 +145,9 @@ public class SKUDAO {
     // -------------------------------------------------------------------------
 
     /**
-     * Esegue la ricerca full-text / LIKE sul nome e la descrizione tecnica delle SKU.
-     * Converte i risultati in ElementoCatalogo per renderli omogenei a quelli di ricerca prodotti.
+     * Cerca SKU per nome o descrizione tecnica con una LIKE.
+     * I risultati sono mappati su ElementoCatalogo, per uniformarli a quelli
+     * della ricerca prodotti.
      *
      * @param query la stringa di ricerca.
      * @return la lista degli elementi del catalogo trovati.
@@ -239,7 +240,7 @@ public class SKUDAO {
     }
 
     /**
-     * Conta quante volte una SKU è associata a dei prodotti semplici nella tabella di transizione prodotto_sku.
+     * Conta a quanti prodotti semplici è associata una SKU (righe in prodotto_sku).
      *
      * @param idSku l'ID della SKU.
      * @return il numero di associazioni trovate.

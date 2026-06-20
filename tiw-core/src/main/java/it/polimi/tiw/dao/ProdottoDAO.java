@@ -406,19 +406,15 @@ public class ProdottoDAO {
     // -------------------------------------------------------------------------
 
     /**
-     * Associa una SKU a un prodotto semplice inserendo una riga nella tabella
-     * prodotto_sku.
-     * Utilizza la clausola INSERT IGNORE per evitare errori in caso di associazione
-     * duplicata.
+     * Associa una SKU a un prodotto semplice (riga in prodotto_sku).
+     * Usa INSERT IGNORE: se la coppia esiste già (PK composita) l'operazione
+     * viene ignorata invece di sollevare un errore di chiave duplicata.
      *
      * @param idProdotto l'ID del prodotto semplice.
      * @param idSku      l'ID della SKU da associare.
      * @throws SQLException se la query SQL fallisce.
      */
     public void addSku(int idProdotto, int idSku) throws SQLException {
-        // INSERT IGNORE: se la coppia (id_prodotto, id_sku) esiste già (PK composita),
-        // l'operazione viene ignorata silenziosamente senza lanciare una duplicate-key
-        // exception.
         String sql = "INSERT IGNORE INTO prodotto_sku (id_prodotto, id_sku) VALUES (?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, idProdotto);
@@ -538,9 +534,8 @@ public class ProdottoDAO {
         p.setCodice(rs.getInt("codice"));
         p.setNome(rs.getString("nome"));
         p.setTipo(rs.getString("tipo"));
-        // prezzoMin e prezzoMax letti per entrambi i tipi (SEMPLICE: calcolati dalle
-        // SKU al momento della creazione;
-        // COMPOSTO: scelti dal fornitore come somma dei prezzi dei sotto-prodotti)
+        // Letti per entrambi i tipi: per i SEMPLICE derivano dalle SKU,
+        // per i COMPOSTO dalla somma dei prezzi dei figli.
         p.setPrezzoMin(rs.getBigDecimal("prezzo_min"));
         p.setPrezzoMax(rs.getBigDecimal("prezzo_max"));
         int idPadre = rs.getInt("id_padre");

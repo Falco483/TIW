@@ -73,6 +73,18 @@ public class ApiConfigurazioneController extends HttpServlet {
     // GET — lista o dettaglio
     // -------------------------------------------------------------------------
 
+    /**
+     * Gestisce le letture, distinguendo in base al pathInfo e ai parametri:
+     * <ul>
+     *   <li>{@code ?codice=X} → albero del prodotto radice, per la pagina di configurazione;</li>
+     *   <li>nessun parametro → lista delle configurazioni dell'utente;</li>
+     *   <li>{@code /{id}} → dettaglio di una configurazione (testata, albero e voci con prezzi congelati).</li>
+     * </ul>
+     *
+     * @param request  la richiesta HTTP
+     * @param response la risposta HTTP, con corpo JSON
+     * @throws IOException se la scrittura della risposta fallisce
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
@@ -152,6 +164,16 @@ public class ApiConfigurazioneController extends HttpServlet {
     // POST — crea nuova configurazione
     // -------------------------------------------------------------------------
 
+    /**
+     * Crea una nuova configurazione a partire dal JSON inviato (nome, codiceRadice
+     * e mappa delle scelte SKU). Valida che il prodotto sia una radice configurabile,
+     * costruisce i dettagli con i prezzi congelati e verifica che il totale rientri
+     * nella fascia di prezzo prevista prima di salvare testata e dettagli.
+     *
+     * @param request  la richiesta HTTP, con corpo JSON
+     * @param response la risposta HTTP; 201 con l'id creato in caso di successo
+     * @throws IOException se la lettura del body o la scrittura della risposta fallisce
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
@@ -243,6 +265,15 @@ public class ApiConfigurazioneController extends HttpServlet {
     // PUT — modifica configurazione esistente
     // -------------------------------------------------------------------------
 
+    /**
+     * Aggiorna una configurazione esistente dell'utente. Dopo le stesse validazioni
+     * della creazione, rigenera i dettagli con il pattern "delete + re-insert" e
+     * aggiorna la testata, il tutto in un'unica transazione.
+     *
+     * @param request  la richiesta HTTP, con corpo JSON
+     * @param response la risposta HTTP, con corpo JSON
+     * @throws IOException se la lettura del body o la scrittura della risposta fallisce
+     */
     @Override
     protected void doPut(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
@@ -338,6 +369,14 @@ public class ApiConfigurazioneController extends HttpServlet {
     // DELETE
     // -------------------------------------------------------------------------
 
+    /**
+     * Elimina una configurazione dell'utente, dopo aver verificato che esista e
+     * gli appartenga.
+     *
+     * @param request  la richiesta HTTP, con l'id nel pathInfo
+     * @param response la risposta HTTP, con corpo JSON
+     * @throws IOException se la scrittura della risposta fallisce
+     */
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
@@ -381,6 +420,9 @@ public class ApiConfigurazioneController extends HttpServlet {
      * nel body sia presente e che la SKU appartenga al prodotto, poi aggiunge un
      * DettaglioDTO alla lista.
      *
+     * @param nodo     nodo corrente dell'albero (semplice o composto)
+     * @param scelte   mappa JSON id_prodotto → id_sku inviata dal client
+     * @param dettagli lista in cui accumulare i dettagli validati
      * @return null se tutto valido, altrimenti il messaggio di errore
      */
     private String costruisciDettagli(Prodotto nodo, JsonNode scelte, List<DettaglioDTO> dettagli) {
@@ -410,6 +452,10 @@ public class ApiConfigurazioneController extends HttpServlet {
     }
 
     /**
+     * Verifica che il prezzo totale rientri nella fascia del prodotto radice.
+     *
+     * @param radice       prodotto radice, da cui leggere prezzoMin e prezzoMax
+     * @param prezzoTotale somma dei prezzi congelati delle SKU scelte
      * @return null se prezzoTotale è nel range [prezzoMin, prezzoMax], altrimenti messaggio di errore
      */
     private String verificaFasciaPrezzo(Prodotto radice, BigDecimal prezzoTotale) {

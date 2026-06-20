@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controller API per la lista prodotti (JSON).
- * Chiama lo STESSO DAO da tiw-core, serializza con Jackson.
+ * Controller API che espone in JSON la lista dei prodotti radice.
+ * Riusa il ProdottoDAO di tiw-core e serializza la risposta con Jackson.
  */
 @WebServlet("/api/prodotti")
 public class ApiProdottoController extends HttpServlet {

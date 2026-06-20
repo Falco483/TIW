@@ -92,7 +92,7 @@ const AppFornitore = {
             }
         });
 
-        // Inline edit for Tree Editor and SKU forms
+        // Modifica inline dei nodi dell'albero e delle card SKU
         document.getElementById('dettaglio-content').addEventListener('focusout', (e) => {
             if (e.target.classList.contains('sku-inline-edit')) {
                 this.handleSkuInlineEdit(e.target);
@@ -220,6 +220,10 @@ const AppFornitore = {
         }
     },
 
+    /**
+     * Somma i prezzi min/max dei prodotti orfani selezionati e aggiorna il
+     * riepilogo della fascia di prezzo mostrato nel form del prodotto composto.
+     */
     ricalcolaRiepilogoPrezzi: function () {
         const checkboxes = document.querySelectorAll('#lista-orfani-checkbox input[name="orfani_selezionati"]:checked');
         let sumMin = 0;
@@ -1238,7 +1242,7 @@ const AppFornitore = {
     },
 
     /**
-     * Gestisce la ricerca full-text globale per SKU, Prodotti Semplici e Composti.
+     * Gestisce la ricerca su SKU, prodotti semplici e composti (per nome/descrizione).
      * Invia la query all'API di ricerca e renderizza dinamicamente i risultati con i rispettivi badge.
      * @param {Event} e - L'evento di submit del form di ricerca.
      */
@@ -1378,10 +1382,9 @@ const AppFornitore = {
     },
 
     /**
-     * Esegue l'escape delle stringhe testuali per prevenire attacchi XSS (Cross-Site Scripting)
-     * quando i valori vengono inseriti nell'HTML tramite `innerHTML`.
-     * @param {string} str - La stringa da sanificare.
-     * @returns {string} La stringa resa sicura.
+     * Mostra una modale di conferma personalizzata al posto di window.confirm.
+     * @param {string} messaggio - Il testo da mostrare nella modale.
+     * @returns {Promise<boolean>} Una Promise che si risolve con true se confermato, false altrimenti.
      */
     confermaAzione: function (messaggio) {
         return new Promise((resolve) => {

@@ -30,9 +30,6 @@ import org.thymeleaf.web.servlet.JakartaServletWebApplication;
 @WebServlet("/cliente/configurazioni")
 public class MieConfigurazioniServlet extends HttpServlet {
 
-    /**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 	private Connection connection = null;
     private JakartaServletWebApplication webApp;

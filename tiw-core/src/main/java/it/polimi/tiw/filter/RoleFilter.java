@@ -21,9 +21,6 @@ import jakarta.servlet.http.HttpSession;
  */
 public class RoleFilter implements Filter {
 
-    /**
-     * Inizializzazione del filtro per i ruoli.
-     */
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {}
 
@@ -100,9 +97,6 @@ public class RoleFilter implements Filter {
         }
     }
 
-    /**
-     * Rilascia le risorse allocate dal filtro.
-     */
     @Override
     public void destroy() {}
 }

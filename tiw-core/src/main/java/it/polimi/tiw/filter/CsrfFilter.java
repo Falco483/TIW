@@ -15,15 +15,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 /**
- * CSRF Filter — Synchronizer Token Pattern.
+ * Filtro CSRF basato sul Synchronizer Token Pattern.
  *
- * Intercetta TUTTE le richieste. Sui GET inietta il token in sessione.
- * Sui POST/PUT/DELETE verifica che il token del client corrisponda
- * a quello in sessione.
- *
- * ECCEZIONE CRITICA: i path in EXCLUDED_PATHS sono esentati dal
- * controllo CSRF perché l'utente non ha ancora una sessione (login)
- * o perché sono risorse statiche.
+ * Sui GET inietta in sessione un token, sulle richieste mutanti
+ * (POST/PUT/DELETE/PATCH) verifica che il token inviato dal client corrisponda
+ * a quello in sessione. I path in EXCLUDED_PATHS e le risorse statiche sono
+ * esentati dal controllo.
  */
 public class CsrfFilter implements Filter {
 
@@ -34,19 +31,10 @@ public class CsrfFilter implements Filter {
     private static final Set<String> MUTATING_METHODS = Set.of("POST", "PUT", "DELETE", "PATCH");
 
     /**
-     * Path esentati dal controllo CSRF (relativi al context path).
-     *
-     * PERCHÉ /login e /api/login:
-     *   Il POST di login è l'unica richiesta mutante che avviene PRIMA
-     *   che esista una sessione. Senza questa eccezione, il filtro
-     *   bloccherebbe ogni tentativo di login con 403 "Sessione assente".
-     *
-     * SICUREZZA: il login è comunque protetto perché:
-     *   1. Richiede credenziali valide (username + password)
-     *   2. Non modifica dati di business (crea solo una sessione)
-     *   3. Un attacco CSRF al login è inutile: l'attaccante loggerebbe
-     *      la VITTIMA nel proprio account (Login CSRF), che è un attacco
-     *      di basso impatto nel nostro dominio accademico.
+     * Path esentati dal controllo CSRF. Il POST di login è l'unica richiesta
+     * mutante che avviene prima che esista una sessione: senza questa eccezione
+     * verrebbe bloccato con 403. Il login resta comunque protetto dalle
+     * credenziali e non modifica dati di business.
      */
     private static final Set<String> EXCLUDED_PATHS = Set.of("/login", "/api/login");
     private static final String STATIC_PREFIX = "/static/";
@@ -54,9 +42,9 @@ public class CsrfFilter implements Filter {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /**
-     * Esegue il filtraggio per la prevenzione degli attacchi CSRF (Cross-Site Request Forgery).
-     * Inieta un token univoco e sicuro nella sessione durante i metodi GET, e ne valida la corrispondenza
-     * per tutte le richieste mutanti (POST, PUT, DELETE, PATCH).
+     * Previene gli attacchi CSRF (Cross-Site Request Forgery): inietta un token
+     * sicuro in sessione sui GET e ne verifica la corrispondenza sulle richieste
+     * mutanti (POST, PUT, DELETE, PATCH).
      *
      * @param request la servlet request.
      * @param response la servlet response.

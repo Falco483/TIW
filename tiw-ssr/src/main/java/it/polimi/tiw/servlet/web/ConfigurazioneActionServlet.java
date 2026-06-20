@@ -35,9 +35,6 @@ import java.util.Map;
 @WebServlet("/cliente/azione")
 public class ConfigurazioneActionServlet extends HttpServlet {
 
-    /**
-	 * 
-	 */
 	private Connection connection = null;
 
     /**
@@ -176,7 +173,7 @@ public class ConfigurazioneActionServlet extends HttpServlet {
                 return;
             }
 
-            // 3. Ricalcola i prezzi correnti (Price Snapshotting aggiornato)
+            // 3. Congela i prezzi correnti del catalogo nella copia
             List<DettaglioDTO> nuoviDettagli = new ArrayList<>();
             BigDecimal nuovoPrezzoTotale = BigDecimal.ZERO;
 

@@ -29,11 +29,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Servlet che gestisce il salvataggio di una configurazione.
- * Gestisce sia il primo salvataggio (INSERT) che l'aggiornamento di una
- * configurazione esistente (UPDATE).
- * Implementa il "Price Snapshotting" ricalcolando il prezzo totale in base ai
- * prezzi attuali del catalogo.
+ * Servlet che gestisce il salvataggio di una configurazione, sia il primo
+ * inserimento (INSERT) sia l'aggiornamento di una esistente (UPDATE).
+ * Il prezzo totale è ricalcolato (e "congelato") in base ai prezzi attuali del
+ * catalogo al momento del salvataggio.
  */
 @WebServlet("/cliente/salva")
 public class SalvaConfigurazioneServlet extends HttpServlet {
@@ -171,7 +170,7 @@ public class SalvaConfigurazioneServlet extends HttpServlet {
                         int idProdotto = Integer.parseInt(pName.substring(4));
                         int idSku = Integer.parseInt(request.getParameter(pName));
 
-                        // Price Snapshotting: legge il prezzo attuale dal catalogo
+                        // Congela il prezzo: legge quello attuale dal catalogo
                         BigDecimal prezzoSku = sDao.getPrezzoReale(idSku);
                         if (prezzoSku == null) {
                             conn.rollback();
