@@ -845,6 +845,11 @@
         color: #fff;
     }
 
+    .toast-info {
+        background: #fff;
+        color: #000;
+    }
+
     @keyframes slideInToast {
         from {
             opacity: 0;

@@ -350,6 +350,9 @@ const AppFornitore = {
         const container = document.getElementById('dettaglio-content');
         detailContainer.style.display = 'block';
 
+        history.init();
+        this.aggiornaPulsantiUndoRedo();
+
         const tpl = document.getElementById('tpl-sku-display').content.cloneNode(true);
         const card = tpl.querySelector('.sku-created-card');
         card.dataset.skuId = sku.id;
@@ -989,6 +992,8 @@ const AppFornitore = {
         if (!confermato) return;
         try {
             await api.deleteSku(id);
+            history.clear();
+            this.aggiornaPulsantiUndoRedo();
             this.mostraMessaggio("SKU eliminata", "success");
             this.stato.skusDisponibili = this.stato.skusDisponibili.filter(s => s.id !== id);
             this.renderSkuCheckboxList();
@@ -1339,6 +1344,8 @@ const AppFornitore = {
         if (!confermato) return;
         try {
             await api.deleteProdotto(id);
+            history.clear();
+            this.aggiornaPulsantiUndoRedo();
             this.mostraMessaggio("Prodotto eliminato definitivamente.", "success");
             const item = document.querySelector(`.search-result-item[data-id="${id}"]`);
             if (item) item.remove();
