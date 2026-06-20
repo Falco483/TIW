@@ -44,7 +44,7 @@
                 <th:block th:with="voce=${mappaVoci.get(nodo.id)}">
                     <div th:if="${voce != null}" class="sku-detail-card" style="margin-left: 1.5rem;">
                         <img th:if="${voce.sku.fotografia != null and !voce.sku.fotografia.isEmpty()}"
-                             th:src="${#strings.startsWith(voce.sku.fotografia, 'uploads/') ? '/' + voce.sku.fotografia : (#strings.startsWith(voce.sku.fotografia, '/foto/') ? voce.sku.fotografia : '/uploads/' + voce.sku.fotografia)}" alt="Foto SKU"
+                             th:src="${'/' + voce.sku.fotografia}" alt="Foto SKU"
                              class="sku-foto">
                         
                         <div class="sku-info">

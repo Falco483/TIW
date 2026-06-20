@@ -541,13 +541,7 @@ const AppCliente = {
 
                 const img = tpl.querySelector('.sku-foto');
                 if (sku.fotografia) {
-                    if (sku.fotografia.startsWith('uploads/')) {
-                        img.src = sku.fotografia;
-                    } else if (sku.fotografia.startsWith('/foto/')) {
-                        img.src = sku.fotografia;
-                    } else {
-                        img.src = 'uploads/' + sku.fotografia;
-                    }
+                    img.src = '/' + sku.fotografia;
                     img.style.display = 'block';
                 }
 

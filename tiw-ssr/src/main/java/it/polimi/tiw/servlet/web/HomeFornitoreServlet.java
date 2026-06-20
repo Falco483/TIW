@@ -1,16 +1,13 @@
 package it.polimi.tiw.servlet.web;
 
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.WebContext;
@@ -25,6 +22,7 @@ import it.polimi.tiw.model.Prodotto;
 import it.polimi.tiw.model.ProdottoSemplice;
 import it.polimi.tiw.model.SKU;
 import it.polimi.tiw.utils.ConnectionFactory;
+import it.polimi.tiw.utils.FotoStorage;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.UnavailableException;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -48,11 +46,6 @@ import jakarta.servlet.http.Part;
 @MultipartConfig(maxFileSize = 1024 * 1024 * 5, maxRequestSize = 1024 * 1024 * 10)
 public class HomeFornitoreServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
-
-    /**
-     * Cartella locale sul server in cui vengono caricate le fotografie delle SKU.
-     */
-    private static final String UPLOAD_DIR = "C:\\Users\\Antonio\\Desktop\\progetto TIW\\foto\\";
 
     private static final String REQ_ERRORI = "errori";
     private static final String REQ_VALORI_FORM = "valoriForm";
@@ -311,21 +304,7 @@ public class HomeFornitoreServlet extends HttpServlet {
             }
 
             if (filePart != null && filePart.getSize() > 0) {
-                File uploadDir = new File(UPLOAD_DIR);
-                if (!uploadDir.exists()) {
-                    uploadDir.mkdirs();
-                }
-
-                String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-                String extension = "";
-                int i = fileName.lastIndexOf('.');
-                if (i > 0) {
-                    extension = fileName.substring(i);
-                }
-                String nomeFileUnivoco = UUID.randomUUID().toString() + extension;
-
-                filePart.write(UPLOAD_DIR + nomeFileUnivoco);
-                percorsoImmagine = "/foto/" + nomeFileUnivoco;
+                percorsoImmagine = FotoStorage.salva(filePart);
             }
 
             SKU nuovaSku = new SKU();

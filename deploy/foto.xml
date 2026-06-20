@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Context Tomcat che serve le fotografie delle SKU.
+
+  Monta la directory esterna condivisa $CATALINA_BASE/tiw-foto sull'URL /foto,
+  in modo che sia la versione HTML (tiw-ssr) sia la versione SPA (tiw-spa)
+  accedano alle stesse immagini tramite l'URL assoluto /foto/<nomefile>.
+
+  Installazione: copiare questo file in
+      $CATALINA_BASE/conf/Catalina/localhost/foto.xml
+  (vedi README.md, sezione "Setup fotografie").
+-->
+<Context docBase="${catalina.base}/tiw-foto" />

@@ -2,6 +2,7 @@ package it.polimi.tiw.servlet.api;
 
 import it.polimi.tiw.dao.SKUDAO;
 import it.polimi.tiw.model.SKU;
+import it.polimi.tiw.utils.FotoStorage;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -14,16 +15,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.math.BigDecimal;
 
 /**
@@ -69,11 +65,10 @@ public class ApiSkuController extends HttpServlet {
     }
 
     /**
-     * Gestisce la creazione di una nuova SKU, permettendo l'upload opzionale di
-     * un'immagine.
-     * I dati arrivano nel formato multipart/form-data. L'immagine viene salvata
-     * nella cartella 'uploads/'.
-     * 
+     * Gestisce la creazione di una nuova SKU con upload dell'immagine.
+     * I dati arrivano in formato multipart/form-data; l'immagine viene salvata
+     * tramite {@link it.polimi.tiw.utils.FotoStorage}.
+     *
      * @param request  La richiesta HTTP POST.
      * @param response La risposta HTTP.
      * @throws IOException Se si verifica un errore durante l'upload del file o la
@@ -156,7 +151,6 @@ public class ApiSkuController extends HttpServlet {
             nuovaSku.setPrezzo(prezzo);
 
             // Gestione Upload File (obbligatorio)
-            String fotografiaUrl = "";
             Part filePart = request.getPart("fotografia_file");
             if (filePart == null || filePart.getSize() == 0) {
                 sendError(response, HttpServletResponse.SC_BAD_REQUEST,
@@ -168,19 +162,7 @@ public class ApiSkuController extends HttpServlet {
                         "Il file caricato non è un'immagine valida. Sono ammessi solo file di tipo immagine (JPEG, PNG, ecc.).");
                 return;
             }
-            String fileName = UUID.randomUUID().toString() + "_"
-                    + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-            String uploadPath = getServletContext().getRealPath("") + File.separator + "uploads";
-            File uploadDir = new File(uploadPath);
-            if (!uploadDir.exists())
-                uploadDir.mkdir();
-
-            File file = new File(uploadPath + File.separator + fileName);
-            try (InputStream input = filePart.getInputStream()) {
-                Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            }
-            fotografiaUrl = "uploads/" + fileName;
-            nuovaSku.setFotografia(fotografiaUrl);
+            nuovaSku.setFotografia(FotoStorage.salva(filePart));
 
             SKU skuCreata = dao.insert(nuovaSku);
 
@@ -254,17 +236,7 @@ public class ApiSkuController extends HttpServlet {
                 try {
                     Part filePart = request.getPart("fotografia_file");
                     if (filePart != null && filePart.getSize() > 0) {
-                        String fileName = UUID.randomUUID().toString() + "_"
-                                + Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-                        String uploadPath = "C:\\Users\\Antonio\\Desktop\\progetto TIW\\foto\\";
-                        File uploadDir = new File(uploadPath);
-                        if (!uploadDir.exists())
-                            uploadDir.mkdirs();
-                        File file = new File(uploadPath + fileName);
-                        try (InputStream input = filePart.getInputStream()) {
-                            Files.copy(input, file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                        }
-                        sku.setFotografia("/foto/" + fileName);
+                        sku.setFotografia(FotoStorage.salva(filePart));
                     }
                 } catch (jakarta.servlet.ServletException se) {
                     // La foto è opzionale: se il parsing multipart fallisce, si mantiene la foto

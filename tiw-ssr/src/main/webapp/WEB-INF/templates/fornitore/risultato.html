@@ -46,7 +46,7 @@
         </div>
         <div style="display:flex; gap:1.5rem; align-items:flex-start;">
             <div th:if="${risultato.fotografia != null and !risultato.fotografia.isEmpty()}" style="flex-shrink:0;">
-                <img th:src="${#strings.startsWith(risultato.fotografia, 'uploads/') ? '/' + risultato.fotografia : (#strings.startsWith(risultato.fotografia, '/foto/') ? risultato.fotografia : '/foto/' + risultato.fotografia)}" alt="Foto SKU" style="width:120px; height:120px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--card-border);" />
+                <img th:src="${'/' + risultato.fotografia}" alt="Foto SKU" style="width:120px; height:120px; object-fit:cover; border-radius:var(--radius-sm); border:1px solid var(--card-border);" />
             </div>
             <div class="result-card-grid" style="flex:1;">
                 <div class="sku-field"><span class="field-label">Codice:</span> <span class="field-value" th:text="${risultato.codice}"></span></div>
