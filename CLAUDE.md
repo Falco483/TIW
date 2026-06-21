@@ -19,7 +19,7 @@ There is no Maven or Gradle setup — projects are built via Eclipse as Dynamic 
 2. Drop WAR into Tomcat's `webapps/` folder
 3. Start Tomcat: `$CATALINA_HOME/bin/startup.sh`
 
-The `Servers/` directory contains Tomcat's `context.xml` (JNDI DataSource config for MySQL).
+The `Servers/` directory contains Tomcat's `context.xml`. DB connection parameters (`dbDriver`, `dbUrl`, `dbUser`, `dbPassword`) are configured as `init-param` in each app's `WEB-INF/web.xml`.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ servlet/
   html/     — Servlet for HTML version (forward to Thymeleaf/JSP views)
   js/       — Servlet for JS version (return JSON responses)
 filter/     — AuthenticationFilter + RoleFilter (mapped on /fornitore/*, /cliente/*, /api/*)
-utils/      — ConnectionFactory (JNDI DataSource), PasswordUtils (SHA-256)
+utils/      — ConnectionFactory (DriverManager, params from web.xml). Password hashing is done in UtenteDAO via BCrypt (jBCrypt, `BCrypt.checkpw`), not a separate PasswordUtils/SHA-256 class
 ```
 
 **Key constraint**: DAOs contain only SQL. Servlets contain only orchestration. Views contain only presentation.
@@ -41,7 +41,7 @@ utils/      — ConnectionFactory (JNDI DataSource), PasswordUtils (SHA-256)
 
 MySQL with the schema defined in `documentation/CONTRATTO_ARCHITETTURALE.md` (section 2). Key tables: `utente`, `prodotto` (single-table hierarchy with `tipo ENUM('SEMPLICE','COMPOSTO')` and `parent_codice` adjacency list), `sku`, `prodotto_sku`, `configurazione`, `configurazione_sku`.
 
-Use `PreparedStatement` always — never raw `Statement`. Connection via JNDI DataSource from `context.xml`, not `DriverManager`.
+Use `PreparedStatement` always — never raw `Statement`. Connections are obtained via `ConnectionFactory.getConnection(servletContext)`, which uses `DriverManager` with parameters read from `web.xml` init-params (there is no JNDI DataSource / connection pool). Two connection-management patterns coexist in the codebase: most servlets open one connection as a field in `init()` and close it in `destroy()`; a couple of SSR servlets (`CercaCatalogoServlet`, `AzioneCatalogoServlet`) open a per-request connection via try-with-resources in `doGet`/`doPost`.
 
 ## Critical Domain Rules
 
