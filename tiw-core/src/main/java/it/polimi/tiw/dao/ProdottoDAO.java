@@ -1,11 +1,5 @@
 package it.polimi.tiw.dao;
 
-import it.polimi.tiw.model.Prodotto;
-import it.polimi.tiw.model.ProdottoComposto;
-import it.polimi.tiw.model.ProdottoSemplice;
-import it.polimi.tiw.model.SKU;
-import it.polimi.tiw.model.ElementoCatalogo;
-
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,6 +8,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+
+import it.polimi.tiw.model.ElementoCatalogo;
+import it.polimi.tiw.model.Prodotto;
+import it.polimi.tiw.model.ProdottoComposto;
+import it.polimi.tiw.model.ProdottoSemplice;
+import it.polimi.tiw.model.SKU;
 
 /**
  * Classe DAO per l'interazione con la tabella prodotto del database
@@ -743,104 +743,5 @@ public class ProdottoDAO {
             stmt.setInt(5, p.getId());
             stmt.executeUpdate();
         }
-    }
-
-    // -------------------------------------------------------------------------
-    // Inserimento Ricorsivo Transazionale (SPA)
-    // -------------------------------------------------------------------------
-
-    /**
-     * Salva un intero albero di prodotti in modo atomico all'interno di una
-     * transazione.
-     * Esegue l'inserimento partendo dal nodo radice e scendendo ricorsivamente
-     * lungo i rami.
-     *
-     * @param radice il prodotto composto che fa da radice all'albero.
-     * @return l'ID auto-generato del prodotto radice inserito.
-     * @throws SQLException se una delle operazioni di inserimento fallisce.
-     */
-    public int insertTree(ProdottoComposto radice) throws SQLException {
-        boolean autoCommitOriginale = connection.getAutoCommit();
-        try {
-            connection.setAutoCommit(false);
-
-            int rootId = insertNode(radice, null);
-
-            connection.commit();
-            return rootId;
-        } catch (SQLException e) {
-            connection.rollback();
-            throw e;
-        } finally {
-            connection.setAutoCommit(autoCommitOriginale);
-        }
-    }
-
-    /**
-     * Metodo di supporto ricorsivo privato che inserisce un nodo del prodotto e i
-     * suoi figli.
-     * Se il nodo è semplice, associa anche le SKU definite.
-     *
-     * @param nodo    il nodo corrente da inserire.
-     * @param idPadre l'ID del prodotto padre (può essere null per il nodo radice).
-     * @return l'ID auto-generato del nodo inserito.
-     * @throws SQLException se l'inserimento fallisce.
-     */
-    private int insertNode(Prodotto nodo, Integer idPadre) throws SQLException {
-        String sql = "INSERT INTO prodotto (codice, nome, tipo, descrizione, prezzo_min, prezzo_max, id_padre) VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        int idGenerato;
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, nodo.getCodice());
-            stmt.setString(2, nodo.getNome());
-
-            if (nodo instanceof ProdottoComposto) {
-                stmt.setString(3, "COMPOSTO");
-                stmt.setString(4, nodo.getDescrizione());
-                stmt.setBigDecimal(5, nodo.getPrezzoMin());
-                stmt.setBigDecimal(6, nodo.getPrezzoMax());
-            } else if (nodo instanceof ProdottoSemplice) {
-                stmt.setString(3, "SEMPLICE");
-                stmt.setNull(4, java.sql.Types.VARCHAR);
-                stmt.setNull(5, java.sql.Types.DECIMAL);
-                stmt.setNull(6, java.sql.Types.DECIMAL);
-            } else {
-                throw new SQLException("Tipo di prodotto sconosciuto.");
-            }
-
-            if (idPadre == null) {
-                stmt.setNull(7, java.sql.Types.INTEGER);
-            } else {
-                stmt.setInt(7, idPadre);
-            }
-
-            stmt.executeUpdate();
-
-            try (ResultSet keys = stmt.getGeneratedKeys()) {
-                if (keys.next()) {
-                    idGenerato = keys.getInt(1);
-                    nodo.setId(idGenerato);
-                } else {
-                    throw new SQLException("Nessun ID generato per il nodo.");
-                }
-            }
-        }
-
-        if (nodo instanceof ProdottoComposto pc) {
-            if (pc.getFigli() != null) {
-                for (Prodotto figlio : pc.getFigli()) {
-                    insertNode(figlio, idGenerato);
-                }
-            }
-        } else if (nodo instanceof ProdottoSemplice ps) {
-            if (ps.getSKUs() != null) {
-                for (SKU sku : ps.getSKUs()) {
-                    addSku(idGenerato, sku.getId());
-                }
-            }
-        }
-
-        return idGenerato;
     }
 }

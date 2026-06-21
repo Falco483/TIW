@@ -1,31 +1,29 @@
 package it.polimi.tiw.servlet.api;
 
-import it.polimi.tiw.dao.ProdottoDAO;
-import it.polimi.tiw.dao.SKUDAO;
-import it.polimi.tiw.model.Prodotto;
-import it.polimi.tiw.model.SKU;
-import it.polimi.tiw.utils.ConnectionFactory;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.core.type.TypeReference;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import it.polimi.tiw.dao.ProdottoDAO;
+import it.polimi.tiw.dao.SKUDAO;
+import it.polimi.tiw.model.Prodotto;
+import it.polimi.tiw.model.SKU;
+import it.polimi.tiw.utils.ConnectionFactory;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Controller API per la sincronizzazione in blocco dell'editor ad albero (SPA).

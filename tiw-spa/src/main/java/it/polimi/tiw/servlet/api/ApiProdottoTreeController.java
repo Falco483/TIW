@@ -24,12 +24,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Controller REST per il salvataggio transazionale di un intero albero di prodotti.
+ * Controller REST per il salvataggio di un prodotto (semplice o composto) con i
+ * figli/SKU già esistenti selezionati dall'utente.
  *
  * Mappato su POST /api/prodotto (singolare) per distinguerlo da /api/prodotti (plurale, GET lista).
- * Riceve un payload JSON rappresentante un ProdottoComposto con figli annidati,
+ * Riceve un payload JSON rappresentante un Prodotto (semplice o composto),
  * lo deserializza sfruttando il polimorfismo Jackson (@JsonTypeInfo sul modello)
- * e lo persiste in un'unica transazione atomica tramite ProdottoDAO.insertTree().
+ * e lo persiste tramite ProdottoDAO: insertComposto/insertSemplice seguito dalle
+ * associazioni addFiglio/addSku ai sotto-elementi già presenti a catalogo.
  */
 @WebServlet("/api/prodotto")
 public class ApiProdottoTreeController extends HttpServlet {
@@ -137,81 +139,98 @@ public class ApiProdottoTreeController extends HttpServlet {
                 }
             }
 
-            // --- Fase 4: Persistenza ---
-            int idGenerato = 0;
+            // --- Fase 4: Persistenza (transazionale e atomica) ---
+            int idGenerato;
+            boolean autoCommitOriginale = connection.getAutoCommit();
+            try {
+                connection.setAutoCommit(false);
 
-            if (prodottoInviato instanceof it.polimi.tiw.model.ProdottoSemplice pSemplice) {
-                idGenerato = dao.insertSemplice(String.valueOf(pSemplice.getCodice()), pSemplice.getNome(),
-                        java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
+                if (prodottoInviato instanceof it.polimi.tiw.model.ProdottoSemplice pSemplice) {
+                    idGenerato = dao.insertSemplice(String.valueOf(pSemplice.getCodice()), pSemplice.getNome(),
+                            java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
 
-                for (it.polimi.tiw.model.SKU sku : pSemplice.getSKUs()) {
-                    dao.addSku(idGenerato, sku.getId());
-                }
-                // Calcola prezzoMin/prezzoMax dal MIN/MAX dei prezzi delle SKU associate
-                dao.calcolaPrezziDaSku(idGenerato);
-            } else if (prodottoInviato instanceof ProdottoComposto pComposto) {
-                // Validazione V1: prezzoMin >= somma dei prezzoMin dei figli
-                // Validazione V2: prezzoMax > prezzoMin
-                java.math.BigDecimal pMin = pComposto.getPrezzoMin();
-                java.math.BigDecimal pMax = pComposto.getPrezzoMax();
-                if (pMin == null) pMin = java.math.BigDecimal.ZERO;
-                if (pMax == null) pMax = java.math.BigDecimal.ZERO;
+                    for (it.polimi.tiw.model.SKU sku : pSemplice.getSKUs()) {
+                        dao.addSku(idGenerato, sku.getId());
+                    }
+                    // Calcola prezzoMin/prezzoMax dal MIN/MAX dei prezzi delle SKU associate
+                    dao.calcolaPrezziDaSku(idGenerato);
+                } else if (prodottoInviato instanceof ProdottoComposto pComposto) {
+                    // Validazione V1: prezzoMin >= somma dei prezzoMin dei figli
+                    // Validazione V2: prezzoMax > prezzoMin
+                    java.math.BigDecimal pMin = pComposto.getPrezzoMin();
+                    java.math.BigDecimal pMax = pComposto.getPrezzoMax();
+                    if (pMin == null) pMin = java.math.BigDecimal.ZERO;
+                    if (pMax == null) pMax = java.math.BigDecimal.ZERO;
 
-                if (pMax.compareTo(pMin) <= 0) {
-                    sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                            "Il prezzo massimo deve essere strettamente maggiore del prezzo minimo");
+                    if (pMax.compareTo(pMin) <= 0) {
+                        connection.rollback();
+                        sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                                "Il prezzo massimo deve essere strettamente maggiore del prezzo minimo");
+                        return;
+                    }
+
+                    if (pComposto.getFigli() != null && !pComposto.getFigli().isEmpty()) {
+                        java.math.BigDecimal sommaMin = java.math.BigDecimal.ZERO;
+                        for (Prodotto figlio : pComposto.getFigli()) {
+                            Prodotto figlioDb = dao.findById(figlio.getId());
+                            if (figlioDb != null && figlioDb.getPrezzoMin() != null) {
+                                sommaMin = sommaMin.add(figlioDb.getPrezzoMin());
+                            }
+                        }
+                        if (pMin.compareTo(sommaMin) < 0) {
+                            connection.rollback();
+                            sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                                    "Il prezzo minimo deve essere almeno " + sommaMin.setScale(2, java.math.RoundingMode.HALF_UP) + " € (somma dei prezzi min dei sottoprodotti)");
+                            return;
+                        }
+                    }
+
+                    idGenerato = dao.insertComposto(String.valueOf(pComposto.getCodice()), pComposto.getNome(),
+                            pComposto.getDescrizione(), pMin, pMax);
+
+                    if (pComposto.getFigli() != null) {
+                        for (Prodotto figlio : pComposto.getFigli()) {
+                            // Vincolo profondità: il padre appena creato è la radice (livello 1);
+                            // il figlio con il suo sotto-albero non deve far superare i 3 livelli.
+                            int profonditaFiglio = dao.calcolaProfondita(figlio.getId());
+                            if (1 + profonditaFiglio > 3) {
+                                connection.rollback();
+                                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                                        "Impossibile aggiungere il figlio: la profondità massima dell'albero (3 livelli) verrebbe superata");
+                                return;
+                            }
+                            // Vincolo aciclicità
+                            if (!dao.verificaAciclicita(idGenerato, figlio.getId())) {
+                                connection.rollback();
+                                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                                        "Impossibile aggiungere il figlio: si creerebbe un ciclo nell'albero");
+                                return;
+                            }
+                            // Vincolo: il figlio semplice deve avere almeno una SKU
+                            Prodotto figlioCompleto = dao.findById(figlio.getId());
+                            if (figlioCompleto != null && "SEMPLICE".equals(figlioCompleto.getTipo())) {
+                                if (dao.contaSkuAssociate(figlio.getId()) == 0) {
+                                    connection.rollback();
+                                    sendError(response, HttpServletResponse.SC_BAD_REQUEST,
+                                            "Il prodotto semplice \"" + figlioCompleto.getNome() + "\" non ha SKU associate");
+                                    return;
+                                }
+                            }
+                            dao.addFiglio(idGenerato, figlio.getId());
+                        }
+                    }
+                } else {
+                    connection.rollback();
+                    sendError(response, HttpServletResponse.SC_BAD_REQUEST, "Tipo prodotto sconosciuto");
                     return;
                 }
 
-                if (pComposto.getFigli() != null && !pComposto.getFigli().isEmpty()) {
-                    java.math.BigDecimal sommaMin = java.math.BigDecimal.ZERO;
-                    for (Prodotto figlio : pComposto.getFigli()) {
-                        Prodotto figlioDb = dao.findById(figlio.getId());
-                        if (figlioDb != null && figlioDb.getPrezzoMin() != null) {
-                            sommaMin = sommaMin.add(figlioDb.getPrezzoMin());
-                        }
-                    }
-                    if (pMin.compareTo(sommaMin) < 0) {
-                        sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                                "Il prezzo minimo deve essere almeno " + sommaMin.setScale(2, java.math.RoundingMode.HALF_UP) + " € (somma dei prezzi min dei sottoprodotti)");
-                        return;
-                    }
-                }
-
-                idGenerato = dao.insertComposto(String.valueOf(pComposto.getCodice()), pComposto.getNome(),
-                        pComposto.getDescrizione(), pMin, pMax);
-
-                if (pComposto.getFigli() != null) {
-                    for (Prodotto figlio : pComposto.getFigli()) {
-                        // Vincolo profondità: il padre appena creato è la radice (livello 1);
-                        // il figlio con il suo sotto-albero non deve far superare i 3 livelli.
-                        int profonditaFiglio = dao.calcolaProfondita(figlio.getId());
-                        if (1 + profonditaFiglio > 3) {
-                            sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                                    "Impossibile aggiungere il figlio: la profondità massima dell'albero (3 livelli) verrebbe superata");
-                            return;
-                        }
-                        // Vincolo aciclicità
-                        if (!dao.verificaAciclicita(idGenerato, figlio.getId())) {
-                            sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                                    "Impossibile aggiungere il figlio: si creerebbe un ciclo nell'albero");
-                            return;
-                        }
-                        // Vincolo: il figlio semplice deve avere almeno una SKU
-                        Prodotto figlioCompleto = dao.findById(figlio.getId());
-                        if (figlioCompleto != null && "SEMPLICE".equals(figlioCompleto.getTipo())) {
-                            if (dao.contaSkuAssociate(figlio.getId()) == 0) {
-                                sendError(response, HttpServletResponse.SC_BAD_REQUEST,
-                                        "Il prodotto semplice \"" + figlioCompleto.getNome() + "\" non ha SKU associate");
-                                return;
-                            }
-                        }
-                        dao.addFiglio(idGenerato, figlio.getId());
-                    }
-                }
-            } else {
-                sendError(response, HttpServletResponse.SC_BAD_REQUEST, "Tipo prodotto sconosciuto");
-                return;
+                connection.commit();
+            } catch (SQLException | IllegalStateException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(autoCommitOriginale);
             }
 
             // --- Fase 5: Risposta di successo ---
