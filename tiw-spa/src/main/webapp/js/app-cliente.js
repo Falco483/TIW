@@ -515,29 +515,41 @@ const AppCliente = {
      * @param {Object} voci - Map idProdotto → VoceConfigurazioneDTO
      * @returns {HTMLElement}
      */
-    buildNodoDettaglio: function (nodo, voci) {
+    buildNodoDettaglio: function (nodo, voci, livello = 0) {
         const wrapper = document.createElement('div');
-        if (nodo.tipo === 'COMPOSTO' || nodo.tipo === 'SEMPLICE') {
-            wrapper.style.cssText = 'margin: 0.4rem 0 0.4rem 1.25rem; padding-left: 0.75rem; border-left: 2px solid var(--card-border);';
-        }
+        wrapper.className = 'dettaglio-nodo';
+        wrapper.dataset.livello = livello;
 
-        const label = document.createElement('div');
-        label.className = 'node-label';
-        label.style.cssText = 'margin-bottom: 0.3rem;';
-        label.textContent = nodo.nome;
-        wrapper.appendChild(label);
+        if (nodo.tipo === 'COMPOSTO') {
+            // Intestazione: badge + nome
+            const header = document.createElement('div');
+            header.className = 'dettaglio-nodo-header dettaglio-header-composto';
+            header.innerHTML = `<span class="badge badge-composto">COMPOSTO</span>
+                                <span class="dettaglio-nodo-nome">${this.escapeHtml(nodo.nome)}</span>`;
+            wrapper.appendChild(header);
 
-        if (nodo.tipo === 'SEMPLICE') {
-            // voci ha chiavi stringa (JSON object keys sono sempre stringhe)
+            // Figli ricorsivi
+            const childrenWrap = document.createElement('div');
+            childrenWrap.className = 'dettaglio-children';
+            (nodo.figli || []).forEach(figlio => {
+                childrenWrap.appendChild(this.buildNodoDettaglio(figlio, voci, livello + 1));
+            });
+            wrapper.appendChild(childrenWrap);
+
+        } else if (nodo.tipo === 'SEMPLICE') {
+            // Intestazione: badge + nome
+            const header = document.createElement('div');
+            header.className = 'dettaglio-nodo-header dettaglio-header-semplice';
+            header.innerHTML = `<span class="badge badge-semplice">SEMPLICE</span>
+                                <span class="dettaglio-nodo-nome">${this.escapeHtml(nodo.nome)}</span>`;
+            wrapper.appendChild(header);
+
+            // Card SKU scelta
             const voce = voci[String(nodo.id)];
             if (voce) {
-                // VoceConfigurazioneDTO → { sku: SKU, prezzoCongelato: BigDecimal }
                 const sku = voce.sku || {};
                 const tpl = document.getElementById('tpl-dettaglio-sku').content.cloneNode(true);
-                tpl.querySelector('.sku-nome').textContent = sku.nome || '—';
-                tpl.querySelector('.sku-desc').textContent = sku.descrizioneTecnica || '';
-                tpl.querySelector('.sku-prezzo').textContent =
-                    `€${parseFloat(voce.prezzoCongelato || 0).toFixed(2)} (prezzo al momento della configurazione)`;
+                const card = tpl.querySelector('.sku-detail-card');
 
                 const img = tpl.querySelector('.sku-foto');
                 if (sku.fotografia) {
@@ -545,17 +557,22 @@ const AppCliente = {
                     img.style.display = 'block';
                 }
 
-                wrapper.appendChild(tpl.querySelector('.sku-detail-card'));
-            }
+                // Titolo: codice + ' – ' + nome
+                const nomeEl = tpl.querySelector('.sku-nome');
+                nomeEl.textContent = (sku.codice ? sku.codice + ' – ' : '') + (sku.nome || '—');
 
-        } else if (nodo.tipo === 'COMPOSTO') {
-            (nodo.figli || []).forEach(figlio => {
-                wrapper.appendChild(this.buildNodoDettaglio(figlio, voci));
-            });
+                tpl.querySelector('.sku-desc').textContent = sku.descrizioneTecnica || '';
+
+                tpl.querySelector('.sku-prezzo').textContent =
+                    `${parseFloat(voce.prezzoCongelato || 0).toFixed(2)} € (prezzo al momento della configurazione)`;
+
+                wrapper.appendChild(card);
+            }
         }
 
         return wrapper;
     },
+
 
     // -------------------------------------------------------------------------
     // Sezione 4: Le mie Configurazioni

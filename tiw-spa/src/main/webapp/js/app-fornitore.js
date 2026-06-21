@@ -621,14 +621,27 @@ const AppFornitore = {
 
     /**
      * Gestisce l'azione di eliminazione di un intero nodo dell'albero.
-     * Aggiunge l'azione di "DELETE_NODE" alla coda pendente e lo rimuove visivamente.
+     * Se il nodo è la radice dell'albero, delega a deleteProdottoFromDB (eliminazione immediata su DB).
+     * Altrimenti richiede conferma e accoda l'azione DELETE_NODE per il salvataggio.
      * @param {HTMLElement} nodeDiv - L'elemento DOM del nodo da eliminare.
      */
-    handleTreeDelete: function (nodeDiv) {
+    handleTreeDelete: async function (nodeDiv) {
         const id = nodeDiv.dataset.id;
-        treeModel.removeNode(this.stato.currentTree, id);
-        this.enqueueAction({ action: 'DELETE_NODE', id: id });
-        this.renderTreeView(this.stato.currentTree);
+
+        // Se il nodo è la radice dell'albero corrente, usa la delete diretta su DB
+        if (this.stato.currentTree && String(this.stato.currentTree.id) === String(id)) {
+            await this.deleteProdottoFromDB(id);
+            return;
+        }
+
+        const confermato = await this.confermaAzione('Eliminare definitivamente questo nodo (e tutti i suoi discendenti)? L\'operazione sarà applicata al salvataggio.');
+        if (!confermato) return;
+
+        this.eseguiOperazione(() => {
+            treeModel.removeNode(this.stato.currentTree, id);
+            this.enqueueAction({ action: 'DELETE_NODE', id: id });
+            this.renderTreeView(this.stato.currentTree);
+        });
     },
 
     /**
@@ -696,6 +709,10 @@ const AppFornitore = {
             // pregressa potrebbe riferirsi a entità ora inesistenti: la azzeriamo per coerenza.
             history.clear();
             this.aggiornaPulsantiUndoRedo();
+
+            // Aggiorna anche la lista dei prodotti orfani (un prodotto semplice che
+            // perde tutte le SKU potrebbe diventare orfano, o cambiare disponibilità)
+            this.aggiornaOrfani();
 
             this.mostraMessaggio('SKU eliminata definitivamente', 'success');
         } catch (err) {
@@ -962,9 +979,10 @@ const AppFornitore = {
                 // R15: le modifiche sono persistite → la cronologia client-side va azzerata
                 history.clear();
                 this.aggiornaPulsantiUndoRedo();
-                // Rinfresca l'elenco dei prodotti disponibili nel form del composto,
+                // Rinfresca entrambe le liste dei form (prodotti orfani e SKU)
                 // così le modifiche appena salvate sul DB vi si riflettono
                 this.aggiornaOrfani();
+                this.aggiornaSkus();
                 // Ricarichiamo l'albero per essere sicuri
                 const rootDiv = document.querySelector('.tree-node');
                 if (rootDiv && rootDiv.dataset.id && !rootDiv.dataset.id.startsWith('temp_')) {
@@ -1002,6 +1020,9 @@ const AppFornitore = {
             // Rimuovi anche l'eventuale item dalla lista dei risultati di ricerca
             const searchItem = document.querySelector(`.search-result-item[data-id="${id}"]`);
             if (searchItem) searchItem.remove();
+            // Aggiorna la lista dei prodotti orfani (un prodotto semplice associato solo a
+            // questa SKU potrebbe ora risultare non configurabile)
+            this.aggiornaOrfani();
         } catch (err) {
             this.mostraMessaggio(err.message, "error");
         }
@@ -1241,6 +1262,22 @@ const AppFornitore = {
     },
 
     /**
+     * Aggiorna la lista locale delle SKU disponibili recuperandole dal server.
+     * Forza il re-render della lista delle checkbox SKU nel form "Crea Prodotto Semplice".
+     */
+    aggiornaSkus: async function () {
+        try {
+            const res = await api.getAllSkus();
+            if (res && res.data) {
+                this.stato.skusDisponibili = res.data;
+                this.renderSkuCheckboxList();
+            }
+        } catch (e) {
+            console.error("Failed to fetch SKUs", e);
+        }
+    },
+
+    /**
      * Gestisce la ricerca su SKU, prodotti semplici e composti (per nome/descrizione).
      * Invia la query all'API di ricerca e renderizza dinamicamente i risultati con i rispettivi badge.
      * @param {Event} e - L'evento di submit del form di ricerca.
@@ -1252,6 +1289,17 @@ const AppFornitore = {
             this.mostraMessaggio('Inserisci un termine di ricerca prima di cercare.', 'error');
             return;
         }
+        // Salva l'ultima query per poter aggiornare i risultati dopo un'eliminazione
+        this.stato.ultimaRicerca = q.trim();
+        await this.eseguiRicerca(q.trim());
+    },
+
+    /**
+     * Esegue concretamente la ricerca per la query fornita e aggiorna il contenitore dei risultati.
+     * Separato da handleSearch per poter essere richiamato in modo autonomo (es. dopo un'eliminazione).
+     * @param {string} q - Il termine di ricerca.
+     */
+    eseguiRicerca: async function (q) {
         const container = document.getElementById('risultati-container');
         container.innerHTML = '<div style="text-align:center; padding: 2rem;"><span class="spinner"></span></div>';
         try {
@@ -1292,6 +1340,16 @@ const AppFornitore = {
                     <i class="fa-solid fa-magnifying-glass empty-icon"></i>
                     <p>Effettua una ricerca per visualizzare i risultati.</p>
                 </div>`;
+        }
+    },
+
+    /**
+     * Ri-esegue l'ultima ricerca effettuata, se disponibile.
+     * Usato per aggiornare i risultati dopo un'eliminazione.
+     */
+    aggiornaRisultatiRicerca: async function () {
+        if (this.stato.ultimaRicerca) {
+            await this.eseguiRicerca(this.stato.ultimaRicerca);
         }
     },
 
@@ -1350,14 +1408,20 @@ const AppFornitore = {
             const item = document.querySelector(`.search-result-item[data-id="${id}"]`);
             if (item) item.remove();
 
-            // Pulisci area dettaglio se stavamo guardando questo
+            // Pulisci area dettaglio se stavamo guardando questo prodotto:
+            // controlla sia la card semplice sia il tree (nodo radice con data-id)
             const createdCard = document.querySelector(`.prodotto-created-card[data-prod-id="${id}"]`);
-            if (createdCard) {
+            const rootTreeNode = document.querySelector(`.tree-node[data-id="${id}"]`);
+            if (createdCard || rootTreeNode) {
                 document.getElementById('dettaglio-content').innerHTML = '';
                 document.getElementById('dettaglio-creazione').style.display = 'none';
             }
 
+            // Aggiorna entrambe le liste dei form di creazione
             this.aggiornaOrfani();
+            this.aggiornaSkus();
+            // Se c'è una ricerca attiva, aggiorna i risultati
+            this.aggiornaRisultatiRicerca();
         } catch (err) {
             this.mostraMessaggio("Errore eliminazione: " + err.message, "error");
         }
