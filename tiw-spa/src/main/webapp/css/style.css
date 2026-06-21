@@ -240,6 +240,35 @@
         background: #fafbfc;
     }
 
+    /* --- PRODOTTO SEMPLICE: espandi la checkbox-list per riempire lo spazio vuoto ---
+       La catena flex card → form → form-group distribuisce l'altezza già fissata dalla grid
+       (determinata dalla card destra, che è più alta per via dei suoi campi aggiuntivi).
+       max-height: 300px limita la crescita naturale della lista affinché la card centrale
+       non superi l'altezza della card destra, evitando che la grid row si espanda. */
+    #card-semplice {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #form-semplice {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    #form-semplice .form-group:has(#lista-skus-checkbox) {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    #form-semplice #lista-skus-checkbox {
+        flex: 1;
+        max-height: 300px;
+        min-height: 80px;
+    }
+
     .checkbox-item {
         display: flex;
         align-items: flex-start;
@@ -804,6 +833,93 @@
         margin-top: 0.5rem;
     }
 
+    /* ===== DETTAGLIO CONFIGURAZIONE (read-only tree) ===== */
+
+    /* Nodo radice: nessuna indentazione */
+    .dettaglio-nodo {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Nodi figli: indentazione + bordo sinistro colorato per livello */
+    .dettaglio-children > .dettaglio-nodo {
+        margin-top: 0.75rem;
+        padding-left: 1.25rem;
+        border-left: 3px solid var(--badge-composto);
+    }
+
+    /* Secondo livello (SEMPLICE dentro COMPOSTO): bordo verde */
+    .dettaglio-children > .dettaglio-nodo > .dettaglio-children > .dettaglio-nodo {
+        border-left-color: var(--badge-semplice);
+    }
+
+    /* Header di ogni nodo: badge + nome affiancati */
+    .dettaglio-nodo-header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.6rem;
+        padding: 0.35rem 0;
+    }
+
+    .dettaglio-nodo-nome {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Card SKU nel dettaglio */
+    .sku-detail-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-sm);
+        padding: 0.85rem 1rem;
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow var(--transition);
+    }
+
+    .sku-detail-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .sku-foto {
+        width: 56px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--card-border);
+        flex-shrink: 0;
+    }
+
+    .sku-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .sku-nome {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.2rem;
+    }
+
+    .sku-desc {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.35rem;
+        line-height: 1.4;
+    }
+
+    .sku-prezzo {
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--accent);
+    }
+
     /* --- MESSAGGI TOAST DI NOTIFICA ---
        Posizionati in alto a destra in modo fluttuante per fornire feedback immediati
        sull'esito delle operazioni (salvataggio, cancellazione, errori).
@@ -846,8 +962,8 @@
     }
 
     .toast-info {
-        background: #fff;
-        color: #000;
+        background: var(--warning);
+        color: #fff;
     }
 
     @keyframes slideInToast {
