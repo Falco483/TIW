@@ -6,6 +6,9 @@ Configuratore di prodotti realizzato in due versioni: pura HTML (`tiw-ssr`) e
 SPA JavaScript (`tiw-spa`), entrambe deployate come WAR separati su Apache
 Tomcat 10.1.
 
+## 📄 Final Relation
+[![View Final Report](https://img.shields.io/badge/View-Final%20Report-blue?style=for-the-badge&logo=adobe-acrobat-reader)](https://github.com/Falco483/TIW/blob/main/documentation/Presentazione_Progetto_TIW_Gruppo_12.pdf)
+
 ## Setup fotografie
 
 Le fotografie delle SKU sono salvate in una **directory esterna condivisa** dalle
